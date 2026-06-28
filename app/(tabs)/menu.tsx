@@ -11,13 +11,9 @@ import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Image } from "expo-image";
-import { apiClient } from "@/src/utils/apiClient";
-import type { Category, Dish } from "@/src/data/menu";
+import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -25,14 +21,131 @@ const ALL_FILTER = { id: "all", name: "All", icon: "grid", image: "" };
 
 export type SortOption = "popular" | "price-asc" | "price-desc" | "rating";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+interface FlyingDishProps {
+  startX: number;
+  startY: number;
+  startWidth: number;
+  startHeight: number;
+  image: string;
+  targetX: number;
+  targetY: number;
+  viewMode: "grid" | "cinematic";
+  onAnimationComplete: () => void;
+}
+
+const FlyingDish: React.FC<FlyingDishProps> = ({
+  startX,
+  startY,
+  startWidth,
+  startHeight,
+  image,
+  targetX,
+  targetY,
+  viewMode,
+  onAnimationComplete,
+}) => {
+  const animatedX = useRef(new RNAnimated.Value(startX)).current;
+  const animatedY = useRef(new RNAnimated.Value(startY)).current;
+  const animatedScale = useRef(new RNAnimated.Value(1)).current;
+  const animatedOpacity = useRef(new RNAnimated.Value(1)).current;
+  const animatedRotation = useRef(new RNAnimated.Value(0)).current;
+
+  const imageWidth = startWidth;
+  const imageHeight = viewMode === "cinematic" ? 140 : 160;
+
+  useEffect(() => {
+    // 1. Pop out of the page (lift slightly and scale up)
+    RNAnimated.parallel([
+      RNAnimated.timing(animatedScale, {
+        toValue: 1.15,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(animatedY, {
+        toValue: startY - 20,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // 2. Flight path to the cart (curved fall, rotation, fade and scale down)
+      RNAnimated.parallel([
+        RNAnimated.timing(animatedX, {
+          toValue: targetX - imageWidth / 2,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(animatedY, {
+          toValue: targetY - imageHeight / 2,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(animatedScale, {
+          toValue: 0.08,
+          duration: 650,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(animatedRotation, {
+          toValue: 1, // spin 1.5 times (540 deg)
+          duration: 650,
+          useNativeDriver: true,
+        }),
+        RNAnimated.sequence([
+          RNAnimated.delay(450),
+          RNAnimated.timing(animatedOpacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => {
+        onAnimationComplete();
+      });
+    });
+  }, []);
+
+  const rotate = animatedRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "540deg"],
+  });
+
+  return (
+    <RNAnimated.Image
+      source={{ uri: image }}
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: imageWidth,
+        height: imageHeight,
+        borderRadius: viewMode === "cinematic" ? 20 : 16,
+        borderWidth: 2,
+        borderColor: colors.gold,
+        transform: [
+          { translateX: animatedX },
+          { translateY: animatedY },
+          { scale: animatedScale },
+          { rotate: rotate },
+        ],
+        opacity: animatedOpacity,
+        zIndex: 99999,
+      }}
+    />
+  );
+};
+
 export default function MenuScreen() {
-  const { addToCart, dishes: apiDishes, categories: apiCategories } = useApp();
+  const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
   const router = useRouter();
 
-  const filters = useMemo(() => [ALL_FILTER, ...(apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES)], [apiCategories]);
-  
+  const filters = useMemo(() => {
+    const list = apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    return [ALL_FILTER, ...list.filter(cat => cat.id !== "veg" && cat.id !== "non-veg" && cat.id !== "nonveg")];
+  }, [apiCategories]);
+
   // Filter states
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -41,10 +154,67 @@ export default function MenuScreen() {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [viewMode, setViewMode] = useState<"grid" | "cinematic">("grid");
   const [showExtendedFilters, setShowExtendedFilters] = useState(false);
-  const [showFeaturedBanner, setShowFeaturedBanner] = useState(true);
   const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
-  
+
+  interface FlyingItem {
+    id: string;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    image: string;
+  }
+
+  const [flyingItems, setFlyingItems] = useState<FlyingItem[]>([]);
+  const cartButtonRef = useRef<any>(null);
+  const [cartCoords, setCartCoords] = useState({ x: SCREEN_WIDTH - 37, y: 55 });
+
   const cardRefs = useRef<Record<string, any>>({});
+
+  useEffect(() => {
+    // Measure cart button coordinates relative to the window
+    const timer = setTimeout(() => {
+      cartButtonRef.current?.measureInWindow((x: number, y: number, w: number, h: number) => {
+        if (w > 0 && h > 0) {
+          setCartCoords({ x: x + w / 2, y: y + h / 2 });
+        }
+      });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleAddToCart = (dish: any) => {
+    addToCart(dish);
+    const card = cardRefs.current[dish.id];
+    if (card && card.measureInWindow) {
+      card.measureInWindow((x: number, y: number, w: number, h: number) => {
+        if (w > 0 && h > 0) {
+          setFlyingItems((prev) => [
+            ...prev,
+            {
+              id: `${dish.id}-${Date.now()}-${Math.random()}`,
+              startX: x,
+              startY: y,
+              startWidth: w,
+              startHeight: h,
+              image: dish.image,
+            },
+          ]);
+        }
+      });
+    }
+  };
+
+  const handleAnimationComplete = (id: string) => {
+    setFlyingItems((prev) => prev.filter((item) => item.id !== id));
+
+    // Trigger cart bump animation
+    cartBumpAnim.setValue(0);
+    RNAnimated.sequence([
+      RNAnimated.timing(cartBumpAnim, { toValue: 1.2, duration: 150, useNativeDriver: true }),
+      RNAnimated.timing(cartBumpAnim, { toValue: 1.0, duration: 150, useNativeDriver: true }),
+    ]).start();
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -142,66 +312,27 @@ export default function MenuScreen() {
       .filter((section) => section.dishes.length > 0);
   }, [filteredDishes, selectedCategory, apiCategories]) as MenuSectionData[];
 
-  const featuredDish = useMemo(() => {
-    const dishesSource = apiDishes.length > 0 ? apiDishes : DISHES;
-    return dishesSource.find(d => d.id === "d-cs-1") ?? dishesSource[0];
-  }, [apiDishes]);
+
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <TopBar variant="minimal" />
+      <TopBar variant="minimal" cartRef={cartButtonRef} />
 
       <Animated.ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[showFeaturedBanner ? 3 : 2]}
+        stickyHeaderIndices={[2]}
         keyboardShouldPersistTaps="handled"
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
         {/* Executive Header */}
         <View style={styles.menuHeader}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingRight: 60 }}>
             <Text style={styles.kicker}>ROYAL CULINARY SELECTION</Text>
             <Text style={styles.headerTitle}>Master Menu</Text>
           </View>
-
-          <TouchableOpacity 
-            onPress={() => setShowFeaturedBanner(!showFeaturedBanner)}
-            style={styles.toggleBannerBtn}
-          >
-            <Ionicons name={showFeaturedBanner ? "eye-off-outline" : "sparkles-outline"} size={14} color={colors.gold} />
-            <Text style={styles.toggleBannerText}>{showFeaturedBanner ? "Compact View" : "Show Spotlight"}</Text>
-          </TouchableOpacity>
         </View>
-
-        {/* Featured Today Spotlight Reel (Collapsible) */}
-        {showFeaturedBanner && (
-          <View style={styles.bannerWrap}>
-            <TouchableOpacity activeOpacity={0.92} onPress={() => openDish(featuredDish)} style={styles.bannerCard}>
-              <Image source={{ uri: featuredDish.image }} style={styles.bannerImg} />
-              <LinearGradient
-                colors={["rgba(10,10,10,0.15)", "rgba(10,10,10,0.7)", "rgba(10,10,10,0.98)"]}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.bannerBadge}>
-                <Ionicons name="sparkles" size={11} color="#000" />
-                <Text style={styles.bannerBadgeText}>CHEF'S SIGNATURE</Text>
-              </View>
-              <View style={styles.bannerContent}>
-                <Text style={styles.bannerTitle}>{featuredDish.name}</Text>
-                <Text style={styles.bannerDesc} numberOfLines={1}>{featuredDish.description}</Text>
-                <View style={styles.bannerFooter}>
-                  <Text style={styles.bannerPrice}>₹{featuredDish.price}</Text>
-                  <View style={styles.orderPill}>
-                    <Text style={styles.orderPillText}>View Signature</Text>
-                    <Ionicons name="chevron-forward" size={11} color="#000" />
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Menu Search Bar */}
         <MenuSearchBar
@@ -219,9 +350,16 @@ export default function MenuScreen() {
             onSelect={setSelectedCategory}
           />
 
-          {/* Unified Compact Control Row */}
-          <View style={styles.hudRow}>
+          {/* Dietary Segment Row (Spacious & Clean) */}
+          <View style={styles.dietaryRow}>
             <DietaryFilter value={dishType} onChange={setDishType} />
+          </View>
+
+          {/* HUD actions Row (Spacious controls and result indicator) */}
+          <View style={styles.hudRow}>
+            <Text style={styles.resultCountText}>
+              Showing {filteredDishes.length} {filteredDishes.length === 1 ? 'dish' : 'dishes'}
+            </Text>
 
             <View style={styles.hudActions}>
               {/* Filter Drawer Toggle */}
@@ -312,7 +450,7 @@ export default function MenuScreen() {
                 section={section}
                 favorites={favoritesIds}
                 onToggleFavorite={toggleFavorite}
-                onAddToCart={addToCart}
+                onAddToCart={handleAddToCart}
                 onOpen={openDish}
                 onCardRef={(dishId, node) => { cardRefs.current[dishId] = node; }}
                 viewMode={viewMode}
@@ -321,6 +459,21 @@ export default function MenuScreen() {
           </View>
         )}
       </Animated.ScrollView>
+
+      {flyingItems.map((item) => (
+        <FlyingDish
+          key={item.id}
+          startX={item.startX}
+          startY={item.startY}
+          startWidth={item.startWidth}
+          startHeight={item.startHeight}
+          image={item.image}
+          targetX={cartCoords.x}
+          targetY={cartCoords.y}
+          viewMode={viewMode}
+          onAnimationComplete={() => handleAnimationComplete(item.id)}
+        />
+      ))}
     </SafeAreaView>
   );
 }
@@ -441,11 +594,11 @@ const styles = StyleSheet.create({
   },
   stickyFilters: {
     backgroundColor: colors.bg,
-    paddingTop: 6,
-    paddingBottom: 10,
+    paddingTop: 12,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    gap: 8,
+    gap: 18,
   },
   hudRow: {
     flexDirection: "row",
@@ -453,6 +606,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     gap: 10,
+    marginTop: 8,
+  },
+  dietaryRow: {
+    paddingHorizontal: 16,
+    flexDirection: "row",
+  },
+  resultCountText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   hudActions: {
     flexDirection: "row",
@@ -463,7 +627,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: "rgba(255, 0, 0, 0.03)",
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 10,
@@ -510,17 +674,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.05)",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 10,
+    paddingVertical: 14,
+    gap: 16,
   },
   filterGroup: {
-    gap: 6,
+    gap: 8,
   },
   filterGroupTitle: {
     color: colors.textSecondary,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 1.5,
+    letterSpacing: 1.8,
+    marginBottom: 4,
   },
   chipGrid: {
     flexDirection: "row",

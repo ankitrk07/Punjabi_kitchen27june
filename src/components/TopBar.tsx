@@ -2,17 +2,22 @@ import { useApp } from "@/src/context/AppContext";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
+import { colors } from "@/src/theme";
 import React from "react";
 import { Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type TopBarProps = {
   variant?: "full" | "minimal";
   scrollY?: number;
+  cartRef?: React.RefObject<any>;
 };
 
-export default function TopBar({ variant = "full", scrollY }: TopBarProps) {
-  const { cartBumpAnim, selectedAddress } = useApp();
+export default function TopBar({ variant = "full", scrollY, cartRef }: TopBarProps) {
+  const { cartBumpAnim, selectedAddress, cart } = useApp();
   const router = useRouter();
+  
+  const cartCount = cart?.reduce((sum, item) => sum + item.qty, 0) || 0;
+  
   const progress = Math.min((scrollY ?? 0) / 84, 1);
   const hideLocations = progress > 0.28;
   const showCartPocket = progress > 0.08;
@@ -48,7 +53,23 @@ export default function TopBar({ variant = "full", scrollY }: TopBarProps) {
   };
 
   if (variant === "minimal") {
-    return <View style={styles.minimalBar} />;
+    return (
+      <View style={[styles.minimalBar, { zIndex: 100 }]}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={{ color: "#FFF", fontSize: 18, fontWeight: "900", letterSpacing: 0.5 }}>Punjabi Kitchen</Text>
+          <RNAnimated.View ref={cartRef} style={styles.heartBtn}>
+            <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
+              <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+              {cartCount > 0 && (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </RNAnimated.View>
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -98,9 +119,14 @@ export default function TopBar({ variant = "full", scrollY }: TopBarProps) {
           </View>
         </TouchableOpacity>
 
-        <RNAnimated.View style={[styles.heartBtn, cartStyle]}>
+        <RNAnimated.View ref={cartRef} style={[styles.heartBtn, cartStyle]}>
           <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
             <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </RNAnimated.View>
       </LinearGradient>
@@ -202,7 +228,32 @@ const styles = StyleSheet.create({
   },
 
   minimalBar: {
-    height: 16,
-    backgroundColor: "transparent", 
+    height: 56,
+    backgroundColor: colors.bg, 
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+
+  cartBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#D4AF37",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#000",
+  },
+  
+  cartBadgeText: {
+    color: "#000",
+    fontSize: 10,
+    fontWeight: "bold",
+    paddingHorizontal: 4,
   },
 });

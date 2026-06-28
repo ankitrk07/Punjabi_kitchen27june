@@ -16,7 +16,7 @@ type Props = {
   section: MenuSectionData;
   favorites: string[];
   onToggleFavorite: (id: string) => void;
-  onAddToCart: (dish: Dish) => void;
+  onAddToCart: (dish: Dish, clickCoords?: { x: number; y: number }) => void;
   onOpen: (dish: Dish) => void;
   onCardRef: (dishId: string, node: any) => void;
   viewMode?: "grid" | "cinematic";

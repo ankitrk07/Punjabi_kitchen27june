@@ -34,14 +34,14 @@ export default function CategoryFilterBar({ filters, selectedId, onSelect }: Pro
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 16, gap: 10 },
+  row: { paddingHorizontal: 16, gap: 18, paddingBottom: 10 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    height: 38,
-    borderRadius: 19,
+    gap: 8,
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderGold,

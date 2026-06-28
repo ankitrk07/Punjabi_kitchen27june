@@ -10,7 +10,7 @@ type Props = {
   dish: Dish;
   isFavorite: boolean;
   onToggleFavorite: (id: string) => void;
-  onAddToCart: (dish: Dish) => void;
+  onAddToCart: (dish: Dish, clickCoords?: { x: number; y: number }) => void;
   onOpen: (dish: Dish) => void;
   cardRef?: (node: any) => void;
   viewMode?: "grid" | "cinematic";
@@ -98,7 +98,7 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
 
             <TouchableOpacity
               style={styles.cinematicAddBtn}
-              onPress={() => onAddToCart(dish)}
+              onPress={(e) => onAddToCart(dish, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
               activeOpacity={0.8}
             >
               <Ionicons name="add" size={16} color="#0A0A0A" />
@@ -176,7 +176,7 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
           
           <TouchableOpacity
             style={styles.addPillBtn}
-            onPress={() => onAddToCart(dish)}
+            onPress={(e) => onAddToCart(dish, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
             testID={`add-${dish.id}`}
             activeOpacity={0.8}
           >
