@@ -777,7 +777,7 @@ export default function Profile() {
             <Ionicons name="arrow-back" size={22} color={GOLD} />
           </TouchableOpacity>
           <Text style={styles.floatingTitle}>Profile</Text>
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => router.push("/profile/settings/profile")} activeOpacity={0.7}>
             <Ionicons name="settings-outline" size={22} color={GOLD} />
           </TouchableOpacity>
         </LinearGradient>
