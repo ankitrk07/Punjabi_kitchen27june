@@ -1,0 +1,211 @@
+{
+  "brand": "Punjabi Kitchen",
+  "theme": "Dark",
+  "archetype": "5 (Jewel & Luxury)",
+  "color_palette": {
+    "background": "#0A0A0A",
+    "surface": "#141414",
+    "surface_glass": "rgba(10, 10, 10, 0.75)",
+    "primary": "#D4AF37",
+    "primary_hover": "#F3C846",
+    "accent": "#E58B22",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#A3A3A3",
+    "text_inverse": "#000000",
+    "border": "#262626",
+    "border_gold": "rgba(212, 175, 55, 0.3)",
+    "error": "#EF4444",
+    "success": "#10B981"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Cormorant Garamond, serif",
+      "weights": ["400", "600", "700"],
+      "letter_spacing": "tracking-tight"
+    },
+    "body": {
+      "font_family": "Outfit, sans-serif",
+      "weights": ["300", "400", "500"],
+      "letter_spacing": "tracking-normal"
+    },
+    "sizes": {
+      "h1": "text-4xl sm:text-5xl",
+      "h2": "text-2xl sm:text-3xl",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base",
+      "small": "text-sm",
+      "tiny": "text-xs uppercase tracking-[0.2em]"
+    }
+  },
+  "spacing_and_layout": {
+    "container": "w-full max-w-md mx-auto min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden relative shadow-2xl",
+    "padding": {
+      "page": "px-4 py-6",
+      "section": "py-8",
+      "card": "p-4"
+    },
+    "radii": {
+      "card": "rounded-2xl",
+      "button": "rounded-full",
+      "image": "rounded-xl"
+    },
+    "surfaces": {
+      "glass_header": "bg-black/70 backdrop-blur-xl border-b border-white/10",
+      "glass_bottom_nav": "bg-black/80 backdrop-blur-xl border-t border-white/10",
+      "card_flat": "bg-[#141414] border border-white/5",
+      "card_gold_trim": "bg-[#141414] border border-[#D4AF37]/30 shadow-[0_0_15px_rgba(212,175,55,0.05)]"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#D4AF37] text-black font-semibold rounded-full px-6 py-3 hover:bg-[#F3C846] transition-all active:scale-95",
+      "secondary": "bg-transparent border border-[#D4AF37] text-[#D4AF37] rounded-full px-6 py-3 hover:bg-[#D4AF37]/10 transition-all",
+      "ghost": "text-white/80 hover:text-[#D4AF37] transition-colors"
+    },
+    "header": {
+      "layout": "flex justify-between items-center sticky top-0 z-50 h-16 px-4"
+    },
+    "bottom_nav": {
+      "layout": "flex justify-around items-center fixed bottom-0 w-full max-w-md h-16 z-50 pb-safe"
+    },
+    "drawer": {
+      "layout": "fixed inset-y-0 left-0 w-3/4 max-w-sm bg-[#141414] border-r border-white/10 z-[60] transform transition-transform"
+    },
+    "carousel": {
+      "chef_special": "flex overflow-x-auto gap-4 scrollbar-hide snap-x snap-mandatory py-2",
+      "reviews": "flex overflow-x-auto gap-4 scrollbar-hide py-2"
+    }
+  },
+  "motion_and_animations": {
+    "add_to_cart": {
+      "description": "Dish image shrinks, floats up and right towards the cart icon, fading out.",
+      "framer_motion_spec": {
+        "initial": { "scale": 1, "opacity": 1, "x": 0, "y": 0 },
+        "animate": { "scale": 0.2, "opacity": 0, "x": 150, "y": -300 },
+        "transition": { "duration": 0.6, "ease": "easeInOut" }
+      }
+    },
+    "cart_foodie_icon": {
+      "description": "Cart icon bounces slightly when an item is added.",
+      "framer_motion_spec": {
+        "animate": { "y": [0, -10, 0] },
+        "transition": { "duration": 0.3 }
+      }
+    },
+    "marquee": {
+      "description": "Continuous auto-scroll from right to left for reviews.",
+      "library": "framer-motion or react-fast-marquee"
+    },
+    "page_transition": {
+      "initial": { "opacity": 0, "x": 20 },
+      "animate": { "opacity": 1, "x": 0 },
+      "exit": { "opacity": 0, "x": -20 }
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "usage": {
+      "menu": "Menu",
+      "cart": "ShoppingBag",
+      "home": "Home",
+      "orders": "Clock",
+      "profile": "User",
+      "address": "MapPin",
+      "offers": "Tag",
+      "payment": "CreditCard",
+      "help": "HelpCircle"
+    }
+  },
+  "media": {
+    "hero_banner": [
+      {
+        "url": "https://images.unsplash.com/photo-1766832255363-c9f060ade8b0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwzfHxpbmRpYW4lMjByZXN0YXVyYW50JTIwaW50ZXJpb3IlMjBkYXJrJTIwbHV4dXJ5fGVufDB8fHx8MTc3ODc5MDExNnww&ixlib=rb-4.1.0&q=85",
+        "description": "Elegant luxury Indian restaurant interior, dimly lit.",
+        "category": "hero"
+      }
+    ],
+    "chef_specials": [
+      {
+        "url": "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fGJpcnlhbml8ZW58MHx8fHwxNjg2NTk3NjI2&ixlib=rb-1.2.1&q=85",
+        "name": "Dum Biryani",
+        "category": "dish"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHw0fHxidXR0ZXIlMjBjaGlja2VuJTIwaW5kaWFuJTIwZm9vZHxlbnwwfHx8fDE3Nzg3OTAxMTZ8MA&ixlib=rb-4.1.0&q=85",
+        "name": "Butter Chicken",
+        "category": "dish"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwxfHx0YW5kb29yaSUyMGNoaWNrZW4lMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3Nzg3OTAxMTZ8MA&ixlib=rb-4.1.0&q=85",
+        "name": "Tandoori Chicken",
+        "category": "dish"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwyfHxpbmRpYW4lMjBuYWFuJTIwZmxhdGJyZWFkfGVufDB8fHx8MTc3ODc5MDExNnww&ixlib=rb-4.1.0&q=85",
+        "name": "Garlic Naan",
+        "category": "dish"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1708782340380-536df8cf6784?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwyfHxkYWwlMjBtYWtoYW5pfGVufDB8fHx8MTc3ODc5MDExNnww&ixlib=rb-4.1.0&q=85",
+        "name": "Dal Makhani",
+        "category": "dish"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fG11dHRvbnxlbnwwfHx8fDE2ODY1OTc2NjY&ixlib=rb-1.2.1&q=85",
+        "name": "Mutton Rogan Josh",
+        "category": "dish"
+      }
+    ],
+    "menu_categories": [
+      {
+        "url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDJ8fGluZGlhbiUyMHZlZ3xlbnwwfHx8fDE2ODY1OTc4MDA&ixlib=rb-1.2.1&q=85",
+        "name": "Veg",
+        "category": "category_thumb"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fGNoaWNrZW4lMjB0aWtrYXxlbnwwfHx8fDE2ODY1OTc4Mjg&ixlib=rb-1.2.1&q=85",
+        "name": "Non-Veg",
+        "category": "category_thumb"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fGJpcnlhbml8ZW58MHx8fHwxNjg2NTk3NjI2&ixlib=rb-1.2.1&q=85",
+        "name": "Biryani",
+        "category": "category_thumb"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1551024601-bec78aea704b?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fGRlc3NlcnR8ZW58MHx8fHwxNjg2NTk3ODUw&ixlib=rb-1.2.1&q=85",
+        "name": "Desserts",
+        "category": "category_thumb"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1544148103-0773bf10d330?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fGNvZmZlZXxlbnwwfHx8fDE2ODY1OTc4NzA&ixlib=rb-1.2.1&q=85",
+        "name": "Coffee & Drinks",
+        "category": "category_thumb"
+      }
+    ],
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDF8fHBvcnRyYWl0fGVufDB8fHx8MTY4NjU5Nzg5MA&ixlib=rb-1.2.1&q=85",
+        "gender": "female",
+        "category": "avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=srgb&fm=jpg&ixid=MnwzNjUyOXwwfDF8c2VhcmNofDJ8fHBvcnRyYWl0fGVufDB8fHx8MTY4NjU5Nzg5MA&ixlib=rb-1.2.1&q=85",
+        "gender": "male",
+        "category": "avatar"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Simulate a mobile app feel within a browser using max-w-md mx-auto, hide browser scrollbars, and frame it nicely with a dark border/shadow.",
+    "Do NOT use generic blue or white themes. Stick strictly to the #0A0A0A and #D4AF37 Golden Black palette.",
+    "Use framer-motion to implement the 'add to cart' floating animation. The image of the dish should duplicate, scale down, and animate towards the top right cart icon.",
+    "The 3 main CTAs (Dine In, Takeaway, Delivery) should be prominent below the hero banner. Give them a nice glassy gold trim.",
+    "Hamburger menu should slide in from the left, containing Profile, Orders, Addresses, Offers, Payments, and Help links.",
+    "Use mock data for everything. No backend required. Implement simple state for the cart.",
+    "All interactive elements must have a data-testid for automated testing.",
+    "Chef's Special and Customer Reviews should be implemented as horizontally scrolling flex containers (snap-x).",
+    "Menu Page: Display a grid of categories. Tapping one should animate to a list of dishes for that category."
+  ]
+}
+

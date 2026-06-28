@@ -1,0 +1,150 @@
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const CATEGORIES = [
+  { id: "veg", name: "Veg", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80" },
+  { id: "non-veg", name: "Non-Veg", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80" },
+  { id: "starters", name: "Starters", icon: "restaurant", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80" },
+  { id: "main-course", name: "Main Course", icon: "pizza", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80" },
+  { id: "chinese", name: "Chinese", icon: "fast-food", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80" },
+  { id: "chicken", name: "Chicken", icon: "egg", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80" },
+  { id: "paneer", name: "Paneer", icon: "nutrition", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80" },
+  { id: "mushroom", name: "Mushroom", icon: "leaf", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=400&q=80" },
+  { id: "egg", name: "Egg", icon: "egg", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80" },
+  { id: "chefs-special", name: "Chef's Special", icon: "star", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400&q=80" },
+  { id: "biryani", name: "Biryani", icon: "restaurant", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400&q=80" },
+  { id: "rice", name: "Rice", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80" },
+  { id: "dal", name: "Dal", icon: "cafe", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=400&q=80" },
+  { id: "tandoori", name: "Tandoori", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80" },
+  { id: "bread", name: "Bread", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80" },
+  { id: "naan", name: "Naan", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80" },
+  { id: "raita", name: "Raita", icon: "water", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80" },
+  { id: "soup", name: "Soup", icon: "cafe", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80" },
+  { id: "desserts", name: "Desserts", icon: "ice-cream", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80" },
+  { id: "sweets", name: "Sweets", icon: "gift", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&q=80" },
+  { id: "ice-cream", name: "Ice Cream", icon: "ice-cream", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=400&q=80" },
+  { id: "coffee", name: "Coffee", icon: "cafe", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&q=80" },
+  { id: "drinks", name: "Drinks", icon: "wine", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&q=80" },
+  { id: "cold-drink", name: "Cold Drink", icon: "beer", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80" },
+  { id: "beverages", name: "Beverages", icon: "wine", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80" },
+];
+
+const DISHES = [
+  // Bread / Naan
+  { id: "d-naan-1", name: "Butter Naan", price: 60, description: "Soft tandoor-baked bread brushed with desi butter.", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=600&q=80", veg: true, categoryId: "naan", rating: 4.8 },
+  { id: "d-naan-2", name: "Garlic Naan", price: 80, description: "Naan topped with garlic & fresh coriander.", image: "https://images.unsplash.com/photo-1626500155913-d2d3b80b7e76?w=600&q=80", veg: true, categoryId: "naan", rating: 4.9 },
+  { id: "d-naan-3", name: "Cheese Naan", price: 120, description: "Stuffed with melted mozzarella cheese.", image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&q=80", veg: true, categoryId: "naan", rating: 4.7 },
+
+  // Biryani
+  { id: "d-bir-1", name: "Hyderabadi Dum Biryani", price: 280, description: "Slow-cooked aromatic basmati with spices.", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=600&q=80", veg: false, categoryId: "biryani", rating: 4.9 },
+  { id: "d-bir-2", name: "Chicken Biryani", price: 260, description: "Tender chicken layered with fragrant rice.", image: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=600&q=80", veg: false, categoryId: "biryani", rating: 4.8 },
+  { id: "d-bir-3", name: "Veg Biryani", price: 220, description: "Mixed veggies cooked dum-style.", image: "https://images.unsplash.com/photo-1599043513900-ed6fe01d3833?w=600&q=80", veg: true, categoryId: "biryani", rating: 4.6 },
+
+  // Chicken
+  { id: "d-chk-1", name: "Butter Chicken", price: 320, description: "Creamy tomato gravy with succulent chicken.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "chicken", rating: 4.9 },
+  { id: "d-chk-2", name: "Tandoori Chicken", price: 380, description: "Smoky chargrilled chicken marinated in yogurt.", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=600&q=80", veg: false, categoryId: "tandoori", rating: 4.8 },
+  { id: "d-chk-3", name: "Chicken Tikka", price: 340, description: "Spiced boneless chicken skewers.", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=600&q=80", veg: false, categoryId: "starters", rating: 4.8 },
+
+  // Paneer
+  { id: "d-pan-1", name: "Paneer Tikka", price: 280, description: "Cottage cheese cubes grilled with spices.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "paneer", rating: 4.8 },
+  { id: "d-pan-2", name: "Paneer Butter Masala", price: 290, description: "Paneer in rich butter-tomato gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "paneer", rating: 4.9 },
+  { id: "d-pan-3", name: "Kadai Paneer", price: 270, description: "Spicy paneer with capsicum & onions.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "paneer", rating: 4.7 },
+
+  // Mushroom
+  { id: "d-mush-1", name: "Mushroom Masala", price: 240, description: "Button mushrooms in onion-tomato gravy.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "mushroom", rating: 4.5 },
+  { id: "d-mush-2", name: "Kadai Mushroom", price: 250, description: "Mushrooms tossed in kadai spices.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "mushroom", rating: 4.6 },
+
+  // Egg
+  { id: "d-egg-1", name: "Egg Curry", price: 180, description: "Boiled eggs in spiced gravy.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "egg", rating: 4.4 },
+  { id: "d-egg-2", name: "Egg Bhurji", price: 160, description: "Scrambled spiced eggs Punjabi style.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "egg", rating: 4.5 },
+
+  // Dal
+  { id: "d-dal-1", name: "Dal Makhani", price: 240, description: "Slow-cooked black lentils with cream.", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=600&q=80", veg: true, categoryId: "dal", rating: 4.9 },
+  { id: "d-dal-2", name: "Dal Tadka", price: 180, description: "Yellow dal with smoky tadka.", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=600&q=80", veg: true, categoryId: "dal", rating: 4.7 },
+
+  // Rice
+  { id: "d-rice-1", name: "Jeera Rice", price: 150, description: "Cumin-tempered basmati rice.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice", rating: 4.6 },
+  { id: "d-rice-2", name: "Veg Pulao", price: 180, description: "Mixed veggie aromatic pulao.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice", rating: 4.5 },
+
+  // Chinese
+  { id: "d-chi-1", name: "Veg Hakka Noodles", price: 180, description: "Wok-tossed noodles with vegetables.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "chinese", rating: 4.6 },
+  { id: "d-chi-2", name: "Chilli Chicken", price: 240, description: "Indo-Chinese spicy chicken.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese", rating: 4.7 },
+
+  // Soup
+  { id: "d-soup-1", name: "Hot & Sour Soup", price: 120, description: "Tangy spicy veg soup.", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80", veg: true, categoryId: "soup", rating: 4.4 },
+  { id: "d-soup-2", name: "Tomato Shorba", price: 110, description: "Rich tomato lentil soup.", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80", veg: true, categoryId: "soup", rating: 4.5 },
+
+  // Raita
+  { id: "d-rai-1", name: "Boondi Raita", price: 70, description: "Yogurt with crispy boondi.", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", veg: true, categoryId: "raita", rating: 4.5 },
+  { id: "d-rai-2", name: "Cucumber Raita", price: 60, description: "Cooling yogurt with cucumber.", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", veg: true, categoryId: "raita", rating: 4.4 },
+
+  // Desserts / Sweets / Ice cream
+  { id: "d-des-1", name: "Gulab Jamun", price: 80, description: "Soft milk dumplings in sugar syrup.", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80", veg: true, categoryId: "sweets", rating: 4.9 },
+  { id: "d-des-2", name: "Rasmalai", price: 100, description: "Cottage cheese discs in saffron milk.", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80", veg: true, categoryId: "sweets", rating: 4.8 },
+  { id: "d-des-3", name: "Kulfi Falooda", price: 120, description: "Traditional Indian ice cream with falooda.", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=600&q=80", veg: true, categoryId: "ice-cream", rating: 4.7 },
+  { id: "d-des-4", name: "Gajar Halwa", price: 110, description: "Carrot pudding with dry fruits.", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=600&q=80", veg: true, categoryId: "desserts", rating: 4.8 },
+
+  // Drinks / Coffee / Cold
+  { id: "d-drk-1", name: "Masala Chai", price: 40, description: "Authentic Indian spiced tea.", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=600&q=80", veg: true, categoryId: "coffee", rating: 4.8 },
+  { id: "d-drk-2", name: "Filter Coffee", price: 60, description: "South Indian style filter coffee.", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=600&q=80", veg: true, categoryId: "coffee", rating: 4.7 },
+  { id: "d-drk-3", name: "Sweet Lassi", price: 80, description: "Punjabi yogurt drink with sugar.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "drinks", rating: 4.9 },
+  { id: "d-drk-4", name: "Mango Shake", price: 110, description: "Thick alphonso mango shake.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "cold-drink", rating: 4.8 },
+  { id: "d-drk-5", name: "Fresh Lime Soda", price: 70, description: "Tangy lime with soda water.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "beverages", rating: 4.5 },
+
+  // Chef's Special / Main course
+  { id: "d-cs-1", name: "Punjabi Thali", price: 380, description: "Chef's signature platter — dal, sabzi, paneer, naan, rice, sweet.", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=600&q=80", veg: true, categoryId: "chefs-special", rating: 5.0 },
+  { id: "d-cs-2", name: "Sarson Da Saag & Makki Roti", price: 290, description: "Winter Punjabi classic with butter.", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=600&q=80", veg: true, categoryId: "chefs-special", rating: 4.9 },
+  { id: "d-cs-3", name: "Mutton Rogan Josh", price: 420, description: "Tender mutton in aromatic Kashmiri gravy.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "chefs-special", rating: 4.9 },
+
+  // Veg / Non-Veg umbrella (alias)
+  { id: "d-v-1", name: "Mix Veg Curry", price: 210, description: "Seasonal vegetables in spiced gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "veg", rating: 4.5 },
+  { id: "d-v-2", name: "Chana Masala", price: 200, description: "Punjabi chickpea curry.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "veg", rating: 4.7 },
+  { id: "d-nv-1", name: "Fish Tikka", price: 360, description: "Marinated fish from the tandoor.", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=600&q=80", veg: false, categoryId: "non-veg", rating: 4.7 },
+  { id: "d-nv-2", name: "Mutton Curry", price: 400, description: "Slow-cooked mutton in spiced gravy.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "non-veg", rating: 4.8 },
+
+  // Main course catch-all
+  { id: "d-mc-1", name: "Shahi Paneer", price: 280, description: "Royal paneer in creamy cashew gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main-course", rating: 4.8 },
+  { id: "d-mc-2", name: "Chicken Curry", price: 300, description: "Home-style Punjabi chicken curry.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main-course", rating: 4.7 },
+];
+
+const REVIEWS = [
+  { name: "Aarav Sharma", rating: 5, text: "The Dum Biryani is legendary. Best in Ranchi!", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&q=80" },
+  { name: "Priya Singh", rating: 5, text: "Paneer Butter Masala melts in your mouth. Absolutely divine.", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80" },
+  { name: "Rohit Kumar", rating: 4, text: "Authentic Punjabi flavors. The kulcha is heavenly!", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80" },
+  { name: "Anita Verma", rating: 5, text: "Gulab Jamuns were the highlight of our dinner.", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80" },
+  { name: "Vikram Mehta", rating: 5, text: "Royal ambience, royal taste. Highly recommend.", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80" },
+];
+
+async function main() {
+  console.log("Cleaning up database...");
+  await prisma.dish.deleteMany({});
+  await prisma.category.deleteMany({});
+  await prisma.review.deleteMany({});
+
+  console.log("Seeding categories...");
+  for (const cat of CATEGORIES) {
+    await prisma.category.create({ data: cat });
+  }
+
+  console.log("Seeding dishes...");
+  for (const d of DISHES) {
+    await prisma.dish.create({ data: d });
+  }
+
+  console.log("Seeding reviews...");
+  for (const rev of REVIEWS) {
+    await prisma.review.create({ data: rev });
+  }
+
+  console.log("Database seeded successfully!");
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

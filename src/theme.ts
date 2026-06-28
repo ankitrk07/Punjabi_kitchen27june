@@ -1,0 +1,16 @@
+export const colors = {
+  bg: "#0A0A0A",
+  surface: "#141414",
+  surface2: "#1C1C1C",
+  gold: "#D4AF37",
+  goldBright: "#F3C846",
+  goldDim: "rgba(212, 175, 55, 0.3)",
+  accent: "#E58B22",
+  textPrimary: "#FFFFFF",
+  textSecondary: "#A3A3A3",
+  textInverse: "#000000",
+  border: "#262626",
+  borderGold: "rgba(212, 175, 55, 0.35)",
+  error: "#EF4444",
+  success: "#10B981",
+};

@@ -1,0 +1,66 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Category {
+  id      String   @id
+  name    String
+  icon    String
+  image   String
+  dishes  Dish[]
+}
+
+model Dish {
+  id          String   @id
+  name        String
+  price       Float
+  description String
+  image       String
+  veg         Boolean
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  rating      Float?
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String
+  phone     String?
+  gender    String    // "male" | "female"
+  addresses Address[]
+  cart      Json?     // Stores the active shopping cart items array
+}
+
+model Address {
+  id     String @id @default(uuid())
+  label  String // "Home", "Work", etc.
+  line   String // street details
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id           String   @id
+  items        Json     // Stores array of CartItem details
+  total        Float
+  status       String   // "Placed" | "Preparing" | "Ready" | "On the Way" | "Delivered" | "Cancelled"
+  refundStatus String   @default("None") // "None" | "Pending" | "Completed"
+  refundAmount Float    @default(0)
+  createdAt    DateTime @default(now())
+  mode         String   // "Dine In" | "Takeaway" | "Delivery"
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  name      String
+  avatar    String
+  rating    Int
+  text      String
+  createdAt DateTime @default(now())
+}
