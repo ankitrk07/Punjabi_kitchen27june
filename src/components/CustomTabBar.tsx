@@ -1091,6 +1091,10 @@ export default React.memo(function CustomTabBar({
     }));
 
     useEffect(() => {
+        animatedTranslateY.value = withTiming(0, { duration: 250 });
+    }, [focusedIndex]);
+
+    useEffect(() => {
         return () => {
             if (pendingNavigationTimeout.current) {
                 clearTimeout(pendingNavigationTimeout.current);

@@ -18,17 +18,18 @@ import {
   DealOfDaySection,
   ReviewsSection,
 } from "@/src/components/home/HomeSection";
-import { useRouter } from "expo-router";
 import TopBar from "@/src/components/TopBar";
 import GoldDustLayer from "@/src/components/ui/GoldDustLayer";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
-import { DISHES, Dish } from "@/src/data/menu";
+import { Dish, DISHES } from "@/src/data/menu";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { apiClient } from "@/src/utils/apiClient";
+import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
@@ -39,7 +40,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import Animated, {
   Easing,
   FadeIn,
@@ -62,10 +62,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const { width: SCREEN_W } = Dimensions.get("window");
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const GOLD       = "#C9A84C";
+const GOLD = "#C9A84C";
 const GOLD_LIGHT = "#E8C97A";
-const GOLD_DIM   = "#8A6D2F";
-const GOLD_SOFT  = "rgba(201,168,76,0.15)";
+const GOLD_DIM = "#8A6D2F";
+const GOLD_SOFT = "rgba(201,168,76,0.15)";
 
 const SPRING_CONFIG = { damping: 18, stiffness: 180, mass: 0.8 };
 
@@ -77,9 +77,9 @@ const MODES = [
     desc: "Reserve a table",
     colors: ["rgba(0, 150, 136, 0.04)", "rgba(5, 5, 5, 0.96)"],
     activeColors: ["rgba(0, 150, 136, 0.10)", "rgba(5, 5, 5, 0.96)"],
-    iconGradient: ["#00897b", "#004d40"],
-    borderColor: "rgba(0, 150, 136, 0.08)",
-    activeBorderColor: "rgba(0, 150, 136, 0.28)",
+    iconGradient: ["#00897bac", "#004d408c"],
+    borderColor: "rgba(0, 150, 135, 0.15)",
+    activeBorderColor: "rgba(0, 150, 135, 0.22)",
   },
   {
     id: "takeaway",
@@ -88,8 +88,8 @@ const MODES = [
     desc: "Pick up your order",
     colors: ["rgba(212, 175, 55, 0.04)", "rgba(5, 5, 5, 0.96)"],
     activeColors: ["rgba(212, 175, 55, 0.10)", "rgba(5, 5, 5, 0.96)"],
-    iconGradient: ["#c9a84c", "#8a6d2f"],
-    borderColor: "rgba(201, 168, 76, 0.08)",
+    iconGradient: ["#b58f26ff", "#544525ff"],
+    borderColor: "rgba(201, 168, 76, 0.11)",
     activeBorderColor: "rgba(201, 168, 76, 0.28)",
   },
   {
@@ -99,9 +99,9 @@ const MODES = [
     desc: "Hot & fresh delivery",
     colors: ["rgba(0, 150, 136, 0.04)", "rgba(5, 5, 5, 0.96)"],
     activeColors: ["rgba(0, 150, 136, 0.10)", "rgba(5, 5, 5, 0.96)"],
-    iconGradient: ["#00897b", "#004d40"],
-    borderColor: "rgba(0, 150, 136, 0.08)",
-    activeBorderColor: "rgba(0, 150, 136, 0.28)",
+    iconGradient: ["#00897bac", "#004d408c"],
+    borderColor: "rgba(0, 150, 135, 0.15)",
+    activeBorderColor: "rgba(0, 150, 135, 0.22)",
   },
 ];
 
@@ -114,12 +114,12 @@ const PROMO_ITEMS = [
 ];
 
 const MOODS = [
-  { label: "🍛 Curries",   cat: "curry"     },
-  { label: "🍞 Breads",    cat: "breads"    },
-  { label: "🥩 Tandoor",   cat: "tandoor"   },
+  { label: "🍛 Curries", cat: "curry" },
+  { label: "🍞 Breads", cat: "breads" },
+  { label: "🥩 Tandoor", cat: "tandoor" },
   { label: "🥤 Beverages", cat: "beverages" },
-  { label: "🧁 Desserts",  cat: "desserts"  },
-  { label: "🍜 Chinese",   cat: "chinese"   },
+  { label: "🧁 Desserts", cat: "desserts" },
+  { label: "🍜 Chinese", cat: "chinese" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -128,8 +128,8 @@ const MOODS = [
 // ─────────────────────────────────────────────────────────────────────────────
 function AnimatedPromoTicker() {
   const translateX = useSharedValue(0);
-  const fullText   = PROMO_ITEMS.join("          ");
-  const TICKER_W   = fullText.length * 7.2;
+  const fullText = PROMO_ITEMS.join("          ");
+  const TICKER_W = fullText.length * 7.2;
 
   useEffect(() => {
     translateX.value = withRepeat(
@@ -172,7 +172,7 @@ const ticker = StyleSheet.create({
     justifyContent: "center",
   },
   text: { color: GOLD_LIGHT, fontSize: 12, fontWeight: "500", letterSpacing: 0.3, width: 9999 },
-  fadeLeft:  { position: "absolute", left: 0,  top: 0, bottom: 0, width: 40, zIndex: 2 },
+  fadeLeft: { position: "absolute", left: 0, top: 0, bottom: 0, width: 40, zIndex: 2 },
   fadeRight: { position: "absolute", right: 0, top: 0, bottom: 0, width: 40, zIndex: 2 },
 });
 
@@ -198,7 +198,7 @@ function AnimatedGreeting() {
         <Text style={greeting.welcomeLabel}>Hello there 👋</Text>
         <Text style={greeting.nameText}>{userName}</Text>
       </View>
-      
+
       <TouchableOpacity
         style={greeting.avatarContainer}
         onPress={() => router.replace("/(tabs)/profile")}
@@ -297,7 +297,7 @@ function AnimatedHeroBanner({
     glow.value = withRepeat(
       withSequence(
         withTiming(1.15, { duration: 900, easing: Easing.inOut(Easing.sin) }),
-        withTiming(1,    { duration: 900, easing: Easing.inOut(Easing.sin) })
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) })
       ),
       -1,
       true
@@ -354,10 +354,10 @@ function AnimatedHeroBanner({
         style={heroBanner.statsRow}
       >
         {[
-          { label: "4.9★", sub: "Rating"       },
-          { label: "30m",  sub: "Delivery"     },
-          { label: "51K+", sub: "Orders"       },
-          { label: "98%",  sub: "Satisfaction" },
+          { label: "4.9★", sub: "Rating" },
+          { label: "30m", sub: "Delivery" },
+          { label: "51K+", sub: "Orders" },
+          { label: "98%", sub: "Satisfaction" },
         ].map((s, i) => (
           <Animated.View
             key={s.label}
@@ -481,16 +481,16 @@ function AnimatedModeCard({
   onPress: () => void;
   active?: boolean;
 }) {
-  const scale   = useSharedValue(0.8);
+  const scale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    scale.value   = withDelay(180 + index * 80, withSpring(1, SPRING_CONFIG));
+    scale.value = withDelay(180 + index * 80, withSpring(1, SPRING_CONFIG));
     opacity.value = withDelay(180 + index * 80, withTiming(1, { duration: 350 }));
   }, []);
 
   const pressScale = useSharedValue(1);
-  const cardStyle  = useAnimatedStyle(() => ({
+  const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pressScale.value * scale.value }],
     opacity: opacity.value,
   }));
@@ -499,8 +499,8 @@ function AnimatedModeCard({
     <Animated.View style={[modeCard.wrap, cardStyle]}>
       <TouchableOpacity
         activeOpacity={0.85}
-        onPressIn={()  => { pressScale.value = withSpring(0.93, { damping: 14, stiffness: 400 }); }}
-        onPressOut={()  => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
+        onPressIn={() => { pressScale.value = withSpring(0.93, { damping: 14, stiffness: 400 }); }}
+        onPressOut={() => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
         onPress={onPress}
         style={modeCard.cardTouch}
       >
@@ -629,11 +629,11 @@ const modeCard = StyleSheet.create({
 //    Placed below HomeModes, gold left-bar REMOVED
 // ─────────────────────────────────────────────────────────────────────────────
 function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
-  const scale   = useSharedValue(0.6);
+  const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    scale.value   = withDelay(100 + index * 60, withSpring(1, SPRING_CONFIG));
+    scale.value = withDelay(100 + index * 60, withSpring(1, SPRING_CONFIG));
     opacity.value = withDelay(100 + index * 60, withTiming(1, { duration: 300 }));
   }, []);
 
@@ -647,7 +647,7 @@ function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
     <Animated.View style={pressStyle}>
       <TouchableOpacity
         activeOpacity={0.8}
-        onPressIn={()  => { pressScale.value = withSpring(0.91, { damping: 15, stiffness: 400 }); }}
+        onPressIn={() => { pressScale.value = withSpring(0.91, { damping: 15, stiffness: 400 }); }}
         onPressOut={() => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
         style={moodStyle.chip}
       >
@@ -774,13 +774,13 @@ const secHdr = StyleSheet.create({
 // 7. AnimatedDishCard — Chef Specials entry animation
 // ─────────────────────────────────────────────────────────────────────────────
 export function AnimatedDishCard({ item, index }: { item: any; index: number }) {
-  const lift   = useSharedValue(0);
+  const lift = useSharedValue(0);
   const shadow = useSharedValue(0);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: lift.value }],
     shadowOpacity: interpolate(shadow.value, [0, 1], [0.15, 0.45]),
-    shadowRadius:  interpolate(shadow.value, [0, 1], [8, 20]),
+    shadowRadius: interpolate(shadow.value, [0, 1], [8, 20]),
   }));
 
   return (
@@ -790,8 +790,8 @@ export function AnimatedDishCard({ item, index }: { item: any; index: number }) 
     >
       <TouchableOpacity
         activeOpacity={0.9}
-        onPressIn={()  => { lift.value = withSpring(-5, { damping: 12, stiffness: 300 }); shadow.value = withTiming(1, { duration: 200 }); }}
-        onPressOut={() => { lift.value = withSpring(0, SPRING_CONFIG);                    shadow.value = withTiming(0, { duration: 300 }); }}
+        onPressIn={() => { lift.value = withSpring(-5, { damping: 12, stiffness: 300 }); shadow.value = withTiming(1, { duration: 200 }); }}
+        onPressOut={() => { lift.value = withSpring(0, SPRING_CONFIG); shadow.value = withTiming(0, { duration: 300 }); }}
         style={dishCard.card}
       >
         <LinearGradient colors={["#2a1a14", "#1a1008"]} style={dishCard.imgWrap}>
@@ -1422,7 +1422,6 @@ function AnimatedDivider({ delay = 0 }: { delay?: number }) {
         start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
         style={divStyle.line}
       />
-      <View style={divStyle.diamond} />
     </Animated.View>
   );
 }
@@ -1430,12 +1429,6 @@ function AnimatedDivider({ delay = 0 }: { delay?: number }) {
 const divStyle = StyleSheet.create({
   row: { alignItems: "center", marginVertical: 6, position: "relative" },
   line: { height: 0.5, width: "100%" },
-  diamond: {
-    position: "absolute",
-    width: 6, height: 6,
-    backgroundColor: GOLD,
-    transform: [{ rotate: "45deg" }],
-  },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1444,7 +1437,7 @@ const divStyle = StyleSheet.create({
 export default function Home() {
   const { orders } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
-  
+
   // Shared scroll Y drives FAB visibility + hero parallax + top bar hide
   const scrollY = useSharedValue(0);
 
@@ -1557,7 +1550,7 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, position: "relative" },
-  scroll:    { zIndex: 1 },
+  scroll: { zIndex: 1 },
 });

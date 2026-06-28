@@ -1,10 +1,10 @@
 import { Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Image } from "expo-image";
 
 type Props = {
   dish: Dish;
@@ -20,15 +20,61 @@ type Props = {
 const SPECIAL_TAGS: Record<string, { label: string; bg: string; color: string; time: string; cal: string }> = {
   "d-naan-1": { label: "BESTSELLER", bg: "rgba(212,175,55,0.9)", color: "#000", time: "12 mins", cal: "210 kcal" },
   "d-naan-2": { label: "POPULAR", bg: "rgba(255,255,255,0.15)", color: "#FFF", time: "14 mins", cal: "240 kcal" },
-  "d-bir-1":  { label: "CHEF PICK", bg: "rgba(229,87,34,0.9)", color: "#FFF", time: "25 mins", cal: "580 kcal" },
-  "d-bir-2":  { label: "BESTSELLER", bg: "rgba(212,175,55,0.9)", color: "#000", time: "22 mins", cal: "520 kcal" },
-  "d-chk-1":  { label: "MUST TRY", bg: "rgba(34,197,94,0.9)", color: "#000", time: "20 mins", cal: "490 kcal" },
-  "d-chk-2":  { label: "SMOKY HOT", bg: "rgba(239,68,68,0.9)", color: "#FFF", time: "25 mins", cal: "410 kcal" },
-  "d-pan-2":  { label: "ROYAL SPEC", bg: "rgba(168,85,247,0.9)", color: "#FFF", time: "18 mins", cal: "460 kcal" },
-  "d-dal-1":  { label: "SLOW COOK", bg: "rgba(212,175,55,0.9)", color: "#000", time: "30 mins", cal: "380 kcal" },
-  "d-cs-1":   { label: "SIGNATURE", bg: "rgba(212,175,55,0.95)", color: "#000", time: "25 mins", cal: "720 kcal" },
-  "d-cs-2":   { label: "SEASONAL", bg: "rgba(34,197,94,0.9)", color: "#000", time: "20 mins", cal: "340 kcal" },
+  "d-bir-1": { label: "CHEF PICK", bg: "rgba(229,87,34,0.9)", color: "#FFF", time: "25 mins", cal: "580 kcal" },
+  "d-bir-2": { label: "BESTSELLER", bg: "rgba(212,175,55,0.9)", color: "#000", time: "22 mins", cal: "520 kcal" },
+  "d-chk-1": { label: "MUST TRY", bg: "rgba(34,197,94,0.9)", color: "#000", time: "20 mins", cal: "490 kcal" },
+  "d-chk-2": { label: "SMOKY HOT", bg: "rgba(239,68,68,0.9)", color: "#FFF", time: "25 mins", cal: "410 kcal" },
+  "d-pan-2": { label: "ROYAL SPEC", bg: "rgba(168,85,247,0.9)", color: "#FFF", time: "18 mins", cal: "460 kcal" },
+  "d-dal-1": { label: "SLOW COOK", bg: "rgba(212,175,55,0.9)", color: "#000", time: "30 mins", cal: "380 kcal" },
+  "d-cs-1": { label: "SIGNATURE", bg: "rgba(212,175,55,0.95)", color: "#000", time: "25 mins", cal: "720 kcal" },
+  "d-cs-2": { label: "SEASONAL", bg: "rgba(34,197,94,0.9)", color: "#000", time: "20 mins", cal: "340 kcal" },
 };
+
+function VegNonVegIndicator({ isVeg, size = 16 }: { isVeg: boolean; size?: number }) {
+  const color = isVeg ? "#22c55e" : "#dc2626";
+
+  const containerSize = Math.round(size * 1.65);
+  const containerRadius = Math.round(size * 0.38);
+  const borderWidth = 0.7;
+  const dotSize = Math.round(size * 0.44);
+  const squareRadius = Math.max(1, Math.round(size * 0.15));
+
+  return (
+    <View style={{
+      width: containerSize,
+      height: containerSize,
+      borderRadius: containerRadius,
+      backgroundColor: "rgba(10,10,10,0.88)",
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
+      <View style={{
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <View style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderWidth: borderWidth,
+          borderColor: color,
+          borderRadius: squareRadius,
+          backgroundColor: "transparent",
+        }} />
+        <View style={{
+          width: dotSize,
+          height: dotSize,
+          borderRadius: dotSize / 2,
+          backgroundColor: color,
+        }} />
+      </View>
+    </View>
+  );
+}
 
 export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAddToCart, onOpen, cardRef, viewMode = "grid" }: Props) {
   const specialTag = SPECIAL_TAGS[dish.id] ?? { label: "", bg: "", color: "", time: "15 mins", cal: "350 kcal" };
@@ -47,17 +93,11 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
           colors={["rgba(10,10,10,0.2)", "rgba(10,10,10,0.65)", "rgba(10,10,10,0.98)"]}
           style={StyleSheet.absoluteFill}
         />
-        
+
         {/* Top Floating Controls */}
         <View style={styles.cinematicTopRow}>
           <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
-            <View style={styles.vegBadge}>
-              <Ionicons
-                name={dish.veg ? "leaf" : "flame"}
-                size={12}
-                color={dish.veg ? "#22c55e" : "#ef4444"}
-              />
-            </View>
+            <VegNonVegIndicator isVeg={dish.veg} size={14} />
             {specialTag.label !== "" && (
               <View style={[styles.specialBadge, { backgroundColor: specialTag.bg }]}>
                 <Text style={[styles.specialBadgeText, { color: specialTag.color }]}>{specialTag.label}</Text>
@@ -124,17 +164,11 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
           colors={["rgba(10,10,10,0.3)", "rgba(10,10,10,0.1)", "rgba(10,10,10,0.95)"]}
           style={StyleSheet.absoluteFill}
         />
-        
+
         {/* Top Badges */}
         <View style={styles.topBadge}>
           <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-            <View style={styles.vegBadge}>
-              <Ionicons
-                name={dish.veg ? "leaf" : "flame"}
-                size={11}
-                color={dish.veg ? colors.gold : "#FFB34D"}
-              />
-            </View>
+            <VegNonVegIndicator isVeg={dish.veg} size={14} />
             <View style={styles.ratingBadge}>
               <Ionicons name="star" size={10} color="#111" />
               <Text style={styles.ratingText}>{dish.rating?.toFixed(1) ?? "4.8"}</Text>
@@ -173,7 +207,7 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
             <Text style={styles.price}>₹{dish.price}</Text>
             <Text style={styles.priceTaxes}>+ taxes</Text>
           </View>
-          
+
           <TouchableOpacity
             style={styles.addPillBtn}
             onPress={(e) => onAddToCart(dish, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}

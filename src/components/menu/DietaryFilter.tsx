@@ -74,9 +74,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(212,175,55,0.14)",
     borderColor: "rgba(212,175,55,0.35)",
   },
-  segmentText: { 
-    color: colors.textSecondary, 
-    fontSize: 11, 
+  segmentText: {
+    color: colors.textSecondary,
+    fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
   },

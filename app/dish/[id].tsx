@@ -11,6 +11,41 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
+function VegNonVegIndicator({ isVeg, size = 16 }: { isVeg: boolean; size?: number }) {
+  const color = isVeg ? "#22c55e" : "#dc2626";
+
+  const borderWidth = 1;
+  const dotSize = Math.round(size * 0.44);
+  const squareRadius = Math.max(1, Math.round(size * 0.15));
+
+  return (
+    <View style={{
+      width: size,
+      height: size,
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
+      <View style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderWidth: borderWidth,
+        borderColor: color,
+        borderRadius: squareRadius,
+        backgroundColor: "transparent",
+      }} />
+      <View style={{
+        width: dotSize,
+        height: dotSize,
+        borderRadius: dotSize / 2,
+        backgroundColor: color,
+      }} />
+    </View>
+  );
+}
+
 export default function DishDetail() {
   const { id, fromX, fromY, fromW, fromH } = useLocalSearchParams<{ id: string; fromX?: string; fromY?: string; fromW?: string; fromH?: string }>();
   const router = useRouter();
@@ -129,7 +164,7 @@ export default function DishDetail() {
               <Text style={styles.metaValue}>20–25 min</Text>
             </View>
             <View style={styles.metaCard}>
-              <Ionicons name={dish.veg ? "leaf" : "flame"} size={18} color={colors.gold} />
+              <VegNonVegIndicator isVeg={dish.veg} size={18} />
               <Text style={styles.metaTitle}>Type</Text>
               <Text style={styles.metaValue}>{dish.veg ? "Veg" : "Non-Veg"}</Text>
             </View>

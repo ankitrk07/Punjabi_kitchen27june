@@ -4,15 +4,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import { colors } from "@/src/theme";
 import React from "react";
-import { Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View, TextInput } from "react-native";
+import Animated, { useAnimatedStyle, interpolate, SharedValue, useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
 type TopBarProps = {
   variant?: "full" | "minimal";
   scrollY?: number;
+  menuScrollY?: SharedValue<number>;
+  search?: string;
+  setSearch?: (text: string) => void;
   cartRef?: React.RefObject<any>;
 };
 
-export default function TopBar({ variant = "full", scrollY, cartRef }: TopBarProps) {
+export default function TopBar({ variant = "full", scrollY, menuScrollY, search, setSearch, cartRef }: TopBarProps) {
   const { cartBumpAnim, selectedAddress, cart } = useApp();
   const router = useRouter();
   
@@ -52,21 +56,79 @@ export default function TopBar({ variant = "full", scrollY, cartRef }: TopBarPro
     });
   };
 
+  const [showInlineSearch, setShowInlineSearch] = React.useState(false);
+  const inlineInputRef = React.useRef<TextInput>(null);
+
+  React.useEffect(() => {
+    if (showInlineSearch) {
+      setTimeout(() => {
+        inlineInputRef.current?.focus();
+      }, 50);
+    }
+  }, [showInlineSearch]);
+
+  useAnimatedReaction(
+    () => menuScrollY?.value ?? 0,
+    (y) => {
+      if (y < 40 && showInlineSearch) {
+        runOnJS(setShowInlineSearch)(false);
+      }
+    }
+  );
+
+  const searchIconStyle = useAnimatedStyle(() => {
+    if (!menuScrollY) return { opacity: 0, transform: [{ scale: 0 }] };
+    const opacity = interpolate(menuScrollY.value, [80, 150], [0, 1], "clamp");
+    const scale = interpolate(menuScrollY.value, [80, 150], [0, 1], "clamp");
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
+
   if (variant === "minimal") {
     return (
       <View style={[styles.minimalBar, { zIndex: 100 }]}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ color: "#FFF", fontSize: 18, fontWeight: "900", letterSpacing: 0.5 }}>Punjabi Kitchen</Text>
-          <RNAnimated.View ref={cartRef} style={styles.heartBtn}>
-            <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
-              <Ionicons name="cart-outline" size={22} color="#D4AF37" />
-              {cartCount > 0 && (
-                <View style={styles.cartBadge}>
-                  <Text style={styles.cartBadgeText}>{cartCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </RNAnimated.View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          {showInlineSearch ? (
+            <View style={styles.inlineSearchWrapper}>
+              <Ionicons name="search-outline" size={18} color="#D4AF37" />
+              <TextInput
+                ref={inlineInputRef}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search menu..."
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                style={styles.inlineSearchInput}
+              />
+              <TouchableOpacity onPress={() => { setShowInlineSearch(false); setSearch?.(""); }}>
+                <Ionicons name="close" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={{ color: "#FFF", fontSize: 18, fontWeight: "900", letterSpacing: 0.5 }}>Punjabi Kitchen</Text>
+          )}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {!showInlineSearch && (
+              <Animated.View style={searchIconStyle}>
+                <TouchableOpacity onPress={() => setShowInlineSearch(true)} activeOpacity={0.85} style={styles.headerSearchBtn}>
+                  <Ionicons name="search-outline" size={20} color="#D4AF37" />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
+            <RNAnimated.View ref={cartRef} style={styles.heartBtn}>
+              <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
+                <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+                {cartCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>{cartCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </RNAnimated.View>
+          </View>
         </View>
       </View>
     );
@@ -255,5 +317,32 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "bold",
     paddingHorizontal: 4,
+  },
+  inlineSearchWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    marginRight: 12,
+    height: 38,
+  },
+  inlineSearchInput: {
+    flex: 1,
+    color: "#FFF",
+    fontSize: 14,
+    marginLeft: 8,
+    padding: 0,
+  },
+  headerSearchBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 175, 55, 0.2)",
   },
 });

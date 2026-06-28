@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const ALL_FILTER = { id: "all", name: "All", icon: "grid", image: "" };
@@ -137,8 +137,9 @@ const FlyingDish: React.FC<FlyingDishProps> = ({
 
 export default function MenuScreen() {
   const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim } = useApp();
+  const scrollY = useSharedValue(0);
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
-  const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
+  const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
   const router = useRouter();
 
   const filters = useMemo(() => {
@@ -316,7 +317,13 @@ export default function MenuScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <TopBar variant="minimal" cartRef={cartButtonRef} />
+      <TopBar
+        variant="minimal"
+        cartRef={cartButtonRef}
+        menuScrollY={scrollY}
+        search={search}
+        setSearch={setSearch}
+      />
 
       <Animated.ScrollView
         contentContainerStyle={styles.content}
@@ -594,11 +601,11 @@ const styles = StyleSheet.create({
   },
   stickyFilters: {
     backgroundColor: colors.bg,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 20,
+    paddingBottom: 22,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    gap: 18,
+    gap: 22,
   },
   hudRow: {
     flexDirection: "row",
@@ -606,7 +613,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     gap: 10,
-    marginTop: 8,
+    marginTop: 14,
   },
   dietaryRow: {
     paddingHorizontal: 16,
@@ -627,7 +634,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(255, 0, 0, 0.03)",
+    backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 10,
