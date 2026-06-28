@@ -236,10 +236,14 @@ const greeting = StyleSheet.create({
     marginBottom: 4,
   },
   nameText: {
-    color: "#FFF",
-    fontSize: 22,
-    fontWeight: "900",
-    letterSpacing: 0.3,
+    color: GOLD,
+    fontSize: 28,
+    fontFamily: Platform.select({
+      ios: "Snell Roundhand",
+      android: "cursive",
+    }),
+    fontWeight: "bold",
+    letterSpacing: 0.5,
   },
   avatarContainer: {
     shadowColor: "#C9A84C",
