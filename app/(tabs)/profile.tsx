@@ -19,7 +19,7 @@ import Reanimated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 
 
@@ -740,6 +740,7 @@ const ROUTE_MAP: Record<string, string> = {
 export default function Profile() {
   const router = useRouter();
   const { user, signOut } = useApp();
+  const insets = useSafeAreaInsets();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const scrollY = useSharedValue(0);
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
@@ -771,7 +772,7 @@ export default function Profile() {
 
       {/* Floating Animated Header */}
       <Reanimated.View style={[styles.floatingHeader, headerStyle]}>
-        <LinearGradient colors={[`${DARK_BG}E6`, SURFACE_2]} style={styles.floatingHeaderContent}>
+        <LinearGradient colors={[`${DARK_BG}E6`, SURFACE_2]} style={[styles.floatingHeaderContent, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={22} color={GOLD} />
           </TouchableOpacity>
