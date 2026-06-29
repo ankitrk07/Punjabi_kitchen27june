@@ -28,6 +28,7 @@ export type User = {
   email: string;
   phone?: string;
   gender: "male" | "female";
+  avatar?: string;
 };
 
 type AppState = {
@@ -194,12 +195,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const apiUser = await apiClient.getUserProfile(u.email);
           if (apiUser) {
-            setUser({ name: apiUser.name, email: apiUser.email, phone: apiUser.phone ?? undefined, gender: apiUser.gender as any });
+            const mergedUser: User = {
+              name: apiUser.name,
+              email: apiUser.email,
+              phone: apiUser.phone ?? undefined,
+              gender: apiUser.gender as any,
+              avatar: apiUser.avatar || u.avatar,
+            };
+            setUser(mergedUser);
             setAddresses(apiUser.addresses);
             if (apiUser.cart) {
               setCart(apiUser.cart as CartItem[]);
             }
-            await storage.setItem("pk_user", apiUser);
+            await storage.setItem("pk_user", mergedUser);
             await storage.setItem("pk_addresses", apiUser.addresses);
           }
         } catch (e) {
@@ -290,8 +298,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const synced = await apiClient.syncUserProfile(u);
         if (synced) {
-          setUser({ name: synced.name, email: synced.email, phone: synced.phone ?? undefined, gender: synced.gender as any });
+          const mergedUser: User = {
+            name: synced.name,
+            email: synced.email,
+            phone: synced.phone ?? undefined,
+            gender: synced.gender as any,
+            avatar: synced.avatar || u.avatar,
+          };
+          setUser(mergedUser);
           setAddresses(synced.addresses);
+          await storage.setItem("pk_user", mergedUser);
           await storage.setItem("pk_addresses", synced.addresses);
         }
       } catch (e) {

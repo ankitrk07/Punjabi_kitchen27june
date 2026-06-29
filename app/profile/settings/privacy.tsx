@@ -1,6 +1,0 @@
-import React from "react";
-import PremiumOptionPage from "@/src/components/PremiumOptionPage";
-
-export default function PrivacyScreen() {
-  return <PremiumOptionPage title="Privacy" />;
-}

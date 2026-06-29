@@ -2,6 +2,7 @@ import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -24,21 +25,21 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 
 // ─── Premium Design Tokens ──────────────────────────────────────────────────
-const GOLD       = "#C9A84C";
+const GOLD = "#C9A84C";
 const GOLD_LIGHT = "#F0D488";
-const DARK_BG    = "#080808";
-const SURFACE    = "#111111";
-const SURFACE_2  = "#181818";
-const SURFACE_3  = "#1E1E1E";
-const RED        = "#E85555";
-const GREEN      = "#4CD97B";
-const BLUE       = "#4A9EFF";
-const PURPLE     = "#A855F7";
-const ORANGE     = "#F97316";
-const TEAL       = "#14B8A6";
-const WHITE      = "#FFFFFF";
-const MUTED      = "#6B6B6B";
-const MUTED_2    = "#333333";
+const DARK_BG = "#080808";
+const SURFACE = "#111111";
+const SURFACE_2 = "#181818";
+const SURFACE_3 = "#1E1E1E";
+const RED = "#E85555";
+const GREEN = "#4CD97B";
+const BLUE = "#4A9EFF";
+const PURPLE = "#A855F7";
+const ORANGE = "#F97316";
+const TEAL = "#14B8A6";
+const WHITE = "#FFFFFF";
+const MUTED = "#6B6B6B";
+const MUTED_2 = "#333333";
 
 // ─── Mock Data ──────────────────────────────────────────────────────────────
 const MOCK_DATA = {
@@ -68,9 +69,9 @@ const SECTIONS = [
     icon: "receipt-outline",
     color: ORANGE,
     items: [
-      { 
-        key: "my-orders", 
-        label: "My Orders", 
+      {
+        key: "my-orders",
+        label: "My Orders",
         value: `${MOCK_DATA.pastOrders} orders`,
         icon: "list-outline",
         subItems: [
@@ -79,16 +80,16 @@ const SECTIONS = [
           { key: "reorder-fav", label: "Reorder Favorites" },
         ]
       },
-      { 
-        key: "track", 
-        label: "Track Order", 
+      {
+        key: "track",
+        label: "Track Order",
         value: MOCK_DATA.activeTracking ? "Active" : "No active orders",
         valueColor: MOCK_DATA.activeTracking ? GREEN : MUTED,
         icon: "location-outline",
       },
-      { 
-        key: "train", 
-        label: "Order on Train", 
+      {
+        key: "train",
+        label: "Order on Train",
         value: "Enter PNR",
         icon: "train-outline",
         subItems: [
@@ -97,15 +98,15 @@ const SECTIONS = [
           { key: "prev-train", label: "Previous Train Orders" },
         ]
       },
-      { 
-        key: "scheduled", 
-        label: "Scheduled Orders", 
+      {
+        key: "scheduled",
+        label: "Scheduled Orders",
         value: MOCK_DATA.scheduledOrders > 0 ? `${MOCK_DATA.scheduledOrders} upcoming` : "None scheduled",
         icon: "calendar-outline",
       },
-      { 
-        key: "group", 
-        label: "Group Orders", 
+      {
+        key: "group",
+        label: "Group Orders",
         value: MOCK_DATA.groupOrders > 0 ? `${MOCK_DATA.groupOrders} active` : "No group orders",
         icon: "people-outline",
         subItems: [
@@ -121,29 +122,21 @@ const SECTIONS = [
     icon: "heart-outline",
     color: RED,
     items: [
-      { 
-        key: "wishlist", 
-        label: "Wishlist", 
-        value: `${MOCK_DATA.wishlistCount} saved items`,
+      {
+        key: "saved-dishes",
+        label: "Saved Dishes",
+        value: `${MOCK_DATA.wishlistCount} saved dishes`,
         icon: "heart-outline",
-        subItems: [
-          { key: "saved-dishes", label: "Saved Dishes" },
-          { key: "saved-restaurants", label: "Saved Restaurants" },
-        ]
       },
-      { 
-        key: "recent", 
-        label: "Recently Viewed", 
+      {
+        key: "recent-items",
+        label: "Recently Viewed Items",
         value: `${MOCK_DATA.recentlyViewed} items`,
         icon: "eye-outline",
-        subItems: [
-          { key: "recent-restaurants", label: "Recently Visited Restaurants" },
-          { key: "recent-items", label: "Recently Viewed Items" },
-        ]
       },
-      { 
-        key: "fav-orders", 
-        label: "Favorite Orders", 
+      {
+        key: "fav-orders",
+        label: "Favorite Orders",
         value: `${MOCK_DATA.favoriteOrders} saved`,
         icon: "star-outline",
       },
@@ -155,9 +148,9 @@ const SECTIONS = [
     icon: "gift-outline",
     color: GOLD,
     items: [
-      { 
-        key: "loyalty", 
-        label: "Rewards", 
+      {
+        key: "loyalty",
+        label: "Rewards",
         value: `${MOCK_DATA.loyaltyPoints} pts • ₹${MOCK_DATA.cashback} cashback`,
         icon: "trophy-outline",
         subItems: [
@@ -165,9 +158,9 @@ const SECTIONS = [
           { key: "cashback", label: "Cashback Balance", value: `₹${MOCK_DATA.cashback}` },
         ]
       },
-      { 
-        key: "coupons", 
-        label: "Coupons & Promo Codes", 
+      {
+        key: "coupons",
+        label: "Coupons & Promo Codes",
         value: `${MOCK_DATA.availableCoupons} available`,
         icon: "pricetag-outline",
         subItems: [
@@ -175,18 +168,18 @@ const SECTIONS = [
           { key: "used", label: "Used Coupons" },
         ]
       },
-      { 
-        key: "gift", 
-        label: "Gift Cards", 
+      {
+        key: "gift",
+        label: "Gift Cards",
         icon: "gift-outline",
         subItems: [
           { key: "buy-gift", label: "Buy Gift Cards" },
           { key: "redeem-gift", label: "Redeem Gift Cards" },
         ]
       },
-      { 
-        key: "referral", 
-        label: "Referral Program", 
+      {
+        key: "referral",
+        label: "Referral Program",
         value: `₹${MOCK_DATA.referralEarnings} earned`,
         icon: "share-social-outline",
         subItems: [
@@ -202,25 +195,11 @@ const SECTIONS = [
     icon: "location-outline",
     color: GREEN,
     items: [
-      { 
-        key: "saved-addr", 
-        label: "Saved Addresses", 
+      {
+        key: "manage-addresses",
+        label: "Saved Addresses",
         value: "Home, Work & Others",
-        icon: "home-outline",
-        subItems: [
-          { key: "home", label: "Home" },
-          { key: "work", label: "Work" },
-          { key: "other", label: "Other Locations" },
-        ]
-      },
-      { 
-        key: "manage-addr", 
-        label: "Manage Addresses", 
-        icon: "create-outline",
-        subItems: [
-          { key: "add-new", label: "Add New Address" },
-          { key: "edit-delete", label: "Edit/Delete Address" },
-        ]
+        icon: "location-outline",
       },
     ],
   },
@@ -230,9 +209,9 @@ const SECTIONS = [
     icon: "card-outline",
     color: BLUE,
     items: [
-      { 
-        key: "methods", 
-        label: "Payment Methods", 
+      {
+        key: "methods",
+        label: "Payment Methods",
         value: "2 cards • UPI • Wallet",
         icon: "wallet-outline",
         subItems: [
@@ -242,9 +221,9 @@ const SECTIONS = [
           { key: "wallets", label: "Wallets" },
         ]
       },
-      { 
-        key: "history", 
-        label: "Transaction History", 
+      {
+        key: "history",
+        label: "Transaction History",
         value: "₹12,450 spent",
         icon: "document-text-outline",
         subItems: [
@@ -252,9 +231,9 @@ const SECTIONS = [
           { key: "refunds", label: "Refunds" },
         ]
       },
-      { 
-        key: "saved-methods", 
-        label: "Saved Payment Methods", 
+      {
+        key: "saved-methods",
+        label: "Saved Payment Methods",
         icon: "save-outline",
       },
     ],
@@ -265,26 +244,8 @@ const SECTIONS = [
     icon: "diamond-outline",
     color: GOLD,
     items: [
-      { 
-        key: "premium", 
-        label: "Premium Membership", 
-        value: "Gold Tier",
-        icon: "crown-outline",
-        subItems: [
-          { key: "subscription", label: "Subscription Status", value: "Active" },
-          { key: "benefits", label: "Membership Benefits" },
-        ]
-      },
-      { 
-        key: "loyalty-program", 
-        label: "Loyalty Program", 
-        value: `${MOCK_DATA.loyaltyPoints} points`,
-        icon: "star-outline",
-        subItems: [
-          { key: "tier", label: "Tier Status", value: "Gold Member" },
-          { key: "earned", label: "Earned Rewards", value: `${MOCK_DATA.loyaltyPoints} points` },
-        ]
-      },
+      { key: "subscription", label: "Subscription Status", value: "Active", icon: "crown-outline" },
+      { key: "benefits", label: "Membership Benefits", icon: "ribbon-outline" },
     ],
   },
   {
@@ -293,22 +254,9 @@ const SECTIONS = [
     icon: "notifications-outline",
     color: PURPLE,
     items: [
-      { 
-        key: "preferences", 
-        label: "Notification Preferences", 
-        value: MOCK_DATA.unreadNotifications > 0 ? `${MOCK_DATA.unreadNotifications} unread` : "All caught up",
-        icon: "settings-outline",
-        subItems: [
-          { key: "order-updates", label: "Order Updates" },
-          { key: "offers", label: "Offers & Promotions" },
-          { key: "announcements", label: "Restaurant Announcements" },
-        ]
-      },
-      { 
-        key: "history", 
-        label: "Notification History", 
-        icon: "time-outline",
-      },
+      { key: "order-updates", label: "Order Updates", icon: "receipt-outline" },
+      { key: "offers", label: "Offers & Promotions", icon: "pricetag-outline" },
+      { key: "announcements", label: "Restaurant Announcements", icon: "megaphone-outline" },
     ],
   },
   {
@@ -318,9 +266,9 @@ const SECTIONS = [
     color: TEAL,
     items: [
       { key: "help", label: "Help Center", sub: "FAQs & guides", icon: "help-circle-outline" },
-      { 
-        key: "ticket", 
-        label: "Raise a Ticket", 
+      {
+        key: "ticket",
+        label: "Raise a Ticket",
         value: MOCK_DATA.openTickets > 0 ? `${MOCK_DATA.openTickets} open` : "No open tickets",
         icon: "document-text-outline",
       },
@@ -334,9 +282,9 @@ const SECTIONS = [
     icon: "restaurant-outline",
     color: ORANGE,
     items: [
-      { 
-        key: "dining", 
-        label: "Dining Reservations", 
+      {
+        key: "dining",
+        label: "Dining Reservations",
         value: MOCK_DATA.upcomingReservations > 0 ? `${MOCK_DATA.upcomingReservations} upcoming` : "No reservations",
         icon: "calendar-outline",
         subItems: [
@@ -344,47 +292,14 @@ const SECTIONS = [
           { key: "past-reservations", label: "Reservation History" },
         ]
       },
-      { 
-        key: "catering", 
-        label: "Catering Orders", 
+      {
+        key: "catering",
+        label: "Catering Orders",
         icon: "people-circle-outline",
-        subItems: [
-          { key: "event-requests", label: "Event Catering Requests" },
-          { key: "party-bookings", label: "Party Bookings" },
-          { key: "event-orders", label: "Event Orders" },
-        ]
       },
     ],
   },
-  {
-    id: "settings",
-    title: "Account Settings",
-    icon: "settings-outline",
-    color: MUTED,
-    items: [
-      { 
-        key: "personal", 
-        label: "Personal Information", 
-        icon: "person-outline",
-        subItems: [
-          { key: "edit-profile", label: "Edit Profile" },
-          { key: "change-mobile", label: "Change Mobile Number" },
-          { key: "change-email", label: "Change Email" },
-        ]
-      },
-      { key: "language", label: "Language Settings", value: "English", icon: "language-outline" },
-      { key: "dark-mode", label: "Dark Mode", value: "On", icon: "moon-outline" },
-      { 
-        key: "privacy", 
-        label: "Privacy Settings", 
-        icon: "lock-closed-outline",
-        subItems: [
-          { key: "app-permissions", label: "App Permissions" },
-          { key: "data-settings", label: "Data Settings" },
-        ]
-      },
-    ],
-  },
+
   {
     id: "about",
     title: "About",
@@ -404,15 +319,15 @@ const SECTIONS = [
 // ─────────────────────────────────────────────────────────────────────────────
 // SubItem Component (separate component to avoid hook issues)
 // ─────────────────────────────────────────────────────────────────────────────
-const SubItem = React.memo(function SubItem({ 
-  item, 
-  level, 
-  sectionColor, 
-  onPress 
-}: { 
-  item: any; 
-  level: number; 
-  sectionColor: string; 
+const SubItem = React.memo(function SubItem({
+  item,
+  level,
+  sectionColor,
+  onPress
+}: {
+  item: any;
+  level: number;
+  sectionColor: string;
   onPress: (key: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -456,7 +371,7 @@ const SubItem = React.memo(function SubItem({
           )}
         </View>
       </TouchableOpacity>
-      
+
       {expanded && hasSubItems && (
         <View style={styles.subItemsContainer}>
           {item.subItems.map((subItem: any, idx: number) => (
@@ -480,7 +395,7 @@ const SubItem = React.memo(function SubItem({
 const SettingsSection = React.memo(function SettingsSection({ section, onPress }: { section: typeof SECTIONS[0]; onPress: (key: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const toggleExpand = useCallback(() => setExpanded(prev => !prev), []);
-  
+
   return (
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHeader} onPress={toggleExpand} activeOpacity={0.7}>
@@ -490,7 +405,7 @@ const SettingsSection = React.memo(function SettingsSection({ section, onPress }
         </View>
         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={MUTED} />
       </TouchableOpacity>
-      
+
       {expanded && (
         <View style={styles.sectionItems}>
           {section.items.map((item, idx) => (
@@ -511,7 +426,7 @@ const SettingsSection = React.memo(function SettingsSection({ section, onPress }
 // ─────────────────────────────────────────────────────────────────────────────
 // Premium Header Component
 // ─────────────────────────────────────────────────────────────────────────────
-const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit }: { user: any; onEdit: () => void }) {
+const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit, onChangePhoto, isGold }: { user: any; onEdit: () => void; onChangePhoto: () => void; isGold: boolean }) {
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(20);
 
@@ -525,52 +440,63 @@ const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit }: { user
     transform: [{ translateY: slideAnim.value }],
   }));
 
-  const avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80";
+  const defaultAvatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80";
+  const avatarUri = user?.avatar || defaultAvatar;
 
   return (
     <Reanimated.View style={[styles.headerContainer, animatedStyle]}>
-      <View style={styles.headerAccent} />
-      
+      <LinearGradient
+        colors={["rgba(212, 175, 55, 0.1)", "rgba(20, 20, 20, 0)"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
       <View style={styles.profileRow}>
-        <View style={styles.avatarSection}>
-          <LinearGradient colors={[GOLD, GOLD_LIGHT]} style={styles.avatarRing}>
-            <Image source={{ uri: avatar }} style={styles.avatar} />
+        <TouchableOpacity style={styles.avatarSection} onPress={onChangePhoto} activeOpacity={0.9}>
+          <LinearGradient colors={[GOLD, `${GOLD}30`]} style={styles.avatarRing}>
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
           </LinearGradient>
-          <TouchableOpacity style={styles.editBadge} onPress={onEdit}>
-            <Ionicons name="camera" size={12} color={DARK_BG} />
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user?.name || "Sudip"}</Text>
-          <Text style={styles.userEmail}>{user?.email || "sudip@dineout.com"}</Text>
-          <View style={styles.badgeRow}>
-            <View style={styles.goldBadge}>
-              <Ionicons name="diamond" size={12} color={GOLD} />
-              <Text style={styles.goldText}>Gold Member</Text>
-            </View>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={12} color={GREEN} />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
+          <View style={styles.editBadge}>
+            <Ionicons name="camera-reverse" size={12} color="#000" />
           </View>
+        </TouchableOpacity>
+
+        <View style={styles.userInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.userName}>{user?.name || "Sudip"}</Text>
+            <Ionicons name="checkmark-circle" size={16} color={GREEN} style={styles.verifiedIcon} />
+          </View>
+          <Text style={styles.userEmail}>{user?.email || "sudip@dineout.com"}</Text>
+
+          {isGold && (
+            <LinearGradient
+              colors={[GOLD_LIGHT, GOLD]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.goldBadge}
+            >
+              <Ionicons name="diamond" size={10} color="#000" />
+              <Text style={styles.goldText}>Gold Member</Text>
+            </LinearGradient>
+          )}
         </View>
       </View>
 
       <View style={styles.statsGrid}>
         <View style={styles.statBlock}>
           <Text style={styles.statNumber}>{MOCK_DATA.pastOrders}</Text>
-          <Text style={styles.statLabel}>Orders</Text>
+          <Text style={styles.statLabel}>Orders Placed</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statBlock}>
           <Text style={styles.statNumber}>₹12.4K</Text>
-          <Text style={styles.statLabel}>Total Spent</Text>
+          <Text style={styles.statLabel}>Total Saved</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statBlock}>
           <Text style={styles.statNumber}>{MOCK_DATA.loyaltyPoints}</Text>
-          <Text style={styles.statLabel}>Points</Text>
+          <Text style={styles.statLabel}>Points Balance</Text>
         </View>
       </View>
     </Reanimated.View>
@@ -582,7 +508,7 @@ const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit }: { user
 // ─────────────────────────────────────────────────────────────────────────────
 const MembershipCard = React.memo(function MembershipCard() {
   const scaleAnim = useSharedValue(0.95);
-  
+
   useEffect(() => {
     scaleAnim.value = withSpring(1, { damping: 14, stiffness: 100 });
   }, []);
@@ -599,7 +525,7 @@ const MembershipCard = React.memo(function MembershipCard() {
             <View style={styles.progressBar}>
               <LinearGradient colors={[GOLD, GOLD_LIGHT]} style={[styles.progressFill, { width: "65%" }]} />
             </View>
-            <Text style={styles.progressText}>650 points to Platinum</Text>
+            <Text style={styles.progressText}>650 points to Gold Member</Text>
           </View>
         </View>
         <View style={styles.membershipIcon}>
@@ -616,7 +542,7 @@ const MembershipCard = React.memo(function MembershipCard() {
 function QuickActions() {
   const router = useRouter();
   const actions = [
-    { icon: "refresh-circle", label: "Reorder", color: ORANGE, route: "/orders/reorder-favorites" },
+    { icon: "refresh-circle", label: "Reorder", color: ORANGE, route: "/profile/favorites/favorite-orders" },
     { icon: "navigate-circle", label: "Track", color: GREEN, route: "/orders/track" },
     { icon: "pricetag", label: "Offers", color: GOLD, route: "/profile/offers" },
     { icon: "headset", label: "Support", color: BLUE, route: "/profile/support/help" },
@@ -660,8 +586,6 @@ const ROUTE_MAP: Record<string, string> = {
 
   // Favorites
   "saved-dishes": "/profile/favorites/saved-dishes",
-  "saved-restaurants": "/profile/favorites/saved-restaurants",
-  "recent-restaurants": "/profile/favorites/recently-visited",
   "recent-items": "/profile/favorites/recently-viewed",
   "fav-orders": "/profile/favorites/favorite-orders",
 
@@ -676,11 +600,7 @@ const ROUTE_MAP: Record<string, string> = {
   "referral-earnings": "/profile/rewards/referral",
 
   // Addresses
-  "home": "/profile/addresses",
-  "work": "/profile/addresses",
-  "other": "/profile/addresses",
-  "add-new": "/profile/addresses?add=true",
-  "edit-delete": "/profile/addresses",
+  "manage-addresses": "/profile/addresses",
 
   // Payments
   "cards": "/profile/payments/cards",
@@ -694,14 +614,11 @@ const ROUTE_MAP: Record<string, string> = {
   // Membership
   "subscription": "/profile/membership/premium",
   "benefits": "/profile/membership/benefits",
-  "tier": "/profile/membership/tier",
-  "earned": "/profile/membership/rewards",
 
   // Notifications
   "order-updates": "/profile/notifications/order-updates",
   "offers": "/profile/notifications/offers",
   "announcements": "/profile/notifications/announcements",
-  "history": "/profile/notifications/history",
 
   // Support
   "help": "/profile/support/help",
@@ -712,11 +629,10 @@ const ROUTE_MAP: Record<string, string> = {
   // Restaurant
   "upcoming": "/profile/restaurant/upcoming",
   "past-reservations": "/profile/restaurant/history",
-  "event-requests": "/profile/restaurant/events",
-  "party-bookings": "/profile/restaurant/catering",
-  "event-orders": "/profile/restaurant/event-orders",
+  "catering": "/profile/restaurant/catering",
 
   // Settings
+  "settings": "/profile/settings",
   "edit-profile": "/profile/settings/profile",
   "change-mobile": "/profile/settings/change-mobile",
   "change-email": "/profile/settings/change-email",
@@ -739,7 +655,7 @@ const ROUTE_MAP: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Profile() {
   const router = useRouter();
-  const { user, signOut } = useApp();
+  const { user, signOut, updateUser } = useApp();
   const insets = useSafeAreaInsets();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const scrollY = useSharedValue(0);
@@ -748,6 +664,27 @@ export default function Profile() {
   const headerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 80], [0, 1], "clamp"),
   }));
+
+  const isGold = (user?.email || "sudip@dineout.com") === "sudip@dineout.com" || user?.membershipTier === "Gold";
+
+  const handlePickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert("Permission to access photos is required!");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      await updateUser({ avatar: result.assets[0].uri });
+    }
+  };
 
   const handleItemPress = (key: string) => {
     const route = ROUTE_MAP[key];
@@ -777,11 +714,18 @@ export default function Profile() {
             <Ionicons name="arrow-back" size={22} color={GOLD} />
           </TouchableOpacity>
           <Text style={styles.floatingTitle}>Profile</Text>
-          <TouchableOpacity onPress={() => router.push("/profile/settings/profile")} activeOpacity={0.7}>
-            <Ionicons name="settings-outline" size={22} color={GOLD} />
-          </TouchableOpacity>
+          <View style={{ width: 22 }} />
         </LinearGradient>
       </Reanimated.View>
+
+      {/* Sticky Settings Gear (Always Visible) */}
+      <TouchableOpacity
+        style={[styles.stickySettings, { top: insets.top + 12 }]}
+        onPress={() => router.push("/profile/settings")}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="settings-outline" size={22} color={GOLD} />
+      </TouchableOpacity>
 
       <Reanimated.ScrollView
         showsVerticalScrollIndicator={false}
@@ -789,27 +733,32 @@ export default function Profile() {
         scrollEventThrottle={16}
       >
         <View style={styles.content}>
-          <PremiumHeader user={user} onEdit={() => handleItemPress("edit-profile")} />
-          <MembershipCard />
+          <PremiumHeader
+            user={user}
+            onEdit={() => handleItemPress("edit-profile")}
+            onChangePhoto={handlePickImage}
+            isGold={isGold}
+          />
+          {!isGold && <MembershipCard />}
           <QuickActions />
-          
+
           <View style={styles.sectionsContainer}>
             {SECTIONS.map((section) => (
               <SettingsSection key={section.id} section={section} onPress={handleItemPress} />
             ))}
           </View>
-          
+
           <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.7}>
             <LinearGradient colors={[`${RED}15`, `${RED}05`]} style={styles.signOutGradient}>
               <Ionicons name="log-out-outline" size={20} color={RED} />
               <Text style={styles.signOutText}>Sign Out</Text>
             </LinearGradient>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.deleteBtn} activeOpacity={0.7}>
             <Text style={styles.deleteText}>Delete Account</Text>
           </TouchableOpacity>
-          
+
           <View style={styles.footer}>
             <View style={styles.footerLine} />
             <Text style={styles.footerText}>v2.5.0</Text>
@@ -824,11 +773,11 @@ export default function Profile() {
 // ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: DARK_BG },
-  
+
   glow1: { position: "absolute", top: -100, right: -80, width: 250, height: 250, borderRadius: 125, backgroundColor: `${GOLD}08` },
   glow2: { position: "absolute", bottom: -50, left: -100, width: 220, height: 220, borderRadius: 110, backgroundColor: `${GOLD}05` },
   glow3: { position: "absolute", top: "40%", right: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: `${PURPLE}04` },
-  
+
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1000 },
   floatingHeaderContent: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -836,57 +785,57 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: `${GOLD}15`,
   },
   floatingTitle: { color: WHITE, fontSize: 18, fontWeight: "600" },
-  
+  stickySettings: {
+    position: "absolute",
+    right: 20,
+    zIndex: 1100,
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   content: { paddingTop: 20, paddingBottom: 40 },
-  
+
   headerContainer: {
-    marginHorizontal: 20, marginBottom: 24, padding: 22,
+    marginHorizontal: 20, marginBottom: 24, padding: 20,
     backgroundColor: SURFACE_2, borderRadius: 24, borderWidth: 1,
-    borderColor: `${GOLD}40`, position: "relative", overflow: "hidden",
-    shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 8,
+    borderColor: "rgba(212, 175, 55, 0.15)", position: "relative", overflow: "hidden",
   },
-  headerAccent: {
-    position: "absolute", top: 0, right: 0, width: 120, height: 120,
-    backgroundColor: `${GOLD}20`, borderRadius: 60,
-    transform: [{ translateX: 60 }, { translateY: -60 }],
-  },
-  profileRow: { flexDirection: "column", alignItems: "center", marginBottom: 20 },
-  avatarSection: { position: "relative", marginRight: 0, marginBottom: 12 },
-  avatarRing: { width: 80, height: 80, borderRadius: 40, padding: 2 },
-  avatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: SURFACE },
+  profileRow: { flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 16 },
+  avatarSection: { position: "relative" },
+  avatarRing: { width: 72, height: 72, borderRadius: 20, padding: 2 },
+  avatar: { width: 68, height: 68, borderRadius: 18, backgroundColor: SURFACE },
   editBadge: {
-    position: "absolute", bottom: 0, right: 0, width: 26, height: 26,
-    borderRadius: 13, backgroundColor: GOLD, alignItems: "center",
+    position: "absolute", bottom: -4, right: -4, width: 24, height: 24,
+    borderRadius: 12, backgroundColor: GOLD, alignItems: "center",
     justifyContent: "center", borderWidth: 2, borderColor: SURFACE_2,
   },
-  userInfo: { justifyContent: "center", alignItems: "center" },
-  userName: { color: WHITE, fontSize: 20, fontWeight: "700", marginBottom: 4, textAlign: "center" },
-  userEmail: { color: MUTED, fontSize: 12, marginBottom: 8, textAlign: "center" },
-  badgeRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
+  userInfo: { flex: 1, alignItems: "flex-start", justifyContent: "center" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
+  userName: { color: WHITE, fontSize: 18, fontWeight: "800", letterSpacing: 0.2 },
+  verifiedIcon: { marginTop: 1 },
+  userEmail: { color: MUTED, fontSize: 12, marginBottom: 6 },
   goldBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: `${GOLD}15`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
   },
-  goldText: { color: GOLD, fontSize: 10, fontWeight: "600" },
+  goldText: { color: "#000000", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
   verifiedBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: `${GREEN}15`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
   },
   verifiedText: { color: GREEN, fontSize: 10, fontWeight: "600" },
-  
+
   statsGrid: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-around",
-    paddingTop: 16, borderTopWidth: 1, borderTopColor: `${GOLD}10`,
+    paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(212, 175, 55, 0.15)",
   },
   statBlock: { alignItems: "center", flex: 1 },
-  statNumber: { color: GOLD, fontSize: 20, fontWeight: "700", marginBottom: 4 },
-  statLabel: { color: MUTED, fontSize: 11, fontWeight: "500" },
-  statDivider: { width: 1, height: 30, backgroundColor: `${GOLD}15` },
-  
+  statNumber: { color: WHITE, fontSize: 16, fontWeight: "800" },
+  statLabel: { color: MUTED, fontSize: 10, fontWeight: "600", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 },
+  statDivider: { width: 1, height: 24, backgroundColor: "rgba(212, 175, 55, 0.15)" },
+
   membershipWrapper: { marginHorizontal: 20, marginBottom: 24 },
   membershipCard: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
@@ -900,12 +849,12 @@ const styles = StyleSheet.create({
   progressFill: { height: "100%", borderRadius: 2 },
   progressText: { color: MUTED, fontSize: 10 },
   membershipIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: `${GOLD}10`, alignItems: "center", justifyContent: "center" },
-  
+
   quickActions: { flexDirection: "row", justifyContent: "space-around", marginHorizontal: 20, marginBottom: 28 },
   actionBtn: { alignItems: "center", gap: 8 },
   actionIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: `${GOLD}20` },
   actionLabel: { color: MUTED, fontSize: 12, fontWeight: "500" },
-  
+
   sectionsContainer: { marginHorizontal: 20, gap: 12, marginBottom: 24 },
   section: { backgroundColor: SURFACE_2, borderRadius: 16, borderWidth: 1, borderColor: `${GOLD}15`, overflow: "hidden" },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
@@ -922,13 +871,13 @@ const styles = StyleSheet.create({
   itemRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   itemValue: { color: GOLD, fontSize: 12, fontWeight: "500" },
   subItemsContainer: { backgroundColor: `${SURFACE_3}50` },
-  
+
   signOutBtn: { marginHorizontal: 20, marginBottom: 12 },
   signOutGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: `${RED}25` },
   signOutText: { color: RED, fontSize: 15, fontWeight: "600" },
   deleteBtn: { alignItems: "center", marginBottom: 20 },
   deleteText: { color: `${RED}50`, fontSize: 13, textDecorationLine: "underline" },
-  
+
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginHorizontal: 20, gap: 12 },
   footerLine: { flex: 1, height: 1, backgroundColor: `${GOLD}15` },
   footerText: { color: MUTED_2, fontSize: 11 },

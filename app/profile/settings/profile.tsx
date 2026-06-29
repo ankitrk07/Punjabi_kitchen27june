@@ -1,14 +1,57 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
+import { useApp } from "@/src/context/AppContext";
+import * as ImagePicker from "expo-image-picker";
 
 export default function EditProfileScreen() {
-  const [name, setName] = useState("Sudip Sen");
-  const [email, setEmail] = useState("sudip@dineout.com");
-  const [phone, setPhone] = useState("+91 98765 43210");
+  const { user, updateUser } = useApp();
+  const [name, setName] = useState(user?.name || "Sudip Sen");
+  const [email, setEmail] = useState(user?.email || "sudip@dineout.com");
+  const [phone, setPhone] = useState(user?.phone || "+91 98765 43210");
   const [dob, setDob] = useState("15 March 1995");
+  const [avatar, setAvatar] = useState(user?.avatar || "");
+
+  const handlePickImage = async () => {
+    // Request permission
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert("Permission to access photos is required!");
+      return;
+    }
+
+    // Launch image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setAvatar(result.assets[0].uri);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateUser({ name, email, phone, avatar });
+      alert("Profile Updated successfully!");
+    } catch (e) {
+      alert("Failed to update profile.");
+    }
+  };
+
+  const getInitials = (fullName: string) => {
+    return fullName
+      .trim()
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
+  };
 
   const fields = [
     { label: "Full Name", value: name, setter: setName, icon: "person-outline", keyboardType: "default" as const },
@@ -18,13 +61,22 @@ export default function EditProfileScreen() {
   ];
 
   return (
-    <ScreenHeader title="Edit Profile" backHref="/(tabs)/profile">
-      {/* Avatar */}
+    <ScreenHeader title="Edit Profile" backHref="/profile/settings">
+      {/* Avatar Section */}
       <View style={s.avatarSection}>
-        <View style={s.avatar}>
-          <Text style={s.avatarText}>SS</Text>
-        </View>
-        <TouchableOpacity style={s.changePhotoBtn} onPress={() => alert("Choose photo")}>
+        <TouchableOpacity style={s.avatarContainer} onPress={handlePickImage} activeOpacity={0.9}>
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={s.avatarImage} />
+          ) : (
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{getInitials(name)}</Text>
+            </View>
+          )}
+          <View style={s.cameraBadge}>
+            <Ionicons name="camera" size={12} color="#000" />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.changePhotoBtn} onPress={handlePickImage}>
           <Ionicons name="camera-outline" size={14} color={colors.gold} />
           <Text style={s.changePhotoText}>Change Photo</Text>
         </TouchableOpacity>
@@ -36,7 +88,13 @@ export default function EditProfileScreen() {
           <Text style={s.fieldLabel}>{f.label}</Text>
           <View style={s.inputRow}>
             <Ionicons name={f.icon as any} size={16} color={colors.textSecondary} />
-            <TextInput style={s.input} value={f.value} onChangeText={f.setter} keyboardType={f.keyboardType} placeholderTextColor={colors.textSecondary} />
+            <TextInput 
+              style={s.input} 
+              value={f.value} 
+              onChangeText={f.setter} 
+              keyboardType={f.keyboardType} 
+              placeholderTextColor={colors.textSecondary} 
+            />
           </View>
         </View>
       ))}
@@ -51,7 +109,7 @@ export default function EditProfileScreen() {
         ))}
       </View>
 
-      <TouchableOpacity style={s.saveBtn} onPress={() => alert("Profile Updated!")}>
+      <TouchableOpacity style={s.saveBtn} onPress={handleSave}>
         <Text style={s.saveBtnText}>Save Changes</Text>
       </TouchableOpacity>
     </ScreenHeader>
@@ -60,8 +118,11 @@ export default function EditProfileScreen() {
 
 const s = StyleSheet.create({
   avatarSection: { alignItems: "center", marginBottom: 24 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center", marginBottom: 10 },
-  avatarText: { fontSize: 28, fontWeight: "800", color: "#000" },
+  avatarContainer: { position: "relative", marginBottom: 12 },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center" },
+  avatarImage: { width: 80, height: 80, borderRadius: 40 },
+  avatarText: { fontSize: 26, fontWeight: "800", color: "#000" },
+  cameraBadge: { position: "absolute", bottom: 0, right: 0, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: colors.bg },
   changePhotoBtn: { flexDirection: "row", alignItems: "center", gap: 5 },
   changePhotoText: { fontSize: 12, color: colors.gold, fontWeight: "600" },
   fieldContainer: { marginBottom: 16 },
