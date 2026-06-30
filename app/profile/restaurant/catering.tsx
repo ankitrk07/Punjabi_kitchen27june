@@ -20,66 +20,11 @@ type CateringItem = {
   address?: string;
 };
 
-export default function CateringOrdersScreen() {
-  const [activeTab, setActiveTab] = useState<"book" | "orders">("orders");
+import { useApp } from "@/src/context/AppContext";
 
-  // Consolidated Catering Requests & Orders
-  const [cateringList, setCateringList] = useState<CateringItem[]>([
-    {
-      id: "EVT-ORD-482",
-      isOrder: true,
-      eventName: "Wedding Sangeet Buffet",
-      guests: 250,
-      date: "Today, 6:00 PM (Scheduled)",
-      status: "Prep in Progress",
-      statusColor: colors.gold,
-      items: [
-        { name: "Butter Chicken (Buffet Servings)", qty: 4 },
-        { name: "Dal Makhani (Buffet Servings)", qty: 4 },
-        { name: "Paneer Tikka (Bulk Platter)", qty: 6 },
-        { name: "Tandoori Roti & Garlic Naan Set", qty: 250 },
-      ],
-      total: "₹45,280",
-      manager: "Vipul (Chef-in-Charge)",
-      address: "Mapple Gold Banquet, Sector 15, Gurugram",
-    },
-    {
-      id: "REQ-901",
-      isOrder: false,
-      eventName: "Corporate Seminar Buffet",
-      guests: 80,
-      date: "12 Oct 2025",
-      status: "Approved",
-      statusColor: colors.success,
-      details: "Full North-Indian buffet with live counters for Paneer Tikka & Jalebi.",
-    },
-    {
-      id: "REQ-847",
-      isOrder: false,
-      eventName: "Family Anniversary Lunch",
-      guests: 45,
-      date: "24 Nov 2025",
-      status: "Under Review",
-      statusColor: colors.gold,
-      details: "Standard lunch buffet with custom decoration and birthday cake.",
-    },
-    {
-      id: "EVT-ORD-204",
-      isOrder: true,
-      eventName: "Corporate Lunch Box delivery",
-      guests: 60,
-      date: "10 Jun 2025",
-      status: "Delivered",
-      statusColor: colors.success,
-      items: [
-        { name: "Standard Veg Lunch Box Combo", qty: 60 },
-        { name: "Sweet Lassi Bottles", qty: 60 },
-      ],
-      total: "₹18,400",
-      manager: "Aakash (Logistics Coord.)",
-      address: "DLF Cyber City, Building 10, Gurugram",
-    },
-  ]);
+export default function CateringOrdersScreen() {
+  const { cateringRequests, createCateringRequest } = useApp();
+  const [activeTab, setActiveTab] = useState<"book" | "orders">("orders");
 
   // Packages references
   const packages = [
@@ -97,33 +42,34 @@ export default function CateringOrdersScreen() {
   const [selectedPkg, setSelectedPkg] = useState("Gold Royal Banquet");
   const [details, setDetails] = useState("");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!eventType || !guestCount || !date || !phone || !address) {
       alert("Please fill in all required fields.");
       return;
     }
 
-    const newRequest: CateringItem = {
-      id: `REQ-${Math.floor(100 + Math.random() * 900)}`,
-      isOrder: false,
-      eventName: `${eventType} (${selectedPkg})`,
-      guests: parseInt(guestCount) || 0,
-      date: date,
-      status: "Submitted",
-      statusColor: colors.gold,
-      details: details || "No additional requirements provided.",
-      address: address,
-    };
+    try {
+      await createCateringRequest({
+        eventType: `${eventType} (${selectedPkg})`,
+        guests: parseInt(guestCount) || 0,
+        date: date,
+        phone: phone,
+        address: address,
+        package: selectedPkg,
+        details: details || "No additional requirements provided.",
+      });
 
-    setCateringList([newRequest, ...cateringList]);
-    setEventType("");
-    setGuestCount("");
-    setDate("");
-    setPhone("");
-    setAddress("");
-    setDetails("");
-    setActiveTab("orders");
-    alert("Catering Request Submitted successfully!");
+      setEventType("");
+      setGuestCount("");
+      setDate("");
+      setPhone("");
+      setAddress("");
+      setDetails("");
+      setActiveTab("orders");
+      alert("Catering Request Submitted successfully!");
+    } catch (e) {
+      alert("Failed to submit request.");
+    }
   };
 
   return (
@@ -170,20 +116,21 @@ export default function CateringOrdersScreen() {
         {/* Tab: Orders feed */}
         {activeTab === "orders" && (
           <View>
-            <Text style={s.sectionHeader}>{cateringList.length} Total Bookings</Text>
-            {cateringList.map((item) => {
-              const badgeBg = item.statusColor === colors.success ? "rgba(16, 185, 129, 0.08)" : "rgba(212, 175, 55, 0.08)";
-              const badgeBorder = item.statusColor === colors.success ? "rgba(16, 185, 129, 0.2)" : "rgba(212, 175, 55, 0.2)";
+            <Text style={s.sectionHeader}>{cateringRequests.length} Total Bookings</Text>
+            {cateringRequests.map((item) => {
+              const statusColor = item.status === "Approved" ? colors.success : item.status === "Denied" ? colors.error : colors.gold;
+              const badgeBg = statusColor === colors.success ? "rgba(16, 185, 129, 0.08)" : "rgba(212, 175, 55, 0.08)";
+              const badgeBorder = statusColor === colors.success ? "rgba(16, 185, 129, 0.2)" : "rgba(212, 175, 55, 0.2)";
 
               return (
                 <View key={item.id} style={s.card}>
                   <View style={s.cardHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.cardTitle}>{item.eventName}</Text>
-                      <Text style={s.cardId}>{item.isOrder ? "Order" : "Request"} #{item.id}</Text>
+                      <Text style={s.cardTitle}>{item.eventType || item.eventName}</Text>
+                      <Text style={s.cardId}>{item.isOrder ? "Order" : "Request"} #{item.id.slice(-6).toUpperCase()}</Text>
                     </View>
                     <View style={[s.statusBadge, { backgroundColor: badgeBg, borderColor: badgeBorder }]}>
-                      <Text style={[s.statusText, { color: item.statusColor }]}>{item.status}</Text>
+                      <Text style={[s.statusText, { color: statusColor }]}>{item.status}</Text>
                     </View>
                   </View>
 

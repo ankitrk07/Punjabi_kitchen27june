@@ -31,8 +31,9 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import Reanimated from "react-native-reanimated";
+import Reanimated, { useAnimatedRef, scrollTo, runOnUI } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -153,15 +154,15 @@ function InputModal({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={modal.backdrop} />
-      </TouchableWithoutFeedback>
-
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={modal.kav}
-        pointerEvents="box-none"
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        style={{ flex: 1, justifyContent: "flex-end" }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 40}
       >
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={modal.backdrop} />
+        </TouchableWithoutFeedback>
+
         <Animated.View style={[modal.sheet, { transform: [{ translateY: slideAnim }] }]}>
           {/* Handle */}
           <View style={modal.handle} />
@@ -205,12 +206,6 @@ const modal = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.72)",
-  },
-  kav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
   sheet: {
     backgroundColor: SURFACE2,
@@ -339,6 +334,11 @@ function TappableField({
                 selectionColor={GOLD}
                 cursorColor={GOLD}
               />
+              {value.length > 0 && (
+                <TouchableOpacity onPress={() => onChange("")} style={tf.clearBtn}>
+                  <Ionicons name="close-circle" size={14} color={MUTED} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -381,6 +381,10 @@ const tf = StyleSheet.create({
   },
   pillPlaceholder: { color: "#3a3a3a" },
   errText: { color: "#e85555", fontSize: 9, marginTop: 4, letterSpacing: 0.3 },
+  clearBtn: {
+    padding: 2,
+    marginLeft: 4,
+  },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -763,7 +767,8 @@ const calendar = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 // BookingWidget
 // ─────────────────────────────────────────────────────────────────────────────
-function BookingWidget({ onSuccess }: { onSuccess: (data: any) => void }) {
+function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any) => void, onValidationError?: () => void }) {
+  const { reservations } = useApp();
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -774,6 +779,7 @@ function BookingWidget({ onSuccess }: { onSuccess: (data: any) => void }) {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<{ year: number; month: number; day: number } | null>(null);
   const [selectedSlot, setSlot]         = useState<string | null>(null);
+  const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [timeSlots,    setTimeSlots]    = useState<string[]>([]);
   const [bookedSlots,  setBookedSlots]  = useState<string[]>([]);
   const [errors,       setErrors]       = useState<Record<string, string>>({});
@@ -791,6 +797,7 @@ function BookingWidget({ onSuccess }: { onSuccess: (data: any) => void }) {
   const handleDateSelect = (d: { year: number; month: number; day: number }) => {
     setSelectedDate(d);
     setSlot(null);
+    setSelectedTable(null);
     const slots = generateTimeSlots(d.year, d.month, d.day);
     setTimeSlots(slots);
     setBookedSlots(getBookedSlots(d.year, d.month, d.day));
@@ -812,7 +819,16 @@ function BookingWidget({ onSuccess }: { onSuccess: (data: any) => void }) {
     if (!phone.trim() || phone.length < 10) e.phone = "Valid 10-digit phone required";
     if (!selectedDate) e.date  = "Please pick a date";
     if (!selectedSlot) e.slot  = "Please pick a time slot";
+    if (!selectedTable) e.table = "Please select a table";
     setErrors(e);
+
+    if (!name.trim() || !phone.trim()) {
+      if (onValidationError) {
+        onValidationError();
+      }
+      return false;
+    }
+
     return Object.keys(e).length === 0;
   };
 
@@ -823,10 +839,10 @@ function BookingWidget({ onSuccess }: { onSuccess: (data: any) => void }) {
       ? `${MONTH_NAMES[selectedDate.month]} ${selectedDate.day}, ${selectedDate.year}`
       : "";
     setTimeout(() => {
-      onSuccess({ name, phone, date: dateStr, guests, slot: selectedSlot });
+      onSuccess({ name, phone, date: dateStr, guests, slot: selectedSlot, tableNumber: selectedTable });
       setSubmitted(false);
       setName(""); setPhone(""); setGuests("2");
-      setSelectedDate(null); setSlot(null); setTimeSlots([]);
+      setSelectedDate(null); setSlot(null); setSelectedTable(null); setTimeSlots([]);
     }, 1200);
   };
 
@@ -1030,6 +1046,62 @@ function BookingWidget({ onSuccess }: { onSuccess: (data: any) => void }) {
         )}
         {errors.slot ? <Text style={widget.errText}>{errors.slot}</Text> : null}
       </View>
+
+      {/* ── Table Selection Grid ── */}
+      {selectedDate && selectedSlot && (
+        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: `${GOLD}12`, paddingTop: 16 }]}>
+          <View style={widget.slotTitleRow}>
+            <Ionicons name="grid-outline" size={15} color={GOLD} />
+            <Text style={widget.slotTitle}>SELECT TABLE</Text>
+          </View>
+          <Text style={widget.slotSubLabel}>CHOOSE AN AVAILABLE TABLE SEAT</Text>
+          
+          <View style={tableStyle.tablesGrid}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((tNum) => {
+              const dateStr = selectedDate ? `${MONTH_NAMES[selectedDate.month]} ${selectedDate.day}, ${selectedDate.year}` : "";
+              const isBooked = reservations.some(
+                (r) => r.status === "Active" && r.reservationDate === dateStr && r.reservationSlot === selectedSlot && Number(r.tableNumber) === tNum
+              );
+              const isSel = selectedTable === tNum;
+
+              return (
+                <TouchableOpacity
+                  key={tNum}
+                  disabled={isBooked}
+                  onPress={() => {
+                    setSelectedTable(tNum);
+                    setErrors((p) => ({ ...p, table: "" }));
+                  }}
+                  style={[
+                    tableStyle.tablePill,
+                    isSel && tableStyle.tablePillActive,
+                    isBooked && tableStyle.tablePillBooked
+                  ]}
+                >
+                  <Ionicons 
+                    name={isBooked ? "close-circle-outline" : isSel ? "checkmark-circle-outline" : "restaurant-outline"} 
+                    size={13} 
+                    color={isBooked ? "#ff8e8e" : isSel ? "#000" : GOLD} 
+                  />
+                  <Text style={[
+                    tableStyle.tablePillText, 
+                    isSel && tableStyle.tablePillTextActive, 
+                    isBooked && tableStyle.tablePillTextBooked
+                  ]}>
+                    Table {tNum}
+                  </Text>
+                  {isBooked ? (
+                    <Text style={tableStyle.tableStatusTextBooked}>OCCUPIED</Text>
+                  ) : (
+                    <Text style={[tableStyle.tableStatusTextAvail, isSel && { color: "#000" }]}>VACANT</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {errors.table ? <Text style={widget.errText}>{errors.table}</Text> : null}
+        </View>
+      )}
 
       {/* ── Confirm button ── */}
       <View style={widget.sectionPad}>
@@ -1509,8 +1581,8 @@ function ReserveCard({
             <Text style={styles.infoValue}>{dateLine}</Text>
           </View>
           <View style={styles.infoCol}>
-            <Text style={styles.infoLabel}>TIME</Text>
-            <Text style={styles.infoValue}>{timeLine}</Text>
+            <Text style={styles.infoLabel}>TIME & TABLE</Text>
+            <Text style={styles.infoValue}>{timeLine}  ·  Table {order.tableNumber || 1}</Text>
           </View>
         </View>
         <View style={styles.cardBody}>
@@ -1600,21 +1672,22 @@ function EmptyState() {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function Reserves() {
-  const { orders, cancelOrder } = useApp();
+  const { reservations, bookTable, cancelReservation } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
-  const reservedOrders = orders.filter((o) => o.mode === "Dine In" && o.status !== "Cancelled");
 
+  const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
   const heroFade  = useRef(new Animated.Value(0)).current;
   const heroSlide = useRef(new Animated.Value(-16)).current;
   const [latestBooking, setLatestBooking] = useState<any | null>(null);
-  const [localReservations, setLocalReservations] = useState<any[]>([]);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const [activeToken, setActiveToken] = useState("");
   const [activeTokenName, setActiveTokenName] = useState("Guest");
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [pendingCancelReservation, setPendingCancelReservation] = useState<any | null>(null);
-  const displayedReservations = [...reservedOrders, ...localReservations];
+
+  // Filter to active bookings
+  const displayedReservations = reservations.filter((r) => r.status !== "Cancelled");
   const [showBookingForm, setShowBookingForm] = useState(displayedReservations.length === 0);
 
   useEffect(() => {
@@ -1655,14 +1728,10 @@ export default function Reserves() {
           setPendingCancelReservation(null);
         }}
         onConfirm={() => {
-          const order = pendingCancelReservation;
-          if (!order) return;
+          const resObj = pendingCancelReservation;
+          if (!resObj) return;
 
-          if (String(order.id ?? "").startsWith("local-")) {
-            setLocalReservations((prev) => prev.filter((r) => r.id !== order.id));
-          } else {
-            cancelOrder(order.id);
-          }
+          cancelReservation(resObj.id);
 
           setCancelModalVisible(false);
           setPendingCancelReservation(null);
@@ -1670,6 +1739,7 @@ export default function Reserves() {
       />
 
       <Reanimated.ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
         onScroll={onScroll}
@@ -1695,35 +1765,65 @@ export default function Reserves() {
           )}
         </Animated.View>
 
-        {showBookingForm && (
-          <BookingWidget
-            onSuccess={(data) => {
-              setLatestBooking(data);
-              setLocalReservations((prev) => [
-                {
-                  id: `local-${Date.now()}`,
-                  createdAt: new Date().toISOString(),
-                  mode: "Dine In",
+        {/* Case 1: Booking form is shown */}
+        {showBookingForm ? (
+          <View>
+            {displayedReservations.length > 0 && (
+              <TouchableOpacity
+                style={styles.backToListBtn}
+                onPress={() => setShowBookingForm(false)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={14} color={GOLD} />
+                <Text style={styles.backToListText}>View Active Reservations</Text>
+              </TouchableOpacity>
+            )}
+            <BookingWidget
+              onSuccess={(data) => {
+                setLatestBooking(data);
+                bookTable({
                   customerName: data.name,
                   customerPhone: data.phone,
                   reservationDate: data.date,
                   reservationSlot: data.slot,
                   guests: data.guests,
                   guestCount: Number.parseInt(data.guests, 10) || 1,
-                  total: 0,
-                },
-                ...prev,
-              ]);
-              setShowBookingForm(false);
-            }}
-          />
-        )}
-
-        {/* Existing reservations */}
-        {displayedReservations.length === 0 ? (
-          <EmptyState />
+                  tableNumber: data.tableNumber,
+                });
+                setShowBookingForm(false);
+              }}
+              onValidationError={() => {
+                runOnUI(() => {
+                  scrollTo(scrollRef, 0, 0, true);
+                })();
+              }}
+            />
+          </View>
         ) : (
-          <>
+          /* Case 2: Booking form is hidden (only possible if displayedReservations.length > 0) */
+          <View>
+            <TouchableOpacity
+              style={styles.bookMoreBox}
+              onPress={() => setShowBookingForm(true)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={["rgba(201, 168, 76, 0.15)", "rgba(17, 17, 17, 0)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bookMoreBoxGradient}
+              >
+                <View style={styles.bookMoreLeft}>
+                  <Ionicons name="add-circle-outline" size={24} color={GOLD} />
+                </View>
+                <View style={styles.bookMoreContent}>
+                  <Text style={styles.bookMoreTitle}>Book Another Table</Text>
+                  <Text style={styles.bookMoreSub}>Dine with us again or reserve for another event</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={`${GOLD}80`} />
+              </LinearGradient>
+            </TouchableOpacity>
+
             <View style={styles.sectionDivider}>
               <View style={styles.sectionLine} />
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -1732,6 +1832,7 @@ export default function Reserves() {
               </View>
               <View style={styles.sectionLine} />
             </View>
+
             <View style={styles.cardList}>
               {displayedReservations.map((o, i) => (
                 <ReserveCard
@@ -1752,15 +1853,7 @@ export default function Reserves() {
                 />
               ))}
             </View>
-            <TouchableOpacity
-              style={styles.addMoreBtn}
-              onPress={() => setShowBookingForm(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add-circle-outline" size={16} color={GOLD} style={{ marginRight: 8 }} />
-              <Text style={styles.addMoreText}>Add Another Reservation</Text>
-            </TouchableOpacity>
-          </>
+          </View>
         )}
       </Reanimated.ScrollView>
     </SafeAreaView>
@@ -1771,6 +1864,53 @@ export default function Reserves() {
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: DARK_BG },
   scroll: { padding: 16, paddingBottom: 60 },
+  backToListBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backToListText: {
+    color: GOLD,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  bookMoreBox: {
+    backgroundColor: SURFACE,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${GOLD}20`,
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  bookMoreBoxGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+  },
+  bookMoreLeft: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: GOLD_DIM,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bookMoreContent: {
+    flex: 1,
+  },
+  bookMoreTitle: {
+    color: WHITE,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  bookMoreSub: {
+    color: MUTED,
+    fontSize: 10,
+    marginTop: 2,
+  },
 
   ambientBlob1: {
     position: "absolute", top: -80, right: -80,
@@ -1923,4 +2063,28 @@ const styles = StyleSheet.create({
   emptyFooterRow: { flexDirection: "row", alignItems: "center", gap: 10, width: "70%" },
   emptyFooterLine:  { flex: 1, height: 1, backgroundColor: `${GOLD}22` },
   emptyFooterLabel: { color: `${GOLD}55`, fontSize: 8, fontWeight: "800", letterSpacing: 2 },
+});
+
+const tableStyle = StyleSheet.create({
+  tablesGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8, marginTop: 8 },
+  tablePill: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SURFACE2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: `${GOLD}20`,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 8,
+  },
+  tablePillActive: { backgroundColor: GOLD, borderColor: GOLD_LIGHT },
+  tablePillBooked: { backgroundColor: "rgba(255,255,255,0.015)", borderColor: "rgba(255,110,110,0.15)", opacity: 0.5 },
+  tablePillText: { color: WHITE, fontSize: 12, fontWeight: "700" },
+  tablePillTextActive: { color: "#1a0d0a", fontWeight: "800" },
+  tablePillTextBooked: { color: "#555" },
+  tableStatusTextBooked: { fontSize: 8, fontWeight: "800", color: "#ff8e8e", letterSpacing: 0.5, marginLeft: "auto" },
+  tableStatusTextAvail: { fontSize: 8, fontWeight: "800", color: "#4CD97B", letterSpacing: 0.5, marginLeft: "auto" },
 });

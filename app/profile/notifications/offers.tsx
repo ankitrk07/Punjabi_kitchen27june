@@ -3,19 +3,27 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
-
-const NOTIFS = [
-  { id: "1", title: "🎉 Diwali Special – 40% OFF", body: "Celebrate with our festive Thali specials. Valid 22–29 Jun only!", time: "2h ago", read: false },
-  { id: "2", title: "🏷️ Flash Sale – 30% OFF Dal Makhani", body: "Today only! Order before 10 PM for 30% off on Dal Makhani.", time: "Yesterday", read: false },
-  { id: "3", title: "💰 Paytm Cashback Extended", body: "Get ₹75 cashback on orders via Paytm. Valid for 3 more days!", time: "2 days ago", read: true },
-  { id: "4", title: "🎁 Birthday Month Surprise", body: "As a Gold Member, your birthday month offer is now active: 50% OFF on 1 order!", time: "5 days ago", read: true },
-];
+import { useApp } from "@/src/context/AppContext";
 
 export default function OffersNotificationsScreen() {
+  const { notifications } = useApp();
+
+  const dbOffers = notifications
+    .filter(n => n.type === "Offer")
+    .map(n => ({
+      id: n.id,
+      title: n.title,
+      body: n.message,
+      time: new Date(n.createdAt).toLocaleDateString([], { day: "numeric", month: "short" }),
+      read: false,
+    }));
+
+  const allOffers = [...dbOffers, ...MOCK_OFFERS];
+
   return (
     <ScreenHeader title="Offers & Deals" backHref="/(tabs)/profile">
-      <Text style={s.label}>{NOTIFS.filter(n => !n.read).length} new offers for you</Text>
-      {NOTIFS.map((n) => (
+      <Text style={s.label}>{allOffers.filter(n => !n.read).length} new offers for you</Text>
+      {allOffers.map((n) => (
         <View key={n.id} style={[s.card, !n.read && s.unreadCard]}>
           {!n.read && <View style={s.unreadDot} />}
           <View style={{ flex: 1 }}>
@@ -29,6 +37,13 @@ export default function OffersNotificationsScreen() {
     </ScreenHeader>
   );
 }
+
+const MOCK_OFFERS = [
+  { id: "1", title: "🎉 Diwali Special – 40% OFF", body: "Celebrate with our festive Thali specials. Valid 22–29 Jun only!", time: "2h ago", read: false },
+  { id: "2", title: "🏷️ Flash Sale – 30% OFF Dal Makhani", body: "Today only! Order before 10 PM for 30% off on Dal Makhani.", time: "Yesterday", read: false },
+  { id: "3", title: "💰 Paytm Cashback Extended", body: "Get ₹75 cashback on orders via Paytm. Valid for 3 more days!", time: "2 days ago", read: true },
+  { id: "4", title: "🎁 Birthday Month Surprise", body: "As a Gold Member, your birthday month offer is now active: 50% OFF on 1 order!", time: "5 days ago", read: true },
+];
 
 const s = StyleSheet.create({
   label: { color: colors.textSecondary, fontSize: 13, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 10 },

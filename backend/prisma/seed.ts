@@ -118,6 +118,11 @@ const REVIEWS = [
 
 async function main() {
   console.log("Cleaning up database...");
+  await prisma.cateringRequest.deleteMany({});
+  await prisma.supportTicket.deleteMany({});
+  await prisma.notification.deleteMany({});
+  await prisma.reservation.deleteMany({});
+  await prisma.order.deleteMany({});
   await prisma.dish.deleteMany({});
   await prisma.category.deleteMany({});
   await prisma.review.deleteMany({});

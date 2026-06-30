@@ -507,7 +507,11 @@ const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit, onChange
 // Membership Progress Card
 // ─────────────────────────────────────────────────────────────────────────────
 const MembershipCard = React.memo(function MembershipCard() {
+  const { user } = useApp();
   const scaleAnim = useSharedValue(0.95);
+
+  const points = user?.loyaltyPoints ?? 350;
+  const tier = user?.membershipTier ?? "Classic";
 
   useEffect(() => {
     scaleAnim.value = withSpring(1, { damping: 14, stiffness: 100 });
@@ -515,17 +519,23 @@ const MembershipCard = React.memo(function MembershipCard() {
 
   const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scaleAnim.value }] }));
 
+  const targetPoints = 1000;
+  const progressPercent = Math.min(Math.round((points / targetPoints) * 100), 100);
+  const pointsToGold = Math.max(targetPoints - points, 0);
+
   return (
     <Reanimated.View style={[styles.membershipWrapper, scaleStyle]}>
       <LinearGradient colors={[`${GOLD}20`, `${GOLD}05`]} style={styles.membershipCard}>
         <View style={styles.membershipLeft}>
-          <Text style={styles.membershipTitle}>Membership Progress</Text>
-          <Text style={styles.membershipSubtitle}>{MOCK_DATA.loyaltyPoints} points earned</Text>
+          <Text style={styles.membershipTitle}>Membership Progress ({tier})</Text>
+          <Text style={styles.membershipSubtitle}>{points} points earned</Text>
           <View style={styles.progressWrapper}>
             <View style={styles.progressBar}>
-              <LinearGradient colors={[GOLD, GOLD_LIGHT]} style={[styles.progressFill, { width: "65%" }]} />
+              <LinearGradient colors={[GOLD, GOLD_LIGHT]} style={[styles.progressFill, { width: `${progressPercent}%` }]} />
             </View>
-            <Text style={styles.progressText}>650 points to Gold Member</Text>
+            <Text style={styles.progressText}>
+              {pointsToGold > 0 ? `${pointsToGold} points to Gold Member` : "You are a Gold Member!"}
+            </Text>
           </View>
         </View>
         <View style={styles.membershipIcon}>

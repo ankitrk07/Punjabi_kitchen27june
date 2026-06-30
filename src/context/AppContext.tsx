@@ -21,6 +21,7 @@ export type Order = {
   refund?: { status: "None" | "Pending" | "Completed"; amount: number };
   createdAt: number;
   mode: "Dine In" | "Takeaway" | "Delivery";
+  userEmail?: string;
 };
 
 export type User = {
@@ -29,15 +30,77 @@ export type User = {
   phone?: string;
   gender: "male" | "female";
   avatar?: string;
+  favorites?: string[];
+  membershipTier?: string;
+  loyaltyPoints?: number;
+};
+
+export type Reservation = {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  reservationDate: string;
+  reservationSlot: string;
+  guests: string;
+  guestCount: number;
+  status: "Active" | "Cancelled";
+  tableNumber: number;
+  createdAt?: string;
+  userEmail?: string;
+};
+
+export type CateringItem = {
+  id: string;
+  isOrder?: boolean;
+  eventType?: string;
+  eventName?: string;
+  guests: number;
+  date: string;
+  phone?: string;
+  address?: string;
+  package?: string;
+  details?: string;
+  status: "Pending" | "Approved" | "Denied" | string;
+  items?: { name: string; qty: number }[];
+  total?: string;
+  manager?: string;
+  createdAt?: string;
+  userEmail?: string;
+};
+
+export type SupportTicket = {
+  id: string;
+  subject: string;
+  description: string;
+  status: "In Progress" | "Resolved";
+  priority: "High" | "Medium" | "Low";
+  lastUpdate: string;
+  createdAt: string;
+  userEmail: string;
+};
+
+export type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  type: "Announcement" | "Offer" | "OrderUpdate";
+  createdAt: string;
+  userEmail?: string;
 };
 
 type AppState = {
   user: User | null;
+  isAdmin: boolean;
   cart: CartItem[];
   addresses: Address[];
   selectedAddressId: string | null;
   selectedAddress: Address | null;
   orders: Order[];
+  reservations: Reservation[];
+  favorites: string[];
+  cateringRequests: CateringItem[];
+  supportTickets: SupportTicket[];
+  notifications: NotificationItem[];
   dishes: Dish[];
   categories: Category[];
   cartBumpAnim: Animated.Value;
@@ -65,6 +128,20 @@ type AppState = {
   removeAddress: (id: string) => void;
   selectAddress: (id: string) => void;
   updateUser: (u: Partial<User>) => Promise<void>;
+  toggleFavorite: (dishId: string) => Promise<void>;
+  bookTable: (data: Omit<Reservation, "id" | "status" | "guestCount" | "tableNumber"> & { guestCount: number, tableNumber?: number }) => Promise<void>;
+  cancelReservation: (id: string) => Promise<void>;
+
+  // Admin & User Operations Functions
+  addDish: (dish: Omit<Dish, "rating"> & { rating?: number }) => Promise<void>;
+  updateDish: (id: string, dish: Partial<Dish>) => Promise<void>;
+  deleteDish: (id: string) => Promise<void>;
+  createCateringRequest: (req: Omit<CateringItem, "id" | "status" | "isOrder">) => Promise<void>;
+  updateCateringStatus: (id: string, status: "Approved" | "Denied") => Promise<void>;
+  createSupportTicket: (ticket: Omit<SupportTicket, "id" | "status" | "createdAt" | "lastUpdate">) => Promise<void>;
+  updateTicketStatus: (id: string, update: { status: "Resolved" | "In Progress"; lastUpdate: string }) => Promise<void>;
+  broadcastNotification: (notif: Omit<NotificationItem, "id" | "createdAt">) => Promise<void>;
+  refreshAllData: () => Promise<void>;
 };
 
 const AppContext = createContext<AppState | null>(null);
@@ -78,112 +155,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     { id: "a1", label: "Home", line: "Ajit Enclave, New Barhi Toli, Ranchi 834001" },
   ]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>("a1");
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: "ORD-1150",
-      items: [
-        {
-          id: "d-chk-1",
-          name: "Butter Chicken",
-          price: 320,
-          qty: 1,
-          description: "Creamy tomato gravy with succulent chicken.",
-          image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80",
-          veg: false,
-          category: "chicken",
-          rating: 4.9,
-        },
-        {
-          id: "d-naan-2",
-          name: "Garlic Naan",
-          price: 80,
-          qty: 2,
-          description: "Naan topped with garlic & fresh coriander.",
-          image: "https://images.unsplash.com/photo-1626500155913-d2d3b80b7e76?w=600&q=80",
-          veg: true,
-          category: "naan",
-          rating: 4.9,
-        },
-      ],
-      total: 480,
-      status: "Preparing",
-      createdAt: Date.now() - 600000, // 10 mins ago
-      mode: "Delivery",
-    },
-    {
-      id: "ORD-1041",
-      items: [
-        {
-          id: "d-chk-1",
-          name: "Butter Chicken",
-          price: 320,
-          qty: 1,
-          description: "Creamy tomato gravy with succulent chicken.",
-          image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80",
-          veg: false,
-          category: "chicken",
-          rating: 4.9,
-        },
-        {
-          id: "d-naan-2",
-          name: "Garlic Naan",
-          price: 80,
-          qty: 2,
-          description: "Naan topped with garlic & fresh coriander.",
-          image: "https://images.unsplash.com/photo-1626500155913-d2d3b80b7e76?w=600&q=80",
-          veg: true,
-          category: "naan",
-          rating: 4.9,
-        },
-      ],
-      total: 520,
-      status: "Delivered",
-      createdAt: Date.now() - 3600000 * 2, // 2 hours ago
-      mode: "Delivery",
-    },
-    {
-      id: "ORD-0982",
-      items: [
-        {
-          id: "d-bir-3",
-          name: "Veg Biryani",
-          price: 220,
-          qty: 2,
-          description: "Mixed veggies cooked dum-style.",
-          image: "https://images.unsplash.com/photo-1599043513900-ed6fe01d3833?w=600&q=80",
-          veg: true,
-          category: "biryani",
-          rating: 4.6,
-        },
-      ],
-      total: 480,
-      status: "Delivered",
-      createdAt: Date.now() - 3600000 * 24 * 3, // 3 days ago
-      mode: "Takeaway",
-    },
-    {
-      id: "ORD-0847",
-      items: [
-        {
-          id: "d-chk-1",
-          name: "Butter Chicken",
-          price: 320,
-          qty: 2,
-          description: "Creamy tomato gravy with succulent chicken.",
-          image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80",
-          veg: false,
-          category: "chicken",
-          rating: 4.9,
-        },
-      ],
-      total: 680,
-      status: "Cancelled",
-      refund: { status: "Completed", amount: 680 },
-      createdAt: Date.now() - 3600000 * 24 * 7, // 7 days ago
-      mode: "Delivery",
-    },
-  ]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [cateringRequests, setCateringRequests] = useState<CateringItem[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const cartBumpAnim = useRef(new Animated.Value(0)).current;
+
+  const loadData = async (u: User) => {
+    const isUserAdmin = u.email === "admin@punjabikitchen.com";
+    setIsAdmin(isUserAdmin);
+
+    try {
+      // 1. Load menu categories & dishes
+      const [cats, dishs] = await Promise.all([
+        apiClient.getCategories().catch(() => []),
+        apiClient.getDishes().catch(() => []),
+      ]);
+      if (cats.length > 0) setCategories(cats);
+      if (dishs.length > 0) setDishes(dishs);
+
+      // 2. Load orders (Admin loads all, user loads filtered)
+      const apiOrders = await apiClient.getOrders(isUserAdmin ? undefined : u.email).catch(() => []);
+      setOrders(apiOrders);
+
+      // 3. Load reservations (Admin loads all, user loads filtered)
+      const apiRes = await apiClient.getReservations(isUserAdmin ? undefined : u.email).catch(() => []);
+      setReservations(apiRes);
+
+      // 4. Load catering requests (Admin loads all, user loads filtered)
+      const apiCatering = await apiClient.getCateringRequests(isUserAdmin ? undefined : u.email).catch(() => []);
+      setCateringRequests(apiCatering);
+
+      // 5. Load support tickets (Admin loads all, user loads filtered)
+      const apiTickets = await apiClient.getSupportTickets(isUserAdmin ? undefined : u.email).catch(() => []);
+      setSupportTickets(apiTickets);
+
+      // 6. Load notifications (Admin loads all, user loads public+targeted)
+      const apiNotifs = await apiClient.getNotifications(isUserAdmin ? undefined : u.email).catch(() => []);
+      setNotifications(apiNotifs);
+    } catch (err) {
+      console.log("Error loading fresh app data:", err);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -191,7 +207,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const u = await storage.getItem<User | null>("pk_user", null);
       if (u) {
         setUser(u);
-        // 2. Fetch fresh user & address profile from API in background
+        const savedFavs = await storage.getItem<string[]>("pk_favorites", []);
+        setFavorites(savedFavs ?? []);
+        await loadData(u);
+
+        // Fetch fresh profile details from server
         try {
           const apiUser = await apiClient.getUserProfile(u.email);
           if (apiUser) {
@@ -201,9 +221,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               phone: apiUser.phone ?? undefined,
               gender: apiUser.gender as any,
               avatar: apiUser.avatar || u.avatar,
+              favorites: apiUser.favorites || [],
+              membershipTier: apiUser.membershipTier,
+              loyaltyPoints: apiUser.loyaltyPoints,
             };
             setUser(mergedUser);
             setAddresses(apiUser.addresses);
+            if (apiUser.favorites) {
+              setFavorites(apiUser.favorites);
+              await storage.setItem("pk_favorites", apiUser.favorites);
+            }
             if (apiUser.cart) {
               setCart(apiUser.cart as CartItem[]);
             }
@@ -211,7 +238,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             await storage.setItem("pk_addresses", apiUser.addresses);
           }
         } catch (e) {
-          console.log("Failed to sync profile on load:", e);
+          console.log("Failed to sync profile in background on load:", e);
+        }
+      } else {
+        // Not logged in: fetch public content
+        try {
+          const [cats, dishs, apiOrders, apiNotifs] = await Promise.all([
+            apiClient.getCategories().catch(() => []),
+            apiClient.getDishes().catch(() => []),
+            apiClient.getOrders().catch(() => []),
+            apiClient.getNotifications().catch(() => []),
+          ]);
+          if (cats.length > 0) setCategories(cats);
+          if (dishs.length > 0) setDishes(dishs);
+          setOrders(apiOrders);
+          setNotifications(apiNotifs);
+        } catch (e) {
+          console.log("Failed to sync public dynamic content:", e);
         }
       }
 
@@ -221,28 +264,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       const savedAddressId = await storage.getItem<string | null>("pk_selected_address_id", "a1");
       if (savedAddressId) setSelectedAddressId(savedAddressId);
-
-      // 3. Fetch orders list from API in background
-      try {
-        const apiOrders = await apiClient.getOrders();
-        if (apiOrders && apiOrders.length > 0) {
-          setOrders(apiOrders);
-        }
-      } catch (e) {
-        console.log("Failed to sync orders on load:", e);
-      }
-
-      // 4. Fetch dynamic dishes and categories from API
-      try {
-        const [cats, dishs] = await Promise.all([
-          apiClient.getCategories(),
-          apiClient.getDishes(),
-        ]);
-        if (cats && cats.length > 0) setCategories(cats);
-        if (dishs && dishs.length > 0) setDishes(dishs);
-      } catch (e) {
-        console.log("Failed to sync dishes/categories on load:", e);
-      }
     })();
   }, []);
 
@@ -286,14 +307,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const value = useMemo<AppState>(() => ({
     user,
+    isAdmin,
     cart,
     addresses,
     selectedAddressId: selectedAddress?.id ?? null,
     selectedAddress,
     orders,
+    reservations,
+    favorites,
+    cateringRequests,
+    supportTickets,
+    notifications,
+    dishes,
+    categories,
     cartBumpAnim,
     signIn: async (u) => {
       setUser(u);
+      setIsAdmin(u.email === "admin@punjabikitchen.com");
       await storage.setItem("pk_user", u);
       try {
         const synced = await apiClient.syncUserProfile(u);
@@ -304,19 +334,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             phone: synced.phone ?? undefined,
             gender: synced.gender as any,
             avatar: synced.avatar || u.avatar,
+            favorites: synced.favorites || [],
+            membershipTier: synced.membershipTier,
+            loyaltyPoints: synced.loyaltyPoints,
           };
           setUser(mergedUser);
           setAddresses(synced.addresses);
+          if (synced.favorites) {
+            setFavorites(synced.favorites);
+            await storage.setItem("pk_favorites", synced.favorites);
+          }
           await storage.setItem("pk_user", mergedUser);
           await storage.setItem("pk_addresses", synced.addresses);
         }
+
+        // Fetch fresh data in backend based on role
+        await loadData(u);
       } catch (e) {
         console.log("Failed to sync user on signIn:", e);
       }
     },
     signOut: async () => {
       setUser(null);
+      setIsAdmin(false);
+      setCart([]);
+      setOrders([]);
+      setReservations([]);
+      setFavorites([]);
+      setCateringRequests([]);
+      setSupportTickets([]);
+      setNotifications([]);
       await storage.removeItem("pk_user");
+      await storage.removeItem("pk_addresses");
+      await storage.removeItem("pk_selected_address_id");
+      await storage.removeItem("pk_favorites");
     },
     addToCart: (d) => {
       setCart((prev) => {
@@ -342,6 +393,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refund: { status: "None", amount: 0 },
         createdAt: Date.now(),
         mode,
+        userEmail: user?.email ?? undefined,
       };
       setOrders((prev) => [order, ...prev]);
       setCart([]);
@@ -354,18 +406,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     },
     cancelOrder: (id: string) => {
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: "Cancelled", refund: { status: "Pending", amount: o.total } } : o)));
+      apiClient.cancelOrder(id).then((updated) => {
+        setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
+      }).catch((e) => {
+        console.log("Failed to cancel order on backend:", e);
+      });
     },
     processRefund: (id: string) => {
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, refund: { ...(o.refund ?? { status: "None", amount: 0 }), status: "Completed" } } : o)));
+      apiClient.updateOrderStatus(id, "Cancelled").catch((e) => {
+        console.log("Failed to process refund status on backend:", e);
+      });
     },
     updateOrderStatus: (id: string, status: OrderStatus) => {
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+      apiClient.updateOrderStatus(id, status).catch((e) => {
+        console.log("Failed to update status on backend:", e);
+      });
     },
     addItemsToOrder: (orderId: string, itemsToAdd) => {
       setOrders((prev) =>
         prev.map((o) => {
           if (o.id !== orderId) return o;
-          // merge items
           const itemsMap: Record<string, any> = {};
           o.items.forEach((it) => { itemsMap[it.id] = { ...it }; });
           itemsToAdd.forEach((it) => {
@@ -376,7 +438,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           const newItems = Object.values(itemsMap);
           const newTotal = newItems.reduce((s: number, i: any) => s + i.price * i.qty, 0);
-          return { ...o, items: newItems, total: newTotal };
+          const updatedOrder = { ...o, items: newItems, total: newTotal };
+          
+          apiClient.createOrder(updatedOrder).catch((e) => {
+            console.log("Failed to sync modified order items to backend:", e);
+          });
+          
+          return updatedOrder;
         })
       );
     },
@@ -436,15 +504,142 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.log("Failed to sync profile update on backend:", e);
       }
     },
-    dishes,
-    categories,
+    toggleFavorite: async (dishId: string) => {
+      setFavorites((prev) => {
+        const next = prev.includes(dishId) ? prev.filter((id) => id !== dishId) : [...prev, dishId];
+        void storage.setItem("pk_favorites", next);
+        if (user) {
+          apiClient.syncUserProfile({ email: user.email, favorites: next }).catch((e) => {
+            console.log("Failed to sync favorites to backend:", e);
+          });
+        }
+        return next;
+      });
+    },
+    bookTable: async (data) => {
+      const reservationData = {
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        reservationDate: data.reservationDate,
+        reservationSlot: data.reservationSlot,
+        guests: data.guests,
+        guestCount: data.guestCount,
+        tableNumber: data.tableNumber || 1,
+        userEmail: user?.email ?? undefined,
+      };
+
+      try {
+        const created = await apiClient.createReservation(reservationData);
+        setReservations((prev) => [created, ...prev]);
+      } catch (e) {
+        console.log("Failed to book table on backend:", e);
+        const fallback = {
+          ...reservationData,
+          id: `local-${Date.now()}`,
+          status: "Active" as const,
+          tableNumber: data.tableNumber || 1,
+        };
+        setReservations((prev) => [fallback, ...prev]);
+      }
+    },
+    cancelReservation: async (id: string) => {
+      setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, status: "Cancelled" as const } : r)));
+      try {
+        await apiClient.cancelReservation(id);
+      } catch (e) {
+        console.log("Failed to cancel reservation on backend:", e);
+      }
+    },
+
+    // Admin Operations
+    addDish: async (dish) => {
+      try {
+        const created = await apiClient.addDish(dish);
+        setDishes((prev) => [...prev, created]);
+      } catch (e) {
+        console.log("Failed to add dish:", e);
+      }
+    },
+    updateDish: async (id, dishData) => {
+      try {
+        const updated = await apiClient.updateDish(id, dishData);
+        setDishes((prev) => prev.map((d) => (d.id === id ? updated : d)));
+      } catch (e) {
+        console.log("Failed to update dish:", e);
+      }
+    },
+    deleteDish: async (id) => {
+      try {
+        await apiClient.deleteDish(id);
+        setDishes((prev) => prev.filter((d) => d.id !== id));
+      } catch (e) {
+        console.log("Failed to delete dish:", e);
+      }
+    },
+    createCateringRequest: async (reqData) => {
+      try {
+        const created = await apiClient.createCateringRequest({
+          ...reqData,
+          userEmail: user?.email,
+        });
+        setCateringRequests((prev) => [created, ...prev]);
+      } catch (e) {
+        console.log("Failed to create catering request:", e);
+      }
+    },
+    updateCateringStatus: async (id, status) => {
+      try {
+        const updated = await apiClient.updateCateringStatus(id, status);
+        setCateringRequests((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      } catch (e) {
+        console.log("Failed to update catering request status:", e);
+      }
+    },
+    createSupportTicket: async (ticketData) => {
+      try {
+        const created = await apiClient.createSupportTicket({
+          ...ticketData,
+          userEmail: user?.email || ticketData.userEmail,
+        });
+        setSupportTickets((prev) => [created, ...prev]);
+      } catch (e) {
+        console.log("Failed to create support ticket:", e);
+      }
+    },
+    updateTicketStatus: async (id, update) => {
+      try {
+        const updated = await apiClient.updateTicketStatus(id, update);
+        setSupportTickets((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      } catch (e) {
+        console.log("Failed to update support ticket status:", e);
+      }
+    },
+    broadcastNotification: async (notifData) => {
+      try {
+        const created = await apiClient.createNotification(notifData);
+        setNotifications((prev) => [created, ...prev]);
+      } catch (e) {
+        console.log("Failed to broadcast notification:", e);
+      }
+    },
+    refreshAllData: async () => {
+      if (user) {
+        await loadData(user);
+      }
+    },
   }), [
     user,
+    isAdmin,
     cart,
     addresses,
     selectedAddress,
     selectedAddressId,
     orders,
+    reservations,
+    favorites,
+    cateringRequests,
+    supportTickets,
+    notifications,
     dishes,
     categories,
     cartBumpAnim,

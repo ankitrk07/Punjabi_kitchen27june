@@ -1,6 +1,7 @@
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
+import { apiClient } from "@/src/utils/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -11,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Cart() {
   const router = useRouter();
-  const { cart, updateQty, removeFromCart, placeOrder } = useApp();
+  const { cart, updateQty, removeFromCart, placeOrder, user } = useApp();
   const fade = useRef(new Animated.Value(0)).current;
   const [success, setSuccess] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
@@ -37,6 +38,18 @@ export default function Cart() {
     const all = (await storage.getItem<any[]>("pk_reviews", [])) || [];
     all.unshift(review);
     await storage.setItem("pk_reviews", all);
+
+    // Sync to backend PostgreSQL database
+    try {
+      await apiClient.submitReview({
+        name: user?.name || "Guest User",
+        avatar: user?.avatar || undefined,
+        rating: review.rating,
+        text: review.feedback,
+      });
+    } catch (e) {
+      console.log("Failed to submit review to backend:", e);
+    }
   };
 
   const onPlace = (mode: "Dine In" | "Takeaway" | "Delivery") => {

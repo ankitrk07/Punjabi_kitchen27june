@@ -28,13 +28,21 @@ model Dish {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String
-  phone     String?
-  gender    String    // "male" | "female"
-  addresses Address[]
-  cart      Json?     // Stores the active shopping cart items array
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String
+  phone            String?
+  gender           String            // "male" | "female"
+  membershipTier   String            @default("Classic")
+  loyaltyPoints    Int               @default(0)
+  addresses        Address[]
+  cart             Json?             // Stores the active shopping cart items array
+  favorites        String[]          // Stores list of favorite dish IDs
+  orders           Order[]
+  reservations     Reservation[]
+  cateringRequests CateringRequest[]
+  supportTickets   SupportTicket[]
+  notifications    Notification[]
 }
 
 model Address {
@@ -54,6 +62,60 @@ model Order {
   refundAmount Float    @default(0)
   createdAt    DateTime @default(now())
   mode         String   // "Dine In" | "Takeaway" | "Delivery"
+  userEmail    String?
+  user         User?    @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+
+model Reservation {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  customerName    String
+  customerPhone   String
+  reservationDate String   // "YYYY-MM-DD"
+  reservationSlot String   // "07:00 PM"
+  guests          String   // "4 Guests"
+  guestCount      Int      @default(1)
+  status          String   @default("Active") // "Active" | "Cancelled"
+  tableNumber     Int      @default(1)
+  userEmail       String?
+  user            User?    @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+
+model CateringRequest {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  eventType   String
+  guests      Int
+  date        String
+  phone       String
+  address     String
+  package     String
+  details     String?
+  status      String   @default("Pending") // "Pending" | "Approved" | "Denied"
+  userEmail   String?
+  user        User?    @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  subject     String
+  description String
+  status      String   @default("In Progress") // "In Progress" | "Resolved"
+  priority    String   @default("Medium") // "High" | "Medium" | "Low"
+  lastUpdate  String?
+  userEmail   String
+  user        User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  title     String
+  message   String
+  type      String   @default("Announcement") // "Announcement" | "Offer" | "OrderUpdate"
+  userEmail String?  // null means sent to everyone
+  user      User?    @relation(fields: [userEmail], references: [email], onDelete: Cascade)
 }
 
 model Review {

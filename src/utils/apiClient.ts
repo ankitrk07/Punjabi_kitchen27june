@@ -64,14 +64,14 @@ export const apiClient = {
   getDealOfDay: () => apiCall<DealOfDayData>("/deal-of-day"),
 
   // User
-  syncUserProfile: (user: Partial<User>) =>
-    apiCall<User & { addresses: Address[] }>("/users", {
+  syncUserProfile: (user: Partial<User> & { favorites?: string[] }) =>
+    apiCall<User & { addresses: Address[]; favorites?: string[] }>("/users", {
       method: "POST",
       body: JSON.stringify(user),
     }),
 
   getUserProfile: (email: string) =>
-    apiCall<User & { addresses: Address[]; cart?: any[] }>(`/users/${encodeURIComponent(email)}`),
+    apiCall<User & { addresses: Address[]; favorites?: string[]; cart?: any[] }>(`/users/${encodeURIComponent(email)}`),
 
   saveCart: (email: string, cart: any[]) =>
     apiCall<{ success: boolean }>(`/users/${encodeURIComponent(email)}/cart`, {
@@ -98,5 +98,117 @@ export const apiClient = {
       body: JSON.stringify(order),
     }),
 
-  getOrders: () => apiCall<Order[]>("/orders"),
+  getOrders: (email?: string) =>
+    apiCall<Order[]>(email ? `/orders?email=${encodeURIComponent(email)}` : "/orders"),
+
+  cancelOrder: (id: string) =>
+    apiCall<Order>(`/orders/${id}/cancel`, {
+      method: "POST",
+    }),
+
+  updateOrderStatus: (id: string, status: string) =>
+    apiCall<Order>(`/orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  // Reviews
+  submitReview: (review: { name: string; avatar?: string; rating: number; text: string }) =>
+    apiCall<any>("/reviews", {
+      method: "POST",
+      body: JSON.stringify(review),
+    }),
+
+  getReservations: (email?: string, date?: string, slot?: string) => {
+    const params = [];
+    if (email) params.push(`email=${encodeURIComponent(email)}`);
+    if (date) params.push(`date=${encodeURIComponent(date)}`);
+    if (slot) params.push(`slot=${encodeURIComponent(slot)}`);
+    const query = params.length > 0 ? `?${params.join("&")}` : "";
+    return apiCall<any[]>(`/reservations${query}`);
+  },
+
+  createReservation: (reservation: {
+    customerName: string;
+    customerPhone: string;
+    reservationDate: string;
+    reservationSlot: string;
+    guests: string;
+    guestCount: number;
+    userEmail?: string;
+    tableNumber?: number;
+  }) =>
+    apiCall<any>("/reservations", {
+      method: "POST",
+      body: JSON.stringify(reservation),
+    }),
+
+  cancelReservation: (id: string) =>
+    apiCall<any>(`/reservations/${id}/cancel`, {
+      method: "POST",
+    }),
+
+  // Dishes Editor
+  addDish: (dish: any) =>
+    apiCall<any>("/dishes", {
+      method: "POST",
+      body: JSON.stringify(dish),
+    }),
+
+  updateDish: (id: string, dish: any) =>
+    apiCall<any>(`/dishes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(dish),
+    }),
+
+  deleteDish: (id: string) =>
+    apiCall<any>(`/dishes/${id}`, {
+      method: "DELETE",
+    }),
+
+  // Admin Metrics & Users
+  getAdminMetrics: () => apiCall<any>("/admin/metrics"),
+  getAdminUsers: () => apiCall<any[]>("/admin/users"),
+
+  // Catering
+  getCateringRequests: (email?: string) =>
+    apiCall<any[]>(email ? `/catering?email=${encodeURIComponent(email)}` : "/catering"),
+
+  createCateringRequest: (request: any) =>
+    apiCall<any>("/catering", {
+      method: "POST",
+      body: JSON.stringify(request),
+    }),
+
+  updateCateringStatus: (id: string, status: string) =>
+    apiCall<any>(`/catering/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  // Support
+  getSupportTickets: (email?: string) =>
+    apiCall<any[]>(email ? `/support/tickets?email=${encodeURIComponent(email)}` : "/support/tickets"),
+
+  createSupportTicket: (ticket: any) =>
+    apiCall<any>("/support/tickets", {
+      method: "POST",
+      body: JSON.stringify(ticket),
+    }),
+
+  updateTicketStatus: (id: string, update: { status: string; lastUpdate: string }) =>
+    apiCall<any>(`/support/tickets/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(update),
+    }),
+
+  // Notifications/Announcements
+  getNotifications: (email?: string) =>
+    apiCall<any[]>(email ? `/notifications?email=${encodeURIComponent(email)}` : "/notifications"),
+
+  createNotification: (notification: any) =>
+    apiCall<any>("/notifications", {
+      method: "POST",
+      body: JSON.stringify(notification),
+    }),
 };

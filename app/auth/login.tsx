@@ -19,6 +19,22 @@ export default function Login() {
       setError("Please enter email and password");
       return;
     }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (trimmedEmail === "admin@punjabikitchen.com") {
+      if (password !== "admin123") {
+        setError("Invalid admin password");
+        return;
+      }
+      await signIn({
+        name: "Restaurant Manager",
+        email: "admin@punjabikitchen.com",
+        gender: "male",
+      });
+      router.replace("/admin/dashboard");
+      return;
+    }
+
     const name = email.split("@")[0].replace(/[._-]/g, " ");
     await signIn({
       name: name.charAt(0).toUpperCase() + name.slice(1),
