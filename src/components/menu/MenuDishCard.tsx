@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { resolveImageUrl } from "@/src/utils/apiClient";
 
 type Props = {
   dish: Dish;
@@ -88,7 +89,7 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
         activeOpacity={0.92}
         onPress={() => onOpen(dish)}
       >
-        <Image source={{ uri: dish.image }} style={styles.cinematicImg} />
+        <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.cinematicImg} />
         <LinearGradient
           colors={["rgba(10,10,10,0.2)", "rgba(10,10,10,0.65)", "rgba(10,10,10,0.98)"]}
           style={StyleSheet.absoluteFill}
@@ -159,7 +160,7 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
       onPress={() => onOpen(dish)}
     >
       <View style={styles.imageWrap}>
-        <Image source={{ uri: dish.image }} style={styles.cardImg} />
+        <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.cardImg} />
         <LinearGradient
           colors={["rgba(10,10,10,0.3)", "rgba(10,10,10,0.1)", "rgba(10,10,10,0.95)"]}
           style={StyleSheet.absoluteFill}

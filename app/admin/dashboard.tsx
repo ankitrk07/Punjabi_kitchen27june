@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Dimensions, Image, RefreshControl, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
-import { apiClient } from "@/src/utils/apiClient";
+import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
+import * as ImagePicker from "expo-image-picker";
+import { Category } from "@/src/data/menu";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
@@ -19,6 +21,9 @@ export default function AdminDashboard() {
     addDish,
     updateDish,
     deleteDish,
+    addCategory,
+    updateCategory,
+    deleteCategory,
     orders,
     updateOrderStatus,
     processRefund,
@@ -37,6 +42,18 @@ export default function AdminDashboard() {
   const [metrics, setMetrics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAllData();
+    } catch (e) {
+      console.log("Failed to refresh admin data:", e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Menu editor states
   const [editingDish, setEditingDish] = useState<any>(null);
@@ -47,6 +64,24 @@ export default function AdminDashboard() {
   const [dishVeg, setDishVeg] = useState(true);
   const [dishCategory, setDishCategory] = useState("main-course");
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [isDishFormMinimized, setIsDishFormMinimized] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Heading/Category editor states
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryParentId, setCategoryParentId] = useState<string | null>(null);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isCategoryFormMinimized, setIsCategoryFormMinimized] = useState(false);
+  const [expandedCats, setExpandedCats] = useState<{[key: string]: boolean}>({
+    page_1: true,
+    page_2: true,
+    page_3: true,
+    page_4: true,
+    page_5: true,
+  });
+
+  const [activeActionNode, setActiveActionNode] = useState<{ type: "category" | "dish"; id: string; name: string; data?: any } | null>(null);
 
   // Ticket reply states
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
@@ -79,6 +114,88 @@ export default function AdminDashboard() {
   const handleSignOut = async () => {
     await signOut();
     router.replace("/auth/login");
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      alert("Sorry, we need camera roll permissions to upload images!");
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        if (!asset.base64) {
+          alert("Could not read image base64 data.");
+          return;
+        }
+
+        setUploadingImage(true);
+        const originalName = asset.uri.split("/").pop() || "upload.jpg";
+        const response = await apiClient.uploadImage(originalName, asset.base64);
+        
+        if (response && response.imageUrl) {
+          setDishImage(response.imageUrl);
+        } else {
+          alert("Failed to get image URL from server.");
+        }
+      }
+    } catch (error) {
+      console.error("Image pick & upload error:", error);
+      alert("Error picking/uploading image. Make sure backend is running.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryName.trim()) {
+      alert("Heading name is required.");
+      return;
+    }
+
+    const payload = {
+      name: categoryName.trim(),
+      parentId: categoryParentId,
+    };
+
+    if (editingCategory) {
+      await updateCategory(editingCategory.id, payload);
+      alert("Heading updated successfully!");
+    } else {
+      const generatedId = `cat_${categoryName.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${Date.now()}`;
+      await addCategory({
+        id: generatedId,
+        ...payload,
+        icon: "restaurant",
+        image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80",
+      });
+      if (categoryParentId) {
+        setExpandedCats((prev) => ({ ...prev, [categoryParentId]: true }));
+      }
+      alert("Heading created successfully!");
+    }
+
+    setEditingCategory(null);
+    setCategoryName("");
+    setCategoryParentId(null);
+    setIsAddingCategory(false);
+    setIsCategoryFormMinimized(false);
+  };
+
+  const handleDeleteCategorySelect = async (catId: string) => {
+    if (confirm("Are you sure you want to delete this heading? This will delete all subcategories and dishes under it!")) {
+      await deleteCategory(catId);
+      alert("Heading deleted!");
+    }
   };
 
   // Menu CRUD actions
@@ -114,6 +231,7 @@ export default function AdminDashboard() {
     setDishImage("");
     setDishVeg(true);
     setIsAddingNew(false);
+    setIsDishFormMinimized(false);
   };
 
   const handleEditDishSelect = (dish: any) => {
@@ -125,6 +243,7 @@ export default function AdminDashboard() {
     setDishVeg(dish.veg);
     setDishCategory(dish.category);
     setIsAddingNew(true);
+    setIsDishFormMinimized(false);
   };
 
   const handleDeleteDishSelect = async (dishId: string) => {
@@ -160,6 +279,80 @@ export default function AdminDashboard() {
     alert("Notification broadcasted successfully!");
     setNotifTitle("");
     setNotifMsg("");
+  };
+
+  const renderCategoryNode = (cat: Category, level: number = 0): React.ReactNode => {
+    const isExpanded = !!expandedCats[cat.id];
+    const subcats = categories.filter((c) => c.parentId === cat.id);
+    const catDishes = dishes.filter((d) => d.category === cat.id);
+    const hasChildren = subcats.length > 0 || catDishes.length > 0;
+
+    return (
+      <View key={cat.id} style={{ marginLeft: level > 0 ? 10 : 0, marginBottom: 6 }}>
+        <View style={s.treeNode}>
+          <TouchableOpacity
+            style={s.treeNodeClickable}
+            onPress={() => {
+              if (hasChildren) {
+                setExpandedCats((prev) => ({ ...prev, [cat.id]: !prev[cat.id] }));
+              }
+            }}
+          >
+            {hasChildren ? (
+              <Ionicons
+                name={isExpanded ? "chevron-down" : "chevron-forward"}
+                size={16}
+                color={colors.gold}
+                style={{ marginRight: 6 }}
+              />
+            ) : (
+              <View style={{ width: 22 }} />
+            )}
+            <Ionicons
+              name={level === 0 ? "book-outline" : level === 1 ? "folder-open-outline" : "list-outline"}
+              size={16}
+              color={colors.goldBright}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={s.treeNodeName}>{cat.name}</Text>
+          </TouchableOpacity>
+
+          <View style={s.treeNodeActions}>
+            <TouchableOpacity
+              style={s.nodeActionBtn}
+              onPress={() => setActiveActionNode({ type: "category", id: cat.id, name: cat.name, data: cat })}
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color={colors.gold} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {isExpanded && (
+          <View style={s.treeNodeChildren}>
+            {subcats.map((subcat) => renderCategoryNode(subcat, level + 1))}
+            {catDishes.map((dish) => (
+              <View key={dish.id} style={s.dishNode}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <View style={[s.vegIndicator, { borderColor: dish.veg ? colors.success : colors.error, width: 12, height: 12, borderRadius: 2 }]}>
+                    <View style={[s.vegIndicatorDot, { backgroundColor: dish.veg ? colors.success : colors.error, width: 6, height: 6, borderRadius: 3 }]} />
+                  </View>
+                  <Text style={s.dishNodeName}>{dish.name}</Text>
+                  <Text style={s.dishNodePrice}>₹{dish.price}</Text>
+                </View>
+                <View style={s.actionGrid}>
+                  <TouchableOpacity
+                    style={s.nodeActionBtn}
+                    onPress={() => setActiveActionNode({ type: "dish", id: dish.id, name: dish.name, data: dish })}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={14} color={colors.gold} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -201,7 +394,19 @@ export default function AdminDashboard() {
         </ScrollView>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={s.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.gold}
+            colors={[colors.gold]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+      >
 
         {/* 1. OVERVIEW PANEL */}
         {activeTab === "overview" && (
@@ -250,77 +455,177 @@ export default function AdminDashboard() {
         {activeTab === "menu" && (
           <View>
             <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionHeader}>Dish Management ({dishes.length})</Text>
+              <Text style={s.sectionHeader}>Menu Explorer & Editor</Text>
               <TouchableOpacity
                 style={s.addNewBtn}
                 onPress={() => {
-                  setEditingDish(null);
-                  setDishName("");
-                  setDishPrice("");
-                  setDishDesc("");
-                  setDishImage("");
-                  setDishVeg(true);
-                  setIsAddingNew(!isAddingNew);
+                  setCategoryParentId(null);
+                  setEditingCategory(null);
+                  setCategoryName("");
+                  setIsAddingCategory(true);
+                  setIsCategoryFormMinimized(false);
                 }}
               >
-                <Ionicons name={isAddingNew ? "close" : "add"} size={16} color="#000" />
-                <Text style={s.addNewText}>{isAddingNew ? "Close Editor" : "Create Dish"}</Text>
+                <Ionicons name="add" size={16} color="#000" />
+                <Text style={s.addNewText}>Create Page</Text>
               </TouchableOpacity>
             </View>
 
-            {isAddingNew && (
+            {isAddingCategory && isCategoryFormMinimized && (
+              <View style={s.minimizedBar}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <Ionicons name="folder-open-outline" size={16} color={colors.gold} />
+                  <Text style={s.minimizedText} numberOfLines={1}>
+                    {editingCategory ? `Editing Heading: ${categoryName || 'Unnamed'}` : `Creating Heading: ${categoryName || 'Unnamed'}`}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TouchableOpacity style={s.minimizedBtn} onPress={() => setIsCategoryFormMinimized(false)}>
+                    <Text style={s.minimizedBtnText}>Expand</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.minimizedBtn, { borderColor: colors.error }]} onPress={() => {
+                    setIsAddingCategory(false);
+                    setIsCategoryFormMinimized(false);
+                  }}>
+                    <Text style={[s.minimizedBtnText, { color: colors.error }]}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {isAddingCategory && !isCategoryFormMinimized && (
               <View style={s.formCard}>
-                <Text style={s.formTitle}>{editingDish ? "Modify Dish Attributes" : "Add New Dish to Menu"}</Text>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <Text style={[s.formTitle, { marginBottom: 0 }]}>{editingCategory ? "Rename / Edit Menu Heading" : "Add New Menu Heading"}</Text>
+                  <TouchableOpacity onPress={() => setIsCategoryFormMinimized(true)} style={{ padding: 4 }}>
+                    <Ionicons name="remove-circle-outline" size={20} color={colors.gold} />
+                  </TouchableOpacity>
+                </View>
+                {categoryParentId && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                    Adding subheading under: "{categories.find(c => c.id === categoryParentId)?.name || categoryParentId}"
+                  </Text>
+                )}
+                <TextInput
+                  style={s.input}
+                  placeholder="Heading Name (e.g. DAL or Veg)"
+                  placeholderTextColor={colors.textSecondary}
+                  value={categoryName}
+                  onChangeText={setCategoryName}
+                />
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+                  <TouchableOpacity style={[s.saveBtn, { flex: 1, backgroundColor: colors.gold, marginTop: 0 }]} onPress={handleSaveCategory}>
+                    <Text style={s.saveBtnText}>Save Heading</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.saveBtn, { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border, marginTop: 0 }]}
+                    onPress={() => setIsAddingCategory(false)}
+                  >
+                    <Text style={[s.saveBtnText, { color: colors.textPrimary }]}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Dish CRUD Form Card */}
+            {isAddingNew && isDishFormMinimized && (
+              <View style={s.minimizedBar}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <Ionicons name="create-outline" size={16} color={colors.gold} />
+                  <Text style={s.minimizedText} numberOfLines={1}>
+                    {editingDish ? `Editing: ${dishName || 'Unnamed'}` : `Creating: ${dishName || 'Unnamed'}`}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TouchableOpacity style={s.minimizedBtn} onPress={() => setIsDishFormMinimized(false)}>
+                    <Text style={s.minimizedBtnText}>Expand</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[s.minimizedBtn, { borderColor: colors.error }]} onPress={() => {
+                    setIsAddingNew(false);
+                    setIsDishFormMinimized(false);
+                  }}>
+                    <Text style={[s.minimizedBtnText, { color: colors.error }]}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {isAddingNew && !isDishFormMinimized && (
+              <View style={s.formCard}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <Text style={[s.formTitle, { marginBottom: 0 }]}>{editingDish ? "Modify Dish Attributes" : "Add New Dish to Menu"}</Text>
+                  <TouchableOpacity onPress={() => setIsDishFormMinimized(true)} style={{ padding: 4 }}>
+                    <Ionicons name="remove-circle-outline" size={20} color={colors.gold} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                  Category Slot: "{categories.find(c => c.id === dishCategory)?.name || dishCategory}"
+                </Text>
                 <TextInput style={s.input} placeholder="Dish Name (e.g. Kadai Chicken)" placeholderTextColor={colors.textSecondary} value={dishName} onChangeText={setDishName} />
                 <TextInput style={s.input} placeholder="Price (INR)" placeholderTextColor={colors.textSecondary} keyboardType="numeric" value={dishPrice} onChangeText={setDishPrice} />
                 <TextInput style={s.input} placeholder="Description details..." placeholderTextColor={colors.textSecondary} multiline numberOfLines={3} value={dishDesc} onChangeText={setDishDesc} />
-                <TextInput style={s.input} placeholder="Image URL link" placeholderTextColor={colors.textSecondary} value={dishImage} onChangeText={setDishImage} />
+                
+                <View style={{ flexDirection: "row", gap: 10, alignItems: "center", marginBottom: 12 }}>
+                  <TextInput
+                    style={[s.input, { flex: 1, marginBottom: 0 }]}
+                    placeholder="Image URL link"
+                    placeholderTextColor={colors.textSecondary}
+                    value={dishImage}
+                    onChangeText={setDishImage}
+                  />
+                  <TouchableOpacity
+                    style={[s.addNewBtn, { backgroundColor: colors.gold, paddingVertical: 14, height: 48, justifyContent: "center" }]}
+                    onPress={handlePickImage}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <ActivityIndicator size="small" color="#000" />
+                    ) : (
+                      <>
+                        <Ionicons name="image" size={16} color="#000" />
+                        <Text style={s.addNewText}>Upload</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {!!dishImage && (
+                  <View style={{ position: "relative", marginBottom: 12, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
+                    <Image source={{ uri: resolveImageUrl(dishImage) }} style={{ width: "100%", height: 160 }} />
+                    <TouchableOpacity
+                      style={{ position: "absolute", top: 8, right: 8, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center" }}
+                      onPress={() => setDishImage("")}
+                    >
+                      <Ionicons name="trash" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                )}
                 
                 <View style={s.switchRow}>
                   <Text style={s.switchLabel}>Pure Vegetarian (Veg)</Text>
                   <Switch trackColor={{ false: "#333", true: colors.success }} thumbColor={dishVeg ? colors.success : "#999"} value={dishVeg} onValueChange={setDishVeg} />
                 </View>
 
-                <Text style={s.dropdownLabel}>Select Category Slot</Text>
-                <View style={s.categoriesGrid}>
-                  {categories.map((c) => (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[s.catGridBtn, dishCategory === c.id && s.catGridBtnActive]}
-                      onPress={() => setDishCategory(c.id)}
-                    >
-                      <Text style={[s.catGridText, dishCategory === c.id && { color: "#000" }]}>{c.name}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                  <TouchableOpacity style={[s.saveBtn, { flex: 1, backgroundColor: colors.gold, marginTop: 0 }]} onPress={handleSaveDish}>
+                    <Text style={s.saveBtnText}>{editingDish ? "Save Changes" : "Submit Dish"}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.saveBtn, { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border, marginTop: 0 }]}
+                    onPress={() => setIsAddingNew(false)}
+                  >
+                    <Text style={[s.saveBtnText, { color: colors.textPrimary }]}>Cancel</Text>
+                  </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity style={s.saveBtn} onPress={handleSaveDish}>
-                  <Text style={s.saveBtnText}>{editingDish ? "Save Changes" : "Submit Dish Entry"}</Text>
-                </TouchableOpacity>
               </View>
             )}
 
-            {dishes.map((dish) => (
-              <View key={dish.id} style={s.dishRow}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <View style={[s.vegIndicator, { borderColor: dish.veg ? colors.success : colors.error }]}>
-                      <View style={[s.vegIndicatorDot, { backgroundColor: dish.veg ? colors.success : colors.error }]} />
-                    </View>
-                    <Text style={s.dishNameText}>{dish.name}</Text>
-                  </View>
-                  <Text style={s.dishPriceText}>₹{dish.price} • Category: {dish.category}</Text>
-                </View>
-                <View style={s.actionGrid}>
-                  <TouchableOpacity style={s.editAction} onPress={() => handleEditDishSelect(dish)}>
-                    <Ionicons name="pencil-outline" size={14} color={colors.gold} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.deleteAction} onPress={() => handleDeleteDishSelect(dish.id)}>
-                    <Ionicons name="trash-outline" size={14} color={colors.error} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+            {/* Tree Nodes List */}
+            <View style={{ marginTop: 10 }}>
+              {categories
+                .filter((c) => c.parentId === null) // Start with root level (Pages 1 to 5)
+                .map((page) => renderCategoryNode(page, 0))}
+            </View>
           </View>
         )}
 
@@ -527,12 +832,135 @@ export default function AdminDashboard() {
         )}
 
       </ScrollView>
+
+      {/* Action Sheet Modal */}
+      {activeActionNode && (
+        <Modal
+          transparent
+          visible={!!activeActionNode}
+          animationType="slide"
+          onRequestClose={() => setActiveActionNode(null)}
+        >
+          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setActiveActionNode(null)}>
+            <View style={s.actionSheetCard}>
+              <Text style={s.actionSheetTitle} numberOfLines={1}>
+                {activeActionNode.name}
+              </Text>
+              <Text style={s.actionSheetSub}>Choose an action to perform</Text>
+
+              {activeActionNode.type === "category" ? (
+                <>
+                  <TouchableOpacity
+                    style={s.actionSheetBtn}
+                    onPress={() => {
+                      const cat = activeActionNode.data;
+                      setCategoryParentId(cat.id);
+                      setEditingCategory(null);
+                      setCategoryName("");
+                      setIsAddingCategory(true);
+                      setIsCategoryFormMinimized(false);
+                      setActiveActionNode(null);
+                    }}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color={colors.gold} />
+                    <Text style={s.actionSheetBtnText}>Add Sub-Heading</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={s.actionSheetBtn}
+                    onPress={() => {
+                      const cat = activeActionNode.data;
+                      setEditingDish(null);
+                      setDishName("");
+                      setDishPrice("");
+                      setDishDesc("");
+                      setDishImage("");
+                      setDishVeg(true);
+                      setDishCategory(cat.id);
+                      setIsAddingNew(true);
+                      setIsDishFormMinimized(false);
+                      setActiveActionNode(null);
+                    }}
+                  >
+                    <Ionicons name="fast-food-outline" size={18} color={colors.success} />
+                    <Text style={s.actionSheetBtnText}>Add Dish</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={s.actionSheetBtn}
+                    onPress={() => {
+                      const cat = activeActionNode.data;
+                      setEditingCategory(cat);
+                      setCategoryName(cat.name);
+                      setCategoryParentId(cat.parentId || null);
+                      setIsAddingCategory(true);
+                      setIsCategoryFormMinimized(false);
+                      setActiveActionNode(null);
+                    }}
+                  >
+                    <Ionicons name="pencil-outline" size={18} color="#60a5fa" />
+                    <Text style={s.actionSheetBtnText}>Rename Heading</Text>
+                  </TouchableOpacity>
+
+                  {activeActionNode.data.parentId !== null && (
+                    <TouchableOpacity
+                      style={[s.actionSheetBtn, s.actionSheetBtnDelete]}
+                      onPress={() => {
+                        const catId = activeActionNode.id;
+                        setActiveActionNode(null);
+                        handleDeleteCategorySelect(catId);
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={colors.error} />
+                      <Text style={[s.actionSheetBtnText, { color: colors.error }]}>Delete Heading</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={s.actionSheetBtn}
+                    onPress={() => {
+                      const dish = activeActionNode.data;
+                      handleEditDishSelect(dish);
+                      setActiveActionNode(null);
+                    }}
+                  >
+                    <Ionicons name="pencil-outline" size={18} color={colors.gold} />
+                    <Text style={s.actionSheetBtnText}>Edit Dish Attributes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.actionSheetBtn, s.actionSheetBtnDelete]}
+                    onPress={() => {
+                      const dishId = activeActionNode.id;
+                      setActiveActionNode(null);
+                      handleDeleteDishSelect(dishId);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.error} />
+                    <Text style={[s.actionSheetBtnText, { color: colors.error }]}>Delete Dish</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <TouchableOpacity style={s.actionSheetCancel} onPress={() => setActiveActionNode(null)}>
+                <Text style={s.actionSheetCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  minimizedBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.surface, borderStyle: "dashed", borderWidth: 1, borderColor: colors.gold, borderRadius: 12, padding: 12, marginBottom: 16 },
+  minimizedText: { fontSize: 12, fontWeight: "700", color: colors.textPrimary },
+  minimizedBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: colors.gold },
+  minimizedBtnText: { fontSize: 10, fontWeight: "800", color: colors.gold },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   headerTitle: { fontSize: 18, fontWeight: "800", color: colors.gold },
   headerSubtitle: { fontSize: 10, color: colors.textSecondary, marginTop: 2, letterSpacing: 0.5 },
@@ -587,6 +1015,17 @@ const s = StyleSheet.create({
   actionGrid: { flexDirection: "row", gap: 8 },
   editAction: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(212,175,55,0.08)", alignItems: "center", justifyContent: "center" },
   deleteAction: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(239,68,68,0.08)", alignItems: "center", justifyContent: "center" },
+
+  // Tree Explorer Styles
+  treeNode: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.surface, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 4 },
+  treeNodeClickable: { flexDirection: "row", alignItems: "center", flex: 1 },
+  treeNodeName: { fontSize: 13, fontWeight: "700", color: colors.textPrimary },
+  treeNodeActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  nodeActionBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.03)", alignItems: "center", justifyContent: "center", borderWidth: 0.5, borderColor: colors.border },
+  treeNodeChildren: { paddingLeft: 6, borderLeftWidth: 1, borderLeftColor: colors.border, marginLeft: 6, marginBottom: 8 },
+  dishNode: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "rgba(255,255,255,0.01)", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 0.5, borderColor: colors.border, marginBottom: 3 },
+  dishNodeName: { fontSize: 12, fontWeight: "600", color: colors.textPrimary },
+  dishNodePrice: { fontSize: 11, color: colors.goldBright, marginLeft: 6 },
 
   // Orders Tab
   orderCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 14 },
@@ -652,4 +1091,13 @@ const s = StyleSheet.create({
   typeGridText: { fontSize: 11, color: colors.textSecondary, fontWeight: "700" },
   broadcastSubmitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: colors.gold, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
   broadcastSubmitBtnText: { color: "#000", fontWeight: "800", fontSize: 12 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  actionSheetCard: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: colors.border },
+  actionSheetTitle: { fontSize: 15, fontWeight: "800", color: "#FFF", textAlign: "center" },
+  actionSheetSub: { fontSize: 11, color: colors.textSecondary, textAlign: "center", marginTop: 4, marginBottom: 20 },
+  actionSheetBtn: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.02)", padding: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
+  actionSheetBtnText: { fontSize: 13, fontWeight: "700", color: "#FFF" },
+  actionSheetBtnDelete: { borderColor: "rgba(239,68,68,0.2)" },
+  actionSheetCancel: { alignItems: "center", justifyContent: "center", paddingVertical: 12, marginTop: 12 },
+  actionSheetCancelText: { fontSize: 13, fontWeight: "800", color: colors.textSecondary },
 });

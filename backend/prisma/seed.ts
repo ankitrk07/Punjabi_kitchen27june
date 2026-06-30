@@ -2,110 +2,352 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const ROOT_PAGES = [
+  { id: "page_1", name: "Page 1: Breads & Rice", icon: "book-outline", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80", parentId: null },
+  { id: "page_2", name: "Page 2: Main Course", icon: "restaurant-outline", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80", parentId: null },
+  { id: "page_3", name: "Page 3: Chinese & Noodles", icon: "fast-food-outline", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: null },
+  { id: "page_4", name: "Page 4: Starters & Beverages", icon: "cafe-outline", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80", parentId: null },
+  { id: "page_5", name: "Page 5: Fried Rice & Desserts", icon: "ice-cream-outline", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80", parentId: null },
+];
+
 const CATEGORIES = [
-  { id: "veg", name: "Veg", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80" },
-  { id: "non-veg", name: "Non-Veg", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80" },
-  { id: "starters", name: "Starters", icon: "restaurant", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80" },
-  { id: "main-course", name: "Main Course", icon: "pizza", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80" },
-  { id: "chinese", name: "Chinese", icon: "fast-food", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80" },
-  { id: "chicken", name: "Chicken", icon: "egg", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80" },
-  { id: "paneer", name: "Paneer", icon: "nutrition", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80" },
-  { id: "mushroom", name: "Mushroom", icon: "leaf", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=400&q=80" },
-  { id: "egg", name: "Egg", icon: "egg", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80" },
-  { id: "chefs-special", name: "Chef's Special", icon: "star", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400&q=80" },
-  { id: "biryani", name: "Biryani", icon: "restaurant", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400&q=80" },
-  { id: "rice", name: "Rice", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80" },
-  { id: "dal", name: "Dal", icon: "cafe", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=400&q=80" },
-  { id: "tandoori", name: "Tandoori", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80" },
-  { id: "bread", name: "Bread", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80" },
-  { id: "naan", name: "Naan", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80" },
-  { id: "raita", name: "Raita", icon: "water", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80" },
-  { id: "soup", name: "Soup", icon: "cafe", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80" },
-  { id: "desserts", name: "Desserts", icon: "ice-cream", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80" },
-  { id: "sweets", name: "Sweets", icon: "gift", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&q=80" },
-  { id: "ice-cream", name: "Ice Cream", icon: "ice-cream", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=400&q=80" },
-  { id: "coffee", name: "Coffee", icon: "cafe", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&q=80" },
-  { id: "drinks", name: "Drinks", icon: "wine", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&q=80" },
-  { id: "cold-drink", name: "Cold Drink", icon: "beer", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80" },
-  { id: "beverages", name: "Beverages", icon: "wine", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80" },
+  // Page 1 children
+  { id: "soya_chap", name: "Soya Chap", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80", parentId: "page_1" },
+  { id: "dal", name: "Dal", icon: "cafe", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=400&q=80", parentId: "page_1" },
+  { id: "rice_p1", name: "Rice & Biryani", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "page_1" },
+  { id: "breads", name: "Breads", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80", parentId: "page_1" },
+  { id: "salad", name: "Salad", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80", parentId: "page_1" },
+  { id: "raita", name: "Raita", icon: "water", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80", parentId: "page_1" },
+  { id: "papad", name: "Papad", icon: "gift", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&q=80", parentId: "page_1" },
+
+  // Page 2 children (Main Course -> Veg / Non-Veg)
+  { id: "main_course", name: "Main Course", icon: "pizza", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80", parentId: "page_2" },
+  { id: "main_course_veg", name: "Veg Main Course", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80", parentId: "main_course" },
+  { id: "main_course_non_veg", name: "Non-Veg Main Course", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80", parentId: "main_course" },
+
+  // Page 3 children (Chinese Starter, Noodles, Shanghai -> Veg / Non-Veg)
+  { id: "chinese_starter", name: "Chinese Starter", icon: "fast-food", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "page_3" },
+  { id: "chinese_starter_veg", name: "Veg Starters", icon: "leaf", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "chinese_starter" },
+  { id: "chinese_starter_non_veg", name: "Non-Veg Starters", icon: "flame", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "chinese_starter" },
+
+  { id: "noodles", name: "Noodles", icon: "restaurant", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "page_3" },
+  { id: "noodles_veg", name: "Veg Noodles", icon: "leaf", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "noodles" },
+  { id: "noodles_non_veg", name: "Non-Veg Noodles", icon: "flame", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "noodles" },
+
+  { id: "shanghai", name: "Shanghai", icon: "star", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "page_3" },
+  { id: "shanghai_veg", name: "Veg Shanghai", icon: "leaf", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "shanghai" },
+  { id: "shanghai_non_veg", name: "Non-Veg Shanghai", icon: "flame", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "shanghai" },
+
+  // Page 4 children
+  { id: "beverages", name: "Beverages", icon: "wine", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80", parentId: "page_4" },
+  { id: "shakes", name: "Shakes", icon: "ice-cream", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=400&q=80", parentId: "page_4" },
+  { id: "veg_starter", name: "Veg Starter", icon: "leaf", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80", parentId: "page_4" },
+  { id: "non_veg_starter", name: "Non-Veg Starter", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80", parentId: "page_4" },
+
+  { id: "soup", name: "Soup", icon: "cafe", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80", parentId: "page_4" },
+  { id: "soup_veg", name: "Veg Soups", icon: "leaf", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80", parentId: "soup" },
+  { id: "soup_non_veg", name: "Non-Veg Soups", icon: "flame", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80", parentId: "soup" },
+
+  { id: "tandoor", name: "Tandoor", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80", parentId: "page_4" },
+  { id: "tandoor_veg", name: "Veg Tandoor", icon: "leaf", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80", parentId: "tandoor" },
+  { id: "tandoor_non_veg", name: "Non-Veg Tandoor", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80", parentId: "tandoor" },
+
+  // Page 5 children
+  { id: "rice_p5", name: "Rice (Fried)", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "page_5" },
+  { id: "rice_p5_veg", name: "Veg Fried Rice", icon: "leaf", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "rice_p5" },
+  { id: "rice_p5_non_veg", name: "Non-Veg Fried Rice", icon: "flame", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "rice_p5" },
+
+  { id: "desserts", name: "Desserts", icon: "ice-cream", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80", parentId: "page_5" },
+  { id: "desserts_veg", name: "Veg Desserts", icon: "leaf", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80", parentId: "desserts" },
 ];
 
 const DISHES = [
-  // Bread / Naan
-  { id: "d-naan-1", name: "Butter Naan", price: 60, description: "Soft tandoor-baked bread brushed with desi butter.", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=600&q=80", veg: true, categoryId: "naan", rating: 4.8 },
-  { id: "d-naan-2", name: "Garlic Naan", price: 80, description: "Naan topped with garlic & fresh coriander.", image: "https://images.unsplash.com/photo-1626500155913-d2d3b80b7e76?w=600&q=80", veg: true, categoryId: "naan", rating: 4.9 },
-  { id: "d-naan-3", name: "Cheese Naan", price: 120, description: "Stuffed with melted mozzarella cheese.", image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&q=80", veg: true, categoryId: "naan", rating: 4.7 },
+  // ==================== PAGE 1 ====================
+  // SOYA_CHAP
+  { id: "SOYA_AFGANI_CHAP", name: "Soya Afghani Chaap", price: 220, description: "Succulent soya chunks marinated in rich cream, cashew paste, and light spices grilled in tandoor.", image: "/uploads/Menu 15/Soya Chaap/Soya Afghani Chaap.jpeg", veg: true, categoryId: "soya_chap", rating: 4.8 },
+  { id: "SOYA_MALAI_CHAP", name: "Soya Malai Chaap", price: 230, description: "Milky, creamy, tandoor grilled soya chaap seasoned with cardamom and black pepper.", image: "/uploads/Menu 15/Soya Chaap/Soya Malai Chaap.jpeg", veg: true, categoryId: "soya_chap", rating: 4.8 },
+  { id: "SOYA_ACHARI_CHAP", name: "Soya Achari Chaap", price: 210, description: "Soya chaap chunks cooked with tangy pickled spices, yogurt, and mustard oil.", image: "/uploads/Menu 15/Soya Chaap/Soya Achari Chaap.jpeg", veg: true, categoryId: "soya_chap", rating: 4.7 },
+  { id: "SOYA_BUTTER_MASALA", name: "Soya Butter Masala", price: 240, description: "Grilled soya pieces in rich tomato, butter, and cashew onion gravy.", image: "/uploads/Menu 15/Soya Chaap/Soya Butter Masala.jpeg", veg: true, categoryId: "soya_chap", rating: 4.9 },
+  { id: "SOYA_DO_PYAZA", name: "Soya Do Pyaaza", price: 230, description: "Savory soya chunks cooked with onions added at two stages for a sweet crunch.", image: "/uploads/Menu 15/Soya Chaap/Soya Do Pyaaza.jpeg", veg: true, categoryId: "soya_chap", rating: 4.6 },
+  { id: "SOYA_MASALA", name: "Soya Masala", price: 220, description: "Semi-dry spicy Punjabi style soya chaap curry.", image: "/uploads/Menu 15/Soya Chaap/Soya Masala.jpeg", veg: true, categoryId: "soya_chap", rating: 4.7 },
 
-  // Biryani
-  { id: "d-bir-1", name: "Hyderabadi Dum Biryani", price: 280, description: "Slow-cooked aromatic basmati with spices.", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=600&q=80", veg: false, categoryId: "biryani", rating: 4.9 },
-  { id: "d-bir-2", name: "Chicken Biryani", price: 260, description: "Tender chicken layered with fragrant rice.", image: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=600&q=80", veg: false, categoryId: "biryani", rating: 4.8 },
-  { id: "d-bir-3", name: "Veg Biryani", price: 220, description: "Mixed veggies cooked dum-style.", image: "https://images.unsplash.com/photo-1599043513900-ed6fe01d3833?w=600&q=80", veg: true, categoryId: "biryani", rating: 4.6 },
+  // DAL
+  { id: "Dal_Tadka", name: "Dal Tadka", price: 180, description: "Tempered yellow lentils with cumin, garlic, red chillies, and ghee.", image: "/uploads/Menu 15/Dal/Dal Tadka.jpeg", veg: true, categoryId: "dal", rating: 4.7 },
+  { id: "Dal_Fry_(Yellow)", name: "Dal Fry (Yellow)", price: 160, description: "Comforting yellow dal cooked with tomatoes and spices.", image: "/uploads/Menu 15/Dal/Dal Fry (Yellow).jpeg", veg: true, categoryId: "dal", rating: 4.5 },
+  { id: "Dal_Amritsari", name: "Dal Amritsari", price: 200, description: "Traditional split black urad dal and chana dal from Amritsar.", image: "/uploads/Menu 15/Dal/Dal Amritsari.jpeg", veg: true, categoryId: "dal", rating: 4.7 },
+  { id: "Dal_Mughlai_(Non-Veg.)", name: "Dal Mughlai (Non-Veg.)", price: 260, description: "Rich dal cooked with egg or minced chicken Mughlai style.", image: "/uploads/Menu 15/Dal/Dal Mughlai (Non-Veg.).jpeg", veg: false, categoryId: "dal", rating: 4.8 },
+  { id: "Dal_Makhani", name: "Dal Makhani", price: 240, description: "Creamy slow-cooked whole black lentils and kidney beans.", image: "/uploads/Menu 15/Dal/Dal Makhani.jpeg", veg: true, categoryId: "dal", rating: 4.9 },
 
-  // Chicken
-  { id: "d-chk-1", name: "Butter Chicken", price: 320, description: "Creamy tomato gravy with succulent chicken.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "chicken", rating: 4.9 },
-  { id: "d-chk-2", name: "Tandoori Chicken", price: 380, description: "Smoky chargrilled chicken marinated in yogurt.", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=600&q=80", veg: false, categoryId: "tandoori", rating: 4.8 },
-  { id: "d-chk-3", name: "Chicken Tikka", price: 340, description: "Spiced boneless chicken skewers.", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=600&q=80", veg: false, categoryId: "starters", rating: 4.8 },
+  // RICE (Page 1)
+  { id: "Steamed_Rice", name: "Steamed Rice", price: 120, description: "Fluffy aromatic basmati rice cooked to perfection.", image: "/uploads/Menu 15/Rice/Steamed Rice.jpeg", veg: true, categoryId: "rice_p1", rating: 4.4 },
+  { id: "Jeera_Rice", name: "Jeera Rice", price: 150, description: "Basmati rice tempered with ghee and cumin seeds.", image: "/uploads/Menu 15/Rice/Jeera Rice.jpeg", veg: true, categoryId: "rice_p1", rating: 4.6 },
+  { id: "Veg_Pulao", name: "Veg Pulao", price: 180, description: "Rice cooked with assorted vegetables and spices.", image: "/uploads/Menu 15/Rice/Veg Pulao.jpeg", veg: true, categoryId: "rice_p1", rating: 4.5 },
+  { id: "Green_Peas_Pulao", name: "Green Peas Pulao", price: 190, description: "Basmati rice cooked with fresh green peas.", image: "/uploads/Menu 15/Rice/Green Peas Pulao.jpeg", veg: true, categoryId: "rice_p1", rating: 4.6 },
+  { id: "Veg_Biryani", name: "Veg Biryani", price: 220, description: "Layered basmati rice with mixed vegetables and direct dum cooking.", image: "/uploads/Menu 15/Rice/Veg Biryani.jpeg", veg: true, categoryId: "rice_p1", rating: 4.6 },
+  { id: "Mix_Veg_Biryani", name: "Mix Veg Biryani", price: 230, description: "Exquisite layered biryani loaded with premium veggies.", image: "/uploads/Menu 15/Rice/Mix Veg Biryani.jpeg", veg: true, categoryId: "rice_p1", rating: 4.7 },
+  { id: "Hyderabadi_Chicken_Biryani", name: "Hyderabadi Chicken Biryani", price: 280, description: "Authentic spicy layered chicken biryani.", image: "/uploads/Menu 15/Rice/Hyderabadi Chicken Biryani.jpeg", veg: false, categoryId: "rice_p1", rating: 4.9 },
+  { id: "Chicken_Dum_Briyani", name: "Chicken Dum Biryani", price: 260, description: "Classic dum cooked chicken biryani.", image: "/uploads/Menu 15/Rice/Chicken Dum Biryani.jpeg", veg: false, categoryId: "rice_p1", rating: 4.8 },
+  { id: "Double_Leg_Biryani", name: "Double Leg Chicken Biryani", price: 300, description: "Biryani served with two juicy tandoori chicken legs.", image: "/uploads/Menu 15/Rice/Double Leg Chicken Biryani.jpg", veg: false, categoryId: "rice_p1", rating: 4.9 },
+  { id: "Chicken_Matki_Biryani", name: "Chicken Matki Biryani", price: 290, description: "Aromatic chicken biryani cooked and served in a clay pot.", image: "/uploads/Menu 15/Rice/Chicken Matki Biryani.jpeg", veg: false, categoryId: "rice_p1", rating: 4.8 },
 
-  // Paneer
-  { id: "d-pan-1", name: "Paneer Tikka", price: 280, description: "Cottage cheese cubes grilled with spices.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "paneer", rating: 4.8 },
-  { id: "d-pan-2", name: "Paneer Butter Masala", price: 290, description: "Paneer in rich butter-tomato gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "paneer", rating: 4.9 },
-  { id: "d-pan-3", name: "Kadai Paneer", price: 270, description: "Spicy paneer with capsicum & onions.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "paneer", rating: 4.7 },
+  // BREADS
+  { id: "Tandoori_Roti", name: "Tandoori Roti", price: 20, description: "Whole wheat unleavened bread baked in tandoor clay oven.", image: "/uploads/Menu 15/Breads/Tandoori Roti.jpeg", veg: true, categoryId: "breads", rating: 4.5 },
+  { id: "Butter_Tandoori_Roti", name: "Butter Tandoori Roti", price: 25, description: "Whole wheat clay oven flatbread coated with butter.", image: "/uploads/Menu 15/Breads/Butter Tandoori Roti.jpeg", veg: true, categoryId: "breads", rating: 4.6 },
+  { id: "Naan", name: "Plain Naan", price: 50, description: "Refined flour flatbread baked in the clay oven.", image: "/uploads/Menu 15/Breads/Plain Naan.jpeg", veg: true, categoryId: "breads", rating: 4.6 },
+  { id: "Butter_Naan", name: "Butter Naan", price: 60, description: "Leavened flatbread brushed with rich melted butter.", image: "/uploads/Menu 15/Breads/Butter Naan.jpeg", veg: true, categoryId: "breads", rating: 4.8 },
+  { id: "Stuffed_Kulcha", name: "Stuffed Kulcha", price: 100, description: "Stuffed flatbread with potato and mild spices.", image: "/uploads/Menu 15/Breads/Stuffed Kulcha.jpeg", veg: true, categoryId: "breads", rating: 4.7 },
+  { id: "Aloo_Paratha", name: "Aloo Paratha", price: 70, description: "Stuffed whole wheat paratha with spiced potatoes.", image: "/uploads/Menu 15/Breads/Aloo Paratha.jpeg", veg: true, categoryId: "breads", rating: 4.8 },
+  { id: "Shahi_Naan", name: "Shahi Naan", price: 90, description: "Rich royal naan topped with nuts, raisins, and sesame seeds.", image: "/uploads/Menu 15/Breads/Shahi Naan.jpeg", veg: true, categoryId: "breads", rating: 4.7 },
+  { id: "Garlic_Naan", name: "Garlic Naan", price: 80, description: "Naan bread infused with garlic and fresh coriander.", image: "/uploads/Menu 15/Breads/Garlic Naan.jpeg", veg: true, categoryId: "breads", rating: 4.9 },
+  { id: "Panner_Kulcha", name: "Paneer Kulcha", price: 110, description: "Soft leavened bread stuffed with cottage cheese.", image: "/uploads/Menu 15/Breads/Paneer Kulcha.jpeg", veg: true, categoryId: "breads", rating: 4.8 },
+  { id: "Laccha_Paratha", name: "Laccha Paratha", price: 80, description: "Multi-layered crispy tandoori flatbread.", image: "/uploads/Menu 15/Breads/Laccha Paratha.jpeg", veg: true, categoryId: "breads", rating: 4.7 },
 
-  // Mushroom
-  { id: "d-mush-1", name: "Mushroom Masala", price: 240, description: "Button mushrooms in onion-tomato gravy.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "mushroom", rating: 4.5 },
-  { id: "d-mush-2", name: "Kadai Mushroom", price: 250, description: "Mushrooms tossed in kadai spices.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "mushroom", rating: 4.6 },
+  // SALAD
+  { id: "Garden_Fresh", name: "Garden Fresh Salad", price: 80, description: "Assorted sliced fresh cucumber, tomatoes, carrots, and beetroot.", image: "/uploads/Menu 15/Salad/Garden Fresh Salad.jpeg", veg: true, categoryId: "salad", rating: 4.5 },
+  { id: "Cucumber_Salad", name: "Cucumber Salad", price: 70, description: "Refreshing sliced cucumbers with salt and lemon.", image: "/uploads/Menu 15/Salad/Cucumber Salad.jpeg", veg: true, categoryId: "salad", rating: 4.4 },
+  { id: "Onion_Salad", name: "Onion Salad", price: 50, description: "Sliced onion rings with green chillies and lemon.", image: "/uploads/Menu 15/Salad/Onion Salad.jpeg", veg: true, categoryId: "salad", rating: 4.3 },
+  { id: "Mix_Salad", name: "Mix Salad", price: 75, description: "A combination of sliced onions, tomatoes, and cucumbers.", image: "/uploads/Menu 15/Salad/Mix Salad.jpeg", veg: true, categoryId: "salad", rating: 4.4 },
 
-  // Egg
-  { id: "d-egg-1", name: "Egg Curry", price: 180, description: "Boiled eggs in spiced gravy.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "egg", rating: 4.4 },
-  { id: "d-egg-2", name: "Egg Bhurji", price: 160, description: "Scrambled spiced eggs Punjabi style.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "egg", rating: 4.5 },
+  // RAITA
+  { id: "Curd", name: "Curd", price: 50, description: "Plain house-made fresh yogurt.", image: "/uploads/Menu 15/Raita/Curd.jpeg", veg: true, categoryId: "raita", rating: 4.5 },
+  { id: "Boondi_Raita", name: "Boondi Raita", price: 70, description: "Yogurt mixed with crispy tiny fried chickpea flour balls.", image: "/uploads/Menu 15/Raita/Boondi Raita.jpeg", veg: true, categoryId: "raita", rating: 4.5 },
+  { id: "Kheera_Raita", name: "Cucumber Raita", price: 60, description: "Chilled yogurt seasoned with grated cucumber and roasted cumin.", image: "/uploads/Menu 15/Raita/Kheera Raita.jpeg", veg: true, categoryId: "raita", rating: 4.4 },
+  { id: "Mix_Raita", name: "Mix Raita", price: 80, description: "Yogurt loaded with onion, tomato, and cucumber.", image: "/uploads/Menu 15/Raita/Mix Raita.jpeg", veg: true, categoryId: "raita", rating: 4.5 },
+  { id: "Pineapple_Raita", name: "Pineapple Raita", price: 100, description: "Sweet and sour yogurt with juicy pineapple pieces.", image: "/uploads/Menu 15/Raita/Pineapple Raita.jpg", veg: true, categoryId: "raita", rating: 4.6 },
 
-  // Dal
-  { id: "d-dal-1", name: "Dal Makhani", price: 240, description: "Slow-cooked black lentils with cream.", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=600&q=80", veg: true, categoryId: "dal", rating: 4.9 },
-  { id: "d-dal-2", name: "Dal Tadka", price: 180, description: "Yellow dal with smoky tadka.", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=600&q=80", veg: true, categoryId: "dal", rating: 4.7 },
+  // PAPAD
+  { id: "Roasted_Papad", name: "Roasted Papad", price: 20, description: "Crispy roasted papadom.", image: "/uploads/Menu 15/Papad/Roasted Papad.jpg", veg: true, categoryId: "papad", rating: 4.4 },
+  { id: "Fry_Papad", name: "Fried Papad", price: 25, description: "Deep-fried crispy papadom.", image: "/uploads/Menu 15/Papad/Fried Papad.jpeg", veg: true, categoryId: "papad", rating: 4.3 },
+  { id: "Masala_Papad", name: "Masala Papad", price: 40, description: "Crispy papad topped with chopped onions, tomatoes, and herbs.", image: "/uploads/Menu 15/Papad/Masala Papad.jpeg", veg: true, categoryId: "papad", rating: 4.6 },
 
-  // Rice
-  { id: "d-rice-1", name: "Jeera Rice", price: 150, description: "Cumin-tempered basmati rice.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice", rating: 4.6 },
-  { id: "d-rice-2", name: "Veg Pulao", price: 180, description: "Mixed veggie aromatic pulao.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice", rating: 4.5 },
+  // ==================== PAGE 2 ====================
+  // MAIN_COURSE -> Veg
+  { id: "Veg_Navratan_Korma", name: "Veg Navratan Korma", price: 260, description: "Mild, sweet, and rich gravy with 9 gems of vegetables and nuts.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Veg_Jhalfrezi", name: "Veg Jhalfrezi", price: 240, description: "Tangy and spicy stir-fried vegetables with onions and bell peppers.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Veg-do-pyaza", name: "Veg Do Pyaza", price: 230, description: "Seasonal vegetables cooked in spicy onion-based gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.4 },
+  { id: "Veg_Kadahi", name: "Veg Kadahi", price: 250, description: "Veggies cooked in wok with fresh kadai spices.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Veg_Jaipuri", name: "Veg Jaipuri", price: 260, description: "Jaipuri-style mixed veg curry topped with papad.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Veg_Hydrabadi", name: "Veg Hyderabadi", price: 250, description: "Mixed veggies cooked in rich green spinach-mint-coriander gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Veg_Handi", name: "Veg Handi", price: 255, description: "Creamy mixed vegetables slow-cooked in a clay handi.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Veg_Dahi_Wala", name: "Veg Dahi Wala", price: 240, description: "Vegetables simmered in rich yogurt-based mild gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.4 },
+  { id: "Veg_Tawa", name: "Veg Tawa", price: 250, description: "Dry, spicy vegetables sizzled on a iron griddle (tawa).", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Veg_Lababdar", name: "Veg Lababdar", price: 260, description: "Mixed veg cooked in thick creamy tomato gravy with cheese.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Mix_Vegetable", name: "Mix Vegetable", price: 210, description: "Assorted vegetables cooked in a simple onion-tomato base.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Panner_Butter_Masala", name: "Paneer Butter Masala", price: 290, description: "Paneer chunks in a creamy, butter-enriched tomato sauce.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.9 },
+  { id: "Paneer_Korma", name: "Paneer Korma", price: 280, description: "Cottage cheese in white cashew nut gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Paneer_Keema", name: "Paneer Keema", price: 270, description: "Scrambled paneer with onions, tomatoes, and spices.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Paneer_Tikka_Butter_Masala", name: "Paneer Tikka Butter Masala", price: 310, description: "Grilled paneer tikka skewered and cooked in masala gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.9 },
+  { id: "Paneer_Kadahi", name: "Kadai Paneer", price: 270, description: "Spicy paneer sautéed with bell peppers in a wok.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Paneer_Handi", name: "Paneer Handi", price: 280, description: "Paneer cooked in a clay pot with creamy gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Paneer_Hydrabadi", name: "Paneer Hyderabadi", price: 280, description: "Paneer cooked in rich spinach-mint Hyderabadi gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Paneer_Maharaja", name: "Paneer Maharaja", price: 320, description: "Chef's special double-layered royal paneer gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.9 },
+  { id: "Panner_Makhan_Wala", name: "Paneer Makhan Wala", price: 290, description: "Paneer pieces loaded in rich, buttery, velvety tomato sauce.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Panner_Dahi_Wala", name: "Paneer Dahi Wala", price: 275, description: "Cottage cheese cooked in a smooth curd base.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Paneer_Kholapuri", name: "Paneer Kolhapuri", price: 285, description: "Fiery spicy paneer dish with Kolhapuri ground spices.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Paneer_Corn_Palak_Masala", name: "Paneer Corn Palak Masala", price: 290, description: "Paneer and sweet corn cooked in spiced spinach puree.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Panner_Mushroom_Taj_(Special)", name: "Paneer Mushroom Taj (Special)", price: 340, description: "House special combining grilled paneer and button mushrooms in a majestic gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.9 },
+  { id: "Shahi_Paneer", name: "Shahi Paneer", price: 280, description: "Royal paneer dish in sweet creamy onion-cashew sauce.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Matar_Paneer", name: "Matar Paneer", price: 260, description: "Classic combination of paneer and fresh green peas in gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Paneer_Kofta", name: "Paneer Kofta", price: 270, description: "Cottage cheese balls served in thick spiced curry.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Matki_Paneer", name: "Matki Paneer", price: 290, description: "Paneer cooked inside clay pot with special Punjabi herbs.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Kaju_Curry", name: "Kaju Curry", price: 300, description: "Roasted cashew nuts cooked in rich creamy onion-tomato gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Palak_Corn", name: "Palak Corn", price: 240, description: "Sweet corn kernels inside seasoned spinach cream.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Mushroom_Matar_Masala", name: "Mushroom Matar Masala", price: 260, description: "Fresh button mushrooms and green peas in red masala gravy.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Mushroom_Butter_Masala", name: "Mushroom Butter Masala", price: 270, description: "Mushrooms in rich tomato butter gravy.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.7 },
+  { id: "Mushroom_Do_Pyaza", name: "Mushroom Do Pyaza", price: 265, description: "Button mushrooms sautéed with lots of onions.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.6 },
+  { id: "Mushroom_Tawa", name: "Mushroom Tawa", price: 270, description: "Spicy mushroom cooked dry on tawa griddle.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Mushroom_Palak", name: "Mushroom Palak", price: 250, description: "Mushrooms cooked in healthy spiced spinach gravy.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Veg_Kofta", name: "Veg Kofta", price: 220, description: "Deep-fried mixed vegetable balls in gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Malai_Kofta", name: "Malai Kofta", price: 260, description: "Potato paneer dumplings in sweet cashew cream gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.8 },
+  { id: "Baby_Corn_Masala", name: "Baby Corn Masala", price: 240, description: "Crisp baby corn cuts in spiced onion-tomato curry.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
+  { id: "Corn_Masala", name: "Corn Masala", price: 230, description: "Sweet corn kernels cooked in warm Indian gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.4 },
+  { id: "Green_Peace_Masala", name: "Green Peas Masala", price: 220, description: "Fresh green peas in spiced onion-tomato gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "main_course_veg", rating: 4.5 },
 
-  // Chinese
-  { id: "d-chi-1", name: "Veg Hakka Noodles", price: 180, description: "Wok-tossed noodles with vegetables.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "chinese", rating: 4.6 },
-  { id: "d-chi-2", name: "Chilli Chicken", price: 240, description: "Indo-Chinese spicy chicken.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese", rating: 4.7 },
+  // MAIN_COURSE -> Non-Veg
+  { id: "Chicken_Curry_(2_Pcs)", name: "Chicken Curry (2 Pcs)", price: 180, description: "Home-style traditional chicken curry cooked in thin gravy.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Chicken_Masala_(2_Pcs)", name: "Chicken Masala (2 Pcs)", price: 200, description: "Spicy chicken pieces in a thick masala paste.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Chicken_Butter_Masala_(2_Pcs)", name: "Chicken Butter Masala (2 Pcs)", price: 220, description: "Tender chicken pieces cooked in butter-tomato-cashew gravy.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Korma_(2_Pcs)", name: "Chicken Korma (2 Pcs)", price: 210, description: "Chicken slow cooked in royal cashew-yogurt sauce.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.6 },
+  { id: "Chicken_Do_Pyaza_(2_Pcs)", name: "Chicken Do Pyaza (2 Pcs)", price: 210, description: "Chicken cooked with double amount of crunchy onions.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.6 },
+  { id: "Chicken_Bharta", name: "Chicken Bharta", price: 260, description: "Shredded chicken cooked in egg, butter, and cashew onion paste.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Handi_(4_Pcs)", name: "Chicken Handi (4 Pcs)", price: 340, description: "Creamy chicken curry cooked in traditional clay pot.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Kadahi_(4_Pcs)", name: "Chicken Kadai (4 Pcs)", price: 340, description: "Wok-cooked chicken with chunky onions, tomatoes, and bell peppers.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Chicken_Peshawari_(4_Pcs)", name: "Chicken Peshawari (4 Pcs)", price: 360, description: "Rich, mildly spiced chicken dish from Peshawar region.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Kolhapuri_(4_Pcs)", name: "Chicken Kolhapuri (4 Pcs)", price: 350, description: "Extremely spicy chicken dish with dry coconut and chillies.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Chicken_Methi_Malai_(4_Pcs)", name: "Chicken Methi Malai (4 Pcs)", price: 370, description: "Rich white chicken gravy flavored with fresh fenugreek leaves (methi) and cream.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Saagwala_(4_Pcs)", name: "Chicken Saagwala (4 Pcs)", price: 340, description: "Chicken cooked in a green dynamic spinach puree.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.6 },
+  { id: "Chicken_Lucknawi_(4_Pcs)", name: "Chicken Lucknawi (4 Pcs)", price: 380, description: "Delicately flavored white chicken curry Lucknow-style.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Makhani_Chicken_(4_Pcs)", name: "Makhani Chicken (4 Pcs)", price: 350, description: "Shredded and grilled tandoori chicken cooked in rich buttery sauce.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.9 },
+  { id: "Tawa_Chicken_(4_Pcs)", name: "Tawa Chicken (4 Pcs)", price: 360, description: "Spiced chicken stir-fried on large iron griddle.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Tikka_Butter_Masala_(8_Pcs)", name: "Chicken Tikka Butter Masala (8 Pcs)", price: 480, description: "Skewered chicken tikka cooked in hot spiced butter gravy.", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.9 },
+  { id: "Chicken_Kassa_(8_Pcs)", name: "Chicken Kassa (8 Pcs)", price: 440, description: "Bengali style slow-cooked dry spicy chicken.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Chicken_Lababdar_(8_Pcs)", name: "Chicken Lababdar (8 Pcs)", price: 460, description: "Creamy sweet and tangy chicken gravy with cheese.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Chicken_Patiyala_(8_Pcs)", name: "Chicken Patiala (8 Pcs)", price: 490, description: "Punjabi special chicken wrapped inside egg omelette served in yellow gravy.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.9 },
+  { id: "Chicken_Dehati_Full_(8_Pcs)", name: "Chicken Dehati Full (8 Pcs)", price: 520, description: "Rustic country-style chicken curry with whole garlic bulbs.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Punjabi_Kitchen_Special_(8_Pcs)", name: "Punjabi Kitchen Special (8 Pcs)", price: 580, description: "Chef's signature chicken curry using rare herbs and spices.", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 5.0 },
+  { id: "Chicken_Maharaja_Full(8_Pcs)", name: "Chicken Maharaja Full (8 Pcs)", price: 560, description: "Royal style chicken cooked in two layers of gravies with boiled eggs.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.9 },
+  { id: "Matka_Chicken_Full(8_Pcs)", name: "Matka Chicken Full (8 Pcs)", price: 570, description: "Juicy chicken cooked inside clay pot with special spices.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.9 },
+  { id: "Murg_Musalam_Full_(8_Pcs)", name: "Murg Musallam Full (8 Pcs)", price: 590, description: "Whole roasted tandoori chicken stuffed with eggs and minced mutton in thick gravy.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 5.0 },
+  { id: "Mutton_Curry_(4_Pcs)", name: "Mutton Curry (4 Pcs)", price: 400, description: "Home-style tender goat mutton curry cooked in spicy broth.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Mutton_Masala_(4_Pcs)", name: "Mutton Masala (4 Pcs)", price: 420, description: "Slow-cooked mutton pieces in a thick, semi-dry spice masala.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.8 },
+  { id: "Mutton_Rogan_Josh_(4_Pcs)", name: "Mutton Rogan Josh (4 Pcs)", price: 420, description: "Kashmiri style aromatic goat mutton cooked with alkanet root.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.9 },
+  { id: "Fish_Curry_(2_Pcs)", name: "Fish Curry (2 Pcs)", price: 280, description: "Fresh fish cooked in mustard-onion curry.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.6 },
+  { id: "Fish_Masala_(2_Pcs)", name: "Fish Masala (2 Pcs)", price: 300, description: "Pan fried fish coated in hot masala sauce.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Fish_Do_Pyaza_(2_Pcs)", name: "Fish Do Pyaza (2 Pcs)", price: 300, description: "Fish pieces cooked with caramelized onion gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.6 },
+  { id: "Fish_Fry_(2_Pcs)", name: "Fish Fry (2 Pcs)", price: 260, description: "Crispy batter-fried fish fillets seasoned with chaat masala.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.7 },
+  { id: "Egg_Curry_(2_Pcs)", name: "Egg Curry (2 Pcs)", price: 180, description: "Boiled and pan-fried eggs served in spicy curry.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.5 },
+  { id: "Egg_Masala_(2_Pcs)", name: "Egg Masala (2 Pcs)", price: 200, description: "Eggs cooked inside heavily spiced thick dry masala gravy.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.6 },
+  { id: "Egg_Do_Pyaza_(2_Pcs)", name: "Egg Do Pyaza (2 Pcs)", price: 200, description: "Boiled eggs cooked in onion-rich sauce.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.5 },
+  { id: "Omellete_Masala_(2_Pcs)", name: "Omelette Masala (2 Pcs)", price: 120, description: "Spiced double-egg omelette cooked with onions and chillies.", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&q=80", veg: false, categoryId: "main_course_non_veg", rating: 4.5 },
 
-  // Soup
-  { id: "d-soup-1", name: "Hot & Sour Soup", price: 120, description: "Tangy spicy veg soup.", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80", veg: true, categoryId: "soup", rating: 4.4 },
-  { id: "d-soup-2", name: "Tomato Shorba", price: 110, description: "Rich tomato lentil soup.", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80", veg: true, categoryId: "soup", rating: 4.5 },
+  // ==================== PAGE 3 ====================
+  // CHINESE_STARTER -> Veg
+  { id: "Veg_Chilly", name: "Veg Chilli", price: 180, description: "Mixed vegetable dumplings tossed in tangy chilli sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.5 },
+  { id: "Paneer_Chilly", name: "Paneer Chilli", price: 220, description: "Cottage cheese cubes tossed with capsicum, onion, and dark soy sauce.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.7 },
+  { id: "Mushroom_Chilly", name: "Mushroom Chilli", price: 210, description: "Crispy batter-fried button mushrooms in sweet/sour chilli sauce.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.6 },
+  { id: "Baby_Corn_Chilly", name: "Baby Corn Chilli", price: 200, description: "Baby corn cuts tossed in hot Schezwan chilli sauce.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.5 },
+  { id: "Honey_Potato_Chilly", name: "Honey Chilli Potato", price: 170, description: "Crispy potato fingers tossed in honey, sesame, and sweet chilli sauce.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.6 },
+  { id: "Chana_Chilly", name: "Chana Chilli", price: 160, description: "Boiled chickpeas crispy fried and tossed Chinese style.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.5 },
+  { id: "Cheese_Chilly", name: "Cheese Chilli", price: 240, description: "Rich cheese chunks tossed in hot spicy soy sauce.", image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.6 },
+  { id: "Veg_Manchurian", name: "Veg Manchurian", price: 170, description: "Deep fried vegetable balls served in thick Manchurian sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.6 },
+  { id: "Paneer_Manchurian", name: "Paneer Manchurian", price: 210, description: "Paneer cubes dipped in batter and cooked in garlic Manchurian gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.6 },
+  { id: "Mushroom_Manchurian", name: "Mushroom Manchurian", price: 200, description: "Crispy button mushrooms cooked inside dynamic Manchurian sauce.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.5 },
+  { id: "Corn_Salt_n_Pepper", name: "Corn Salt & Pepper", price: 190, description: "Sweet corn kernels crispy fried and seasoned with salt and pepper.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.6 },
+  { id: "Panner_65", name: "Paneer 65", price: 230, description: "Spicy, deep-fried paneer starter flavored with curry leaves and yogurt.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "chinese_starter_veg", rating: 4.8 },
 
-  // Raita
-  { id: "d-rai-1", name: "Boondi Raita", price: 70, description: "Yogurt with crispy boondi.", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", veg: true, categoryId: "raita", rating: 4.5 },
-  { id: "d-rai-2", name: "Cucumber Raita", price: 60, description: "Cooling yogurt with cucumber.", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=80", veg: true, categoryId: "raita", rating: 4.4 },
+  // CHINESE_STARTER -> Non-Veg
+  { id: "Chicken_Chilly_(Boneless)", name: "Chicken Chilli (Boneless)", price: 240, description: "Boneless chicken chunks tossed in dark soy sauce, chillies, and bell peppers.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.8 },
+  { id: "Chicken_Chilly_(with_Bone)", name: "Chicken Chilli (with Bone)", price: 220, description: "Bone-in chicken cuts tossed in Chinese chilli sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.7 },
+  { id: "Chicken_Schezewan", name: "Chicken Schezwan", price: 255, description: "Chicken chunks sautéed in hot spicy Schezwan sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.7 },
+  { id: "Chicken_Salt_N_Pepper", name: "Chicken Salt & Pepper", price: 250, description: "Crispy chicken strips seasoned with cracked black pepper and rock salt.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.7 },
+  { id: "Lemon_Chicken", name: "Lemon Chicken", price: 260, description: "Battered chicken slices cooked in sweet and tangy lemon sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.6 },
+  { id: "Pepper_Chicken", name: "Pepper Chicken", price: 250, description: "Dry stir-fried chicken seasoned with black pepper, garlic, and onions.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.6 },
+  { id: "Chicken_Manchurian", name: "Chicken Manchurian", price: 240, description: "Fried chicken balls in dark garlic-infused Manchurian sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.7 },
+  { id: "Chicken_65", name: "Chicken 65", price: 250, description: "Spicy deep-fried chicken bites flavored with curry leaves, ginger, and garlic.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.8 },
+  { id: "Chicken_Lollypop_(6_Pcs)", name: "Chicken Lollipop (6 Pcs)", price: 280, description: "Spiced chicken wings pulled back to resemble lollipops, deep fried.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.8 },
+  { id: "Crispy_Chicken", name: "Crispy Chicken", price: 260, description: "Battered and deep-fried chicken strips served with hot sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.6 },
+  { id: "Dragon_Chicken", name: "Dragon Chicken", price: 270, description: "Sweet, spicy, and crunchy chicken strips tossed with cashew nuts.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "chinese_starter_non_veg", rating: 4.7 },
 
-  // Desserts / Sweets / Ice cream
-  { id: "d-des-1", name: "Gulab Jamun", price: 80, description: "Soft milk dumplings in sugar syrup.", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80", veg: true, categoryId: "sweets", rating: 4.9 },
-  { id: "d-des-2", name: "Rasmalai", price: 100, description: "Cottage cheese discs in saffron milk.", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80", veg: true, categoryId: "sweets", rating: 4.8 },
-  { id: "d-des-3", name: "Kulfi Falooda", price: 120, description: "Traditional Indian ice cream with falooda.", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=600&q=80", veg: true, categoryId: "ice-cream", rating: 4.7 },
-  { id: "d-des-4", name: "Gajar Halwa", price: 110, description: "Carrot pudding with dry fruits.", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=600&q=80", veg: true, categoryId: "desserts", rating: 4.8 },
+  // NOODLES -> Veg
+  { id: "Veg_hakka_Noodles", name: "Veg Hakka Noodles", price: 150, description: "Wok-tossed noodles with mixed vegetables and light soy sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "noodles_veg", rating: 4.6 },
+  { id: "Paneer_Hakka_Noodles", name: "Paneer Hakka Noodles", price: 180, description: "Noodles tossed with soft cottage cheese strips.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "noodles_veg", rating: 4.6 },
+  { id: "Mushroom_Hakka_Noodles", name: "Mushroom Hakka Noodles", price: 180, description: "Wok-tossed noodles with mushrooms and fresh veggies.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "noodles_veg", rating: 4.5 },
+  { id: "Mix_Veg_Noodles", name: "Mix Veg Noodles", price: 190, description: "Noodles with special house-selected vegetables.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "noodles_veg", rating: 4.6 },
+  { id: "American_Choupsey", name: "American Chopsuey Veg", price: 220, description: "Crispy fried noodles topped with sweet and sour vegetable glaze.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "noodles_veg", rating: 4.7 },
 
-  // Drinks / Coffee / Cold
-  { id: "d-drk-1", name: "Masala Chai", price: 40, description: "Authentic Indian spiced tea.", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=600&q=80", veg: true, categoryId: "coffee", rating: 4.8 },
-  { id: "d-drk-2", name: "Filter Coffee", price: 60, description: "South Indian style filter coffee.", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=600&q=80", veg: true, categoryId: "coffee", rating: 4.7 },
-  { id: "d-drk-3", name: "Sweet Lassi", price: 80, description: "Punjabi yogurt drink with sugar.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "drinks", rating: 4.9 },
-  { id: "d-drk-4", name: "Mango Shake", price: 110, description: "Thick alphonso mango shake.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "cold-drink", rating: 4.8 },
-  { id: "d-drk-5", name: "Fresh Lime Soda", price: 70, description: "Tangy lime with soda water.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "beverages", rating: 4.5 },
+  // NOODLES -> Non-Veg
+  { id: "Egg_Hakka_Noodles", name: "Egg Hakka Noodles", price: 160, description: "Noodles tossed with scrambled eggs and fresh greens.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.6 },
+  { id: "Chicken_Hakka_Noodles", name: "Chicken Hakka Noodles", price: 200, description: "Noodles wok-tossed with juicy shredded chicken cuts.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.8 },
+  { id: "Chicken_Egg_Noodles", name: "Chicken Egg Noodles", price: 210, description: "Tossed noodles combining both egg and chicken shreds.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.7 },
+  { id: "Mix_Hakka_Noodles", name: "Mix Hakka Noodles", price: 230, description: "Mixed hakka noodles containing egg, chicken, and prawns.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.8 },
+  { id: "Chicken_Garlic_Chwomin", name: "Chicken Garlic Chowmein", price: 210, description: "Garlic infused stir-fried chicken chowmein.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.6 },
+  { id: "Mix_Garlic_Chwomin", name: "Mix Garlic Chowmein", price: 240, description: "Combination chowmein loaded with garlic, egg, and chicken.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.7 },
+  { id: "Chicken_Gravy_Noodles", name: "Chicken Gravy Noodles", price: 220, description: "Boiled noodles served underneath hot chicken and vegetable gravy.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.6 },
+  { id: "American_Choupsey_(Chicken)", name: "American Chopsuey Chicken", price: 250, description: "Crispy fried noodles topped with sweet and sour chicken glaze and a fried egg.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "noodles_non_veg", rating: 4.8 },
 
-  // Chef's Special / Main course
-  { id: "d-cs-1", name: "Punjabi Thali", price: 380, description: "Chef's signature platter — dal, sabzi, paneer, naan, rice, sweet.", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=600&q=80", veg: true, categoryId: "chefs-special", rating: 5.0 },
-  { id: "d-cs-2", name: "Sarson Da Saag & Makki Roti", price: 290, description: "Winter Punjabi classic with butter.", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=600&q=80", veg: true, categoryId: "chefs-special", rating: 4.9 },
-  { id: "d-cs-3", name: "Mutton Rogan Josh", price: 420, description: "Tender mutton in aromatic Kashmiri gravy.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "chefs-special", rating: 4.9 },
+  // SHANGHAI -> Veg
+  { id: "Vegetable_Shanghai", name: "Vegetable Shanghai", price: 180, description: "Veggies cooked Shanghai style with sweet, sour, and mildly spicy sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "shanghai_veg", rating: 4.5 },
+  { id: "Panner_Shanghai", name: "Paneer Shanghai", price: 210, description: "Paneer chunks cooked in Shanghai sweet-spicy brown glaze.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "shanghai_veg", rating: 4.6 },
+  { id: "Mushroom_Shanghai", name: "Mushroom Shanghai", price: 210, description: "Fresh button mushrooms tossed in Shanghai sweet-soy sauce.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "shanghai_veg", rating: 4.5 },
+  { id: "Mix_Shanghai", name: "Mix Shanghai Veg", price: 230, description: "Mixed veggies and paneer tossed together Shanghai style.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: true, categoryId: "shanghai_veg", rating: 4.6 },
 
-  // Veg / Non-Veg umbrella (alias)
-  { id: "d-v-1", name: "Mix Veg Curry", price: 210, description: "Seasonal vegetables in spiced gravy.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "veg", rating: 4.5 },
-  { id: "d-v-2", name: "Chana Masala", price: 200, description: "Punjabi chickpea curry.", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80", veg: true, categoryId: "veg", rating: 4.7 },
-  { id: "d-nv-1", name: "Fish Tikka", price: 360, description: "Marinated fish from the tandoor.", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=600&q=80", veg: false, categoryId: "non-veg", rating: 4.7 },
-  { id: "d-nv-2", name: "Mutton Curry", price: 400, description: "Slow-cooked mutton in spiced gravy.", image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80", veg: false, categoryId: "non-veg", rating: 4.8 },
+  // SHANGHAI -> Non-Veg
+  { id: "Egg_Shanghai", name: "Egg Shanghai", price: 190, description: "Shanghai style boiled eggs in sweet-spicy sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "shanghai_non_veg", rating: 4.5 },
+  { id: "Chicken_Shanghai", name: "Chicken Shanghai", price: 230, description: "Shanghai-style chicken pieces coated in rich brown sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "shanghai_non_veg", rating: 4.7 },
+  { id: "Egg_Chicken_Shanghai", name: "Egg Chicken Shanghai", price: 240, description: "Mixed chicken and eggs tossed in Shanghai sauce.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "shanghai_non_veg", rating: 4.7 },
+  { id: "Mix_Shanghai_NV", name: "Mix Shanghai Non-Veg", price: 260, description: "House combination Shanghai platter containing chicken, egg, and vegetables.", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&q=80", veg: false, categoryId: "shanghai_non_veg", rating: 4.8 },
 
-  // Main course catch-all
-  { id: "d-mc-1", name: "Shahi Paneer", price: 280, description: "Royal paneer in creamy cashew gravy.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "main-course", rating: 4.8 },
-  { id: "d-mc-2", name: "Chicken Curry", price: 300, description: "Home-style Punjabi chicken curry.", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=600&q=80", veg: false, categoryId: "main-course", rating: 4.7 },
+  // ==================== PAGE 4 ====================
+  // BEVERAGES
+  { id: "Cold_Drinks_(All_Flavours)", name: "Cold Drinks (All Flavours)", price: 40, description: "Assorted cold drinks served chilled.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "beverages", rating: 4.5 },
+  { id: "Masala_Cold_Drink", name: "Masala Cold Drink", price: 60, description: "Chilled cold drink topped with house spices and lemon.", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=600&q=80", veg: true, categoryId: "beverages", rating: 4.5 },
+  { id: "Fresh_Lime_Soda_(Sweet__Sour)", name: "Fresh Lime Soda (Sweet & Sour)", price: 70, description: "Tangy fresh lime juice in soda water, served sweet and sour.", image: "/uploads/Menu 12/Beverages/Fresh lime sooda.jpeg", veg: true, categoryId: "beverages", rating: 4.7 },
+  { id: "Mineral_Water", name: "Mineral Water", price: 30, description: "Packaged chilled mineral water bottle.", image: "/uploads/Menu 12/Beverages/Water bottle.jpeg", veg: true, categoryId: "beverages", rating: 4.4 },
+  { id: "Tea", name: "Tea", price: 30, description: "Freshly brewed hot milk tea.", image: "/uploads/Menu 12/Beverages/Tea.jpeg", veg: true, categoryId: "beverages", rating: 4.5 },
+  { id: "Coffee", name: "Coffee", price: 50, description: "Hot frothy whipped coffee.", image: "/uploads/Menu 12/Beverages/Coffee.jpeg", veg: true, categoryId: "beverages", rating: 4.6 },
+
+  // SHAKES
+  { id: "Strawberry", name: "Strawberry Shake", price: 120, description: "Thick milk shake loaded with strawberry pulp and syrup.", image: "/uploads/Menu 12/Shakes/Strawberry shake.jpeg", veg: true, categoryId: "shakes", rating: 4.6 },
+  { id: "Chocolate", name: "Chocolate Shake", price: 120, description: "Rich chocolate milkshake topped with chocolate sauce.", image: "/uploads/Menu 12/Shakes/Chocolate shake.jpeg", veg: true, categoryId: "shakes", rating: 4.7 },
+  { id: "Vanilla", name: "Vanilla Shake", price: 110, description: "Classic cold sweet vanilla milk shake.", image: "/uploads/Menu 12/Shakes/Vanilla shake.jpg", veg: true, categoryId: "shakes", rating: 4.5 },
+  { id: "Cold_Coffee", name: "Cold Coffee", price: 100, description: "Chilled blended whipped coffee milkshake.", image: "/uploads/Menu 12/Shakes/Cold coffe shake.jpeg", veg: true, categoryId: "shakes", rating: 4.7 },
+  { id: "Cold_Coffee_with_Ice-cream", name: "Cold Coffee with Ice-cream", price: 130, description: "Cold coffee topped with a generous scoop of vanilla ice cream.", image: "/uploads/Menu 12/Shakes/Cold Coffee with Ice-cream Shakes.jpeg", veg: true, categoryId: "shakes", rating: 4.8 },
+
+  // VEG_STARTER
+  { id: "Veg_Roll", name: "Veg Roll", price: 80, description: "Spiced vegetable filling rolled inside a thin wrap.", image: "/uploads/Menu 12/Veg Starter/Veg Roll.jpeg", veg: true, categoryId: "veg_starter", rating: 4.5 },
+  { id: "Paneer_Roll", name: "Paneer Roll", price: 120, description: "Grated spiced paneer filled wraps.", image: "/uploads/Menu 12/Veg Starter/Paneer Roll.jpeg", veg: true, categoryId: "veg_starter", rating: 4.7 },
+  { id: "Mushroom_Roll", name: "Mushroom Roll", price: 110, description: "Sautéed mushrooms and onions rolled inside a flatbread.", image: "/uploads/Menu 12/Veg Starter/Mushroom Roll.jpeg", veg: true, categoryId: "veg_starter", rating: 4.6 },
+  { id: "Mushroom_Paneer_Roll", name: "Mushroom Paneer Roll", price: 140, description: "Delicious filling of both paneer and mushrooms inside a roll.", image: "/uploads/Menu 12/Veg Starter/Mushroom Paneer Roll.jpeg", veg: true, categoryId: "veg_starter", rating: 4.8 },
+  { id: "French_Fries", name: "French Fries", price: 90, description: "Salted crispy potato fingers.", image: "/uploads/Menu 12/Veg Starter/French Fries.jpeg", veg: true, categoryId: "veg_starter", rating: 4.5 },
+  { id: "Paneer_Pakora", name: "Paneer Pakora", price: 160, description: "Cottage cheese slices dipped in batter and deep-fried.", image: "/uploads/Menu 12/Veg Starter/Paneer Pakora.jpeg", veg: true, categoryId: "veg_starter", rating: 4.7 },
+
+  // NON-VEG_STARTER
+  { id: "Egg_Pakora_(2_Pcs)", name: "Egg Pakora (2 Pcs)", price: 100, description: "Hard-boiled eggs dipped in spiced gram flour batter and fried.", image: "/uploads/Menu 12/Non-veg starter/Egg Pakora.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.6 },
+  { id: "Omelette", name: "Omelette", price: 60, description: "Pan-fried whisked eggs with onions and green chillies.", image: "/uploads/Menu 12/Non-veg starter/Omelette.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.5 },
+  { id: "Cheese_Omlelette", name: "Cheese Omelette", price: 100, description: "Omelette stuffed with melted processed cheese.", image: "/uploads/Menu 12/Non-veg starter/Cheese Omelette.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.7 },
+  { id: "Egg_Roll", name: "Egg Roll", price: 70, description: "Flatbread cooked with egg and wrapped with onions.", image: "/uploads/Menu 12/Non-veg starter/Egg Roll.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.6 },
+  { id: "Chicken_Roll", name: "Chicken Roll", price: 130, description: "Shredded chicken tikka wrapped inside a flatbread.", image: "/uploads/Menu 12/Non-veg starter/Chicken Roll.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.8 },
+  { id: "Chicken_Egg_Roll", name: "Chicken Egg Roll", price: 150, description: "Layered egg roll with chicken stuffing.", image: "/uploads/Menu 12/Non-veg starter/Chicken Egg Roll.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.8 },
+  { id: "Double_Egg_Chicken_Roll", name: "Double Egg Chicken Roll", price: 170, description: "Chicken roll wrapped in a double layer of fried eggs.", image: "/uploads/Menu 12/Non-veg starter/Double Egg Chicken Roll.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.9 },
+  { id: "Double_Chicken_Egg_Roll", name: "Double Chicken Egg Roll", price: 200, description: "Loaded chicken egg roll with double chicken pieces.", image: "/uploads/Menu 12/Non-veg starter/Double Chicken Egg Roll.jpeg", veg: false, categoryId: "non_veg_starter", rating: 4.9 },
+
+  // SOUP -> Veg
+  { id: "Veg_Sweet_Corn_Soup", name: "Veg Sweet Corn Soup", price: 110, description: "Sweet and creamy sweet corn soup with green peas.", image: "/uploads/Menu 12/Soup/Veg Sweet Corn Soup.jpg", veg: true, categoryId: "soup_veg", rating: 4.5 },
+  { id: "Veg_Hot___Sour_Soup", name: "Veg Hot & Sour Soup", price: 120, description: "Tangy and spicy broth loaded with minced veggies.", image: "/uploads/Menu 12/Soup/Veg Hot & Sour Soup.jpeg", veg: true, categoryId: "soup_veg", rating: 4.5 },
+  { id: "Veg_Coriander", name: "Veg Coriander Soup", price: 110, description: "Fresh coriander soup in light vegetable broth.", image: "/uploads/Menu 12/Soup/Veg Coriander Soup.jpeg", veg: true, categoryId: "soup_veg", rating: 4.4 },
+  { id: "Lemon_Coriander", name: "Lemon Coriander Soup", price: 110, description: "Zesty lemon and fresh coriander soup.", image: "/uploads/Menu 12/Soup/Lemon Coriander Soup.jpeg", veg: true, categoryId: "soup_veg", rating: 4.5 },
+  { id: "Cream_of_Mushroom", name: "Cream of Mushroom Soup", price: 130, description: "Thick creamy soup loaded with button mushrooms.", image: "/uploads/Menu 12/Soup/Cream of Mushroom Soup.jpeg", veg: true, categoryId: "soup_veg", rating: 4.6 },
+  { id: "Veg_Manchow", name: "Veg Manchow Soup", price: 120, description: "Spicy garlic and ginger soup topped with crispy noodles.", image: "/uploads/Menu 12/Soup/Veg Manchow Soup.jpeg", veg: true, categoryId: "soup_veg", rating: 4.5 },
+  { id: "Tomato_Cream", name: "Tomato Cream Soup", price: 110, description: "Creamy warm soup made from fresh local tomatoes.", image: "/uploads/Menu 12/Soup/Tomato Cream Soup.jpeg", veg: true, categoryId: "soup_veg", rating: 4.5 },
+
+  // SOUP -> Non-Veg
+  { id: "Chicken_Sweet_Corn", name: "Chicken Sweet Corn Soup", price: 130, description: "Shredded chicken and sweet corn kernels in egg drop broth.", image: "/uploads/Menu 12/Soup/Chicken Sweet Corn Soup.jpeg", veg: false, categoryId: "soup_non_veg", rating: 4.7 },
+  { id: "Chicken_Mushroom", name: "Chicken Mushroom Soup", price: 140, description: "Warm broth with chicken slices and button mushrooms.", image: "/uploads/Menu 12/Soup/Chicken Mushroom Soup.jpeg", veg: false, categoryId: "soup_non_veg", rating: 4.6 },
+  { id: "Chicken_Lemon_Coriander", name: "Chicken Lemon Coriander Soup", price: 130, description: "Sour lemon-coriander soup with chicken strips.", image: "/uploads/Menu 12/Soup/Chicken Lemon Coriander Soup.jpeg", veg: false, categoryId: "soup_non_veg", rating: 4.7 },
+  { id: "Chicken_Hot_n_Sour", name: "Chicken Hot & Sour Soup", price: 140, description: "Spicy and sour chicken broth.", image: "/uploads/Menu 12/Soup/Chicken Hot and Sour Soup.jpeg", veg: false, categoryId: "soup_non_veg", rating: 4.7 },
+  { id: "Chicken_Manchow", name: "Chicken Manchow Soup", price: 140, description: "Spicy hot chicken soup topped with fried noodles.", image: "/uploads/Menu 12/Soup/Chicken Manchow Soup.jpeg", veg: false, categoryId: "soup_non_veg", rating: 4.7 },
+
+  // TANDOOR -> Veg
+  { id: "Veg_Hara_Bhara_Kabab", name: "Veg Hara Bhara Kabab", price: 180, description: "Crispy grilled patties made of spinach, peas, and potatoes.", image: "/uploads/Menu 12/Tandoor/Veg Hara Bhara Kabab.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.5 },
+  { id: "Malai_Paneer_Tikka", name: "Malai Paneer Tikka", price: 260, description: "Cottage cheese grilled in tandoor with cream and mild spices.", image: "/uploads/Menu 12/Tandoor/Malai Paneer Tikka.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.8 },
+  { id: "Hariyali_Paneer_Tikka", name: "Hariyali Paneer Tikka", price: 250, description: "Paneer blocks marinated in green mint-coriander paste and grilled.", image: "/uploads/Menu 12/Tandoor/Hariyali Paneer Tikka.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.7 },
+  { id: "Paneer_Tikka", name: "Paneer Tikka", price: 240, description: "Spiced tandoori grilled cottage cheese cubes.", image: "/uploads/Menu 12/Tandoor/Paneer Tikka.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.8 },
+  { id: "Paneer_Achari_Tikka", name: "Paneer Achari Tikka", price: 250, description: "Paneer marinated in pickling spices.", image: "/uploads/Menu 12/Tandoor/Paneer Achari Tikka.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.8 },
+  { id: "Mushroom_Tikka", name: "Mushroom Tikka", price: 220, description: "Whole button mushrooms marinated in yogurt and spices and grilled.", image: "/uploads/Menu 12/Tandoor/Mushroom Tikka.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.6 },
+  { id: "Mushroom_Achari_Tikka", name: "Mushroom Achari Tikka", price: 230, description: "Spicy pickled mushrooms grilled skewered.", image: "/uploads/Menu 12/Tandoor/Mushroom Achari Tikka.jpeg", veg: true, categoryId: "tandoor_veg", rating: 4.6 },
+
+  // TANDOOR -> Non-Veg
+  { id: "Tandoori_Chicken", name: "Tandoori Chicken", price: 360, description: "Whole chicken pieces marinated in yogurt-spice mix and chargrilled.", image: "/uploads/Menu 12/Tandoor/Tandoori Chicken.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.9 },
+  { id: "Chicken_Leg_Kabab", name: "Chicken Leg Kabab", price: 340, description: "Chargrilled chicken leg drumsticks with mild spices.", image: "/uploads/Menu 12/Tandoor/Chicken Leg Kabab.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.8 },
+  { id: "Lashooni_Kabab", name: "Lasooni Kabab", price: 320, description: "Skewered chicken chunks flavored heavily with roasted garlic paste.", image: "/uploads/Menu 12/Tandoor/Lasooni Kabab.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.8 },
+  { id: "Reshmi_Kabab", name: "Reshmi Kabab", price: 320, description: "Silky soft skewered chicken bites marinated in cream, eggs, and cashews.", image: "/uploads/Menu 12/Tandoor/Reshmi Kabab.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.8 },
+  { id: "Chicken_Tikka", name: "Chicken Tikka", price: 300, description: "Spiced chargrilled boneless chicken pieces.", image: "/uploads/Menu 12/Tandoor/Chicken Tikka.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.8 },
+  { id: "Chicken_Achari_Tikka", name: "Chicken Achari Tikka", price: 310, description: "Chicken tikka chunks with sour pickling spices.", image: "/uploads/Menu 12/Tandoor/Chicken Achari Tikka.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.7 },
+  { id: "Malai_Tikka", name: "Malai Tikka", price: 320, description: "Mildly spiced chicken bites coated with cream and cheese.", image: "/uploads/Menu 12/Tandoor/Malai Tikka.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.8 },
+  { id: "Chicken_Tikka_Kalimirch", name: "Chicken Tikka Kalimirch", price: 330, description: "Chicken tikka spiced strongly with cracked black pepper.", image: "/uploads/Menu 12/Tandoor/Chicken Tikka Kalimirch.jpeg", veg: false, categoryId: "tandoor_non_veg", rating: 4.8 },
+
+  // ==================== PAGE 5 ====================
+  // RICE (Page 5) -> Veg
+  { id: "Veg_Fried_Rice", name: "Veg Fried Rice", price: 160, description: "Wok-fried rice with finely chopped seasonal vegetables.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice_p5_veg", rating: 4.5 },
+  { id: "Paneer_Fried_Rice", name: "Paneer Fried Rice", price: 190, description: "Fried rice tossed with soft paneer cubes.", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&q=80", veg: true, categoryId: "rice_p5_veg", rating: 4.7 },
+  { id: "Mushroom_Fried_Rice", name: "Mushroom Fried Rice", price: 190, description: "Wok-fried rice tossed with button mushroom slices.", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=600&q=80", veg: true, categoryId: "rice_p5_veg", rating: 4.6 },
+  { id: "Mix_Veg_Fried_Rice", name: "Mix Veg Fried Rice", price: 200, description: "Delicious wok-fried rice combining vegetables and paneer.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice_p5_veg", rating: 4.7 },
+  { id: "Veg_Schezewan_Rice", name: "Veg Schezwan Rice", price: 180, description: "Spicy wok-fried rice in red Schezwan sauce.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice_p5_veg", rating: 4.6 },
+  { id: "Lemon_Rice", name: "Lemon Rice", price: 150, description: "Yellow rice tempered with curry leaves, mustard seeds, peanuts, and lemon.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: true, categoryId: "rice_p5_veg", rating: 4.5 },
+
+  // RICE (Page 5) -> Non-Veg
+  { id: "Chicken_Schezewan_Rice", name: "Chicken Schezwan Rice", price: 220, description: "Spicy fried rice with chicken chunks in hot Schezwan sauce.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: false, categoryId: "rice_p5_non_veg", rating: 4.7 },
+  { id: "Egg_Fried_Rice", name: "Egg Fried Rice", price: 170, description: "Wok-fried rice scrambled with eggs and spring onions.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: false, categoryId: "rice_p5_non_veg", rating: 4.6 },
+  { id: "Chicken_Fried_Rice", name: "Chicken Fried Rice", price: 210, description: "Fried rice tossed with chicken pieces.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: false, categoryId: "rice_p5_non_veg", rating: 4.8 },
+  { id: "Chicken_Egg_Fried_Rice", name: "Chicken Egg Fried Rice", price: 230, description: "Combined fried rice loaded with egg and chicken cuts.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: false, categoryId: "rice_p5_non_veg", rating: 4.8 },
+  { id: "Mix_Fried_Rice", name: "Mix Fried Rice", price: 250, description: "Premium fried rice containing egg, prawns, and chicken shreds.", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=600&q=80", veg: false, categoryId: "rice_p5_non_veg", rating: 4.9 },
+
+  // DESSERTS -> Veg
+  { id: "Brownie_with_Chocolate_Sauce", name: "Brownie with Chocolate Sauce", price: 140, description: "Fudgy hot chocolate brownie drizzled with chocolate fudge.", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=600&q=80", veg: true, categoryId: "desserts_veg", rating: 4.8 },
+  { id: "Brownie_with_Ice_-_cream", name: "Brownie with Ice-cream", price: 160, description: "Hot brownie served alongside a cold scoop of vanilla ice cream.", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=600&q=80", veg: true, categoryId: "desserts_veg", rating: 4.9 },
+  { id: "Hot_Gulab_Jamun_(2_Pcs)", name: "Hot Gulab Jamun (2 Pcs)", price: 80, description: "Sweet milk solids dumplings soaked in rose flavored warm sugar syrup.", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&q=80", veg: true, categoryId: "desserts_veg", rating: 4.9 },
+  { id: "Tutty_Fruity", name: "Tutty Fruity", price: 100, description: "A colorful sweet dynamic dessert containing mixed fruit bits and ice cream.", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=600&q=80", veg: true, categoryId: "desserts_veg", rating: 4.6 },
+  { id: "Ice_-_Cream_(Two_Scoops)", name: "Ice-Cream (Two Scoops)", price: 90, description: "Choose any two scoops from Vanilla, Chocolate, or Strawberry.", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=600&q=80", veg: true, categoryId: "desserts_veg", rating: 4.7 },
 ];
 
 const REVIEWS = [
@@ -127,13 +369,24 @@ async function main() {
   await prisma.category.deleteMany({});
   await prisma.review.deleteMany({});
 
-  console.log("Seeding categories...");
+  console.log("Seeding root categories (pages)...");
+  for (const page of ROOT_PAGES) {
+    await prisma.category.create({ data: page });
+  }
+
+  console.log("Seeding subcategories...");
   for (const cat of CATEGORIES) {
     await prisma.category.create({ data: cat });
   }
 
   console.log("Seeding dishes...");
   for (const d of DISHES) {
+    // Check if category exists before creating to prevent errors
+    const cat = await prisma.category.findUnique({ where: { id: d.categoryId } });
+    if (!cat) {
+      console.warn(`WARNING: Category "${d.categoryId}" not found for dish "${d.name}". Skipping.`);
+      continue;
+    }
     await prisma.dish.create({ data: d });
   }
 

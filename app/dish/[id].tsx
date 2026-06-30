@@ -1,7 +1,7 @@
 import { useApp } from "@/src/context/AppContext";
-import { DISHES } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
+import { resolveImageUrl } from "@/src/utils/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -49,8 +49,8 @@ function VegNonVegIndicator({ isVeg, size = 16 }: { isVeg: boolean; size?: numbe
 export default function DishDetail() {
   const { id, fromX, fromY, fromW, fromH } = useLocalSearchParams<{ id: string; fromX?: string; fromY?: string; fromW?: string; fromH?: string }>();
   const router = useRouter();
-  const { addToCart } = useApp();
-  const dish = DISHES.find((item) => item.id === id);
+  const { addToCart, dishes } = useApp();
+  const dish = dishes.find((item) => item.id === id);
   const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(18)).current;
@@ -121,11 +121,11 @@ export default function DishDetail() {
                 },
               ]}
             >
-              <Image source={{ uri: dish.image }} style={styles.heroImg} />
+              <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.heroImg} />
               <LinearGradient colors={["transparent", "rgba(10,10,10,0.25)", "rgba(10,10,10,0.94)"]} style={StyleSheet.absoluteFill} />
             </Animated.View>
           ) : (
-            <Image source={{ uri: dish.image }} style={styles.heroImg} />
+            <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.heroImg} />
           )}
           <LinearGradient colors={["transparent", "rgba(10,10,10,0.25)", "rgba(10,10,10,0.94)"]} style={StyleSheet.absoluteFill} />
 

@@ -7,7 +7,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
-import { apiClient } from "@/src/utils/apiClient";
+import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
 
 type Props = { chefSpecials: typeof DISHES };
 
@@ -56,7 +56,7 @@ export function DealOfDaySection() {
 
         <TouchableOpacity activeOpacity={0.9}>
           <Image
-            source={{ uri: deal.image }}
+            source={{ uri: resolveImageUrl(deal.image) }}
             style={styles.newDealImg}
           />
 
@@ -120,7 +120,7 @@ export function ChefSpecialsSection({ chefSpecials }: Props) {
       <Marquee speed={45} itemWidth={180} itemCount={chefSpecials.length}>
         {chefSpecials.map((d) => (
           <TouchableOpacity key={d.id} style={styles.chefCard} onPress={() => router.push(`/category/${d.category}` as any)}>
-            <Image source={{ uri: d.image }} style={styles.chefImg} />
+            <Image source={{ uri: resolveImageUrl(d.image) }} style={styles.chefImg} />
             <LinearGradient colors={["transparent", "rgba(0,0,0,0.95)"]} style={styles.chefOverlay} />
             <View style={styles.chefInfo}>
               <Text style={styles.chefName} numberOfLines={1}>{d.name}</Text>

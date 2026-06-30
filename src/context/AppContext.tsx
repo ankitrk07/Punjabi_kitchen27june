@@ -136,6 +136,9 @@ type AppState = {
   addDish: (dish: Omit<Dish, "rating"> & { rating?: number }) => Promise<void>;
   updateDish: (id: string, dish: Partial<Dish>) => Promise<void>;
   deleteDish: (id: string) => Promise<void>;
+  addCategory: (category: Omit<Category, "icon" | "image"> & { icon?: string, image?: string, parentId?: string | null }) => Promise<void>;
+  updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
   createCateringRequest: (req: Omit<CateringItem, "id" | "status" | "isOrder">) => Promise<void>;
   updateCateringStatus: (id: string, status: "Approved" | "Denied") => Promise<void>;
   createSupportTicket: (ticket: Omit<SupportTicket, "id" | "status" | "createdAt" | "lastUpdate">) => Promise<void>;
@@ -574,6 +577,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setDishes((prev) => prev.filter((d) => d.id !== id));
       } catch (e) {
         console.log("Failed to delete dish:", e);
+      }
+    },
+    addCategory: async (category) => {
+      try {
+        const created = await apiClient.addCategory(category);
+        setCategories((prev) => [...prev, created]);
+      } catch (e) {
+        console.log("Failed to add category:", e);
+      }
+    },
+    updateCategory: async (id, categoryData) => {
+      try {
+        const updated = await apiClient.updateCategory(id, categoryData);
+        setCategories((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      } catch (e) {
+        console.log("Failed to update category:", e);
+      }
+    },
+    deleteCategory: async (id) => {
+      try {
+        await apiClient.deleteCategory(id);
+        // Find all subcategories (including nested ones) to clean them up from local state
+        const getSubcategoryIds = (catId: string): string[] => {
+          const direct = categories.filter((c) => c.parentId === catId).map((c) => c.id);
+          let all = [...direct];
+          for (const dId of direct) {
+            all = [...all, ...getSubcategoryIds(dId)];
+          }
+          return all;
+        };
+        const allIdsToDelete = [id, ...getSubcategoryIds(id)];
+
+        setCategories((prev) => prev.filter((c) => !allIdsToDelete.includes(c.id)));
+        setDishes((prev) => prev.filter((d) => !allIdsToDelete.includes(d.category)));
+      } catch (e) {
+        console.log("Failed to delete category:", e);
       }
     },
     createCateringRequest: async (reqData) => {

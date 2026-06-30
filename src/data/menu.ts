@@ -14,34 +14,65 @@ export type Category = {
   name: string;
   icon: string;
   image: string;
+  parentId?: string | null;
 };
 
 export const CATEGORIES: Category[] = [
-  { id: "veg", name: "Veg", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80" },
-  { id: "non-veg", name: "Non-Veg", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80" },
-  { id: "starters", name: "Starters", icon: "restaurant", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80" },
-  { id: "main-course", name: "Main Course", icon: "pizza", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80" },
-  { id: "chinese", name: "Chinese", icon: "fast-food", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80" },
-  { id: "chicken", name: "Chicken", icon: "egg", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80" },
-  { id: "paneer", name: "Paneer", icon: "nutrition", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80" },
-  { id: "mushroom", name: "Mushroom", icon: "leaf", image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de4?w=400&q=80" },
-  { id: "egg", name: "Egg", icon: "egg", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400&q=80" },
-  { id: "chefs-special", name: "Chef's Special", icon: "star", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400&q=80" },
-  { id: "biryani", name: "Biryani", icon: "restaurant", image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=400&q=80" },
-  { id: "rice", name: "Rice", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80" },
-  { id: "dal", name: "Dal", icon: "cafe", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=400&q=80" },
-  { id: "tandoori", name: "Tandoori", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80" },
-  { id: "bread", name: "Bread", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80" },
-  { id: "naan", name: "Naan", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80" },
-  { id: "raita", name: "Raita", icon: "water", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80" },
-  { id: "soup", name: "Soup", icon: "cafe", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80" },
-  { id: "desserts", name: "Desserts", icon: "ice-cream", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80" },
-  { id: "sweets", name: "Sweets", icon: "gift", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&q=80" },
-  { id: "ice-cream", name: "Ice Cream", icon: "ice-cream", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=400&q=80" },
-  { id: "coffee", name: "Coffee", icon: "cafe", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&q=80" },
-  { id: "drinks", name: "Drinks", icon: "wine", image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=400&q=80" },
-  { id: "cold-drink", name: "Cold Drink", icon: "beer", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80" },
-  { id: "beverages", name: "Beverages", icon: "wine", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80" },
+  // Root Pages
+  { id: "page_1", name: "Page 1: Breads & Rice", icon: "book-outline", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80", parentId: null },
+  { id: "page_2", name: "Page 2: Main Course", icon: "restaurant-outline", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80", parentId: null },
+  { id: "page_3", name: "Page 3: Chinese & Noodles", icon: "fast-food-outline", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: null },
+  { id: "page_4", name: "Page 4: Starters & Beverages", icon: "cafe-outline", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80", parentId: null },
+  { id: "page_5", name: "Page 5: Fried Rice & Desserts", icon: "ice-cream-outline", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80", parentId: null },
+
+  // Page 1 children
+  { id: "soya_chap", name: "Soya Chap", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80", parentId: "page_1" },
+  { id: "dal", name: "Dal", icon: "cafe", image: "https://images.unsplash.com/photo-1708782340380-536df8cf6784?w=400&q=80", parentId: "page_1" },
+  { id: "rice_p1", name: "Rice & Biryani", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "page_1" },
+  { id: "breads", name: "Breads", icon: "pizza", image: "https://images.unsplash.com/photo-1764699486820-30a00e6ded7a?w=400&q=80", parentId: "page_1" },
+  { id: "salad", name: "Salad", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80", parentId: "page_1" },
+  { id: "raita", name: "Raita", icon: "water", image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80", parentId: "page_1" },
+  { id: "papad", name: "Papad", icon: "gift", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&q=80", parentId: "page_1" },
+
+  // Page 2 children (Main Course -> Veg / Non-Veg)
+  { id: "main_course", name: "Main Course", icon: "pizza", image: "https://images.unsplash.com/photo-1603496987351-f84a3ba5ec85?w=400&q=80", parentId: "page_2" },
+  { id: "main_course_veg", name: "Veg Main Course", icon: "leaf", image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80", parentId: "main_course" },
+  { id: "main_course_non_veg", name: "Non-Veg Main Course", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80", parentId: "main_course" },
+
+  // Page 3 children
+  { id: "chinese_starter", name: "Chinese Starter", icon: "fast-food", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "page_3" },
+  { id: "chinese_starter_veg", name: "Veg Starters", icon: "leaf", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "chinese_starter" },
+  { id: "chinese_starter_non_veg", name: "Non-Veg Starters", icon: "flame", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "chinese_starter" },
+
+  { id: "noodles", name: "Noodles", icon: "restaurant", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "page_3" },
+  { id: "noodles_veg", name: "Veg Noodles", icon: "leaf", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "noodles" },
+  { id: "noodles_non_veg", name: "Non-Veg Noodles", icon: "flame", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "noodles" },
+
+  { id: "shanghai", name: "Shanghai", icon: "star", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "page_3" },
+  { id: "shanghai_veg", name: "Veg Shanghai", icon: "leaf", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "shanghai" },
+  { id: "shanghai_non_veg", name: "Non-Veg Shanghai", icon: "flame", image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400&q=80", parentId: "shanghai" },
+
+  // Page 4 children
+  { id: "beverages", name: "Beverages", icon: "wine", image: "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80", parentId: "page_4" },
+  { id: "shakes", name: "Shakes", icon: "ice-cream", image: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=400&q=80", parentId: "page_4" },
+  { id: "veg_starter", name: "Veg Starter", icon: "leaf", image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80", parentId: "page_4" },
+  { id: "non_veg_starter", name: "Non-Veg Starter", icon: "flame", image: "https://images.unsplash.com/photo-1610057099443-fde8c4d50f91?w=400&q=80", parentId: "page_4" },
+
+  { id: "soup", name: "Soup", icon: "cafe", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80", parentId: "page_4" },
+  { id: "soup_veg", name: "Veg Soups", icon: "leaf", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80", parentId: "soup" },
+  { id: "soup_non_veg", name: "Non-Veg Soups", icon: "flame", image: "https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80", parentId: "soup" },
+
+  { id: "tandoor", name: "Tandoor", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80", parentId: "page_4" },
+  { id: "tandoor_veg", name: "Veg Tandoor", icon: "leaf", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80", parentId: "tandoor" },
+  { id: "tandoor_non_veg", name: "Non-Veg Tandoor", icon: "flame", image: "https://images.unsplash.com/photo-1727280376746-b89107a5b0df?w=400&q=80", parentId: "tandoor" },
+
+  // Page 5 children
+  { id: "rice_p5", name: "Rice (Fried)", icon: "restaurant", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "page_5" },
+  { id: "rice_p5_veg", name: "Veg Fried Rice", icon: "leaf", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "rice_p5" },
+  { id: "rice_p5_non_veg", name: "Non-Veg Fried Rice", icon: "flame", image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400&q=80", parentId: "rice_p5" },
+
+  { id: "desserts", name: "Desserts", icon: "ice-cream", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80", parentId: "page_5" },
+  { id: "desserts_veg", name: "Veg Desserts", icon: "leaf", image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=400&q=80", parentId: "desserts" },
 ];
 
 export const DISHES: Dish[] = [

@@ -8,11 +8,14 @@ generator client {
 }
 
 model Category {
-  id      String   @id
-  name    String
-  icon    String
-  image   String
-  dishes  Dish[]
+  id            String     @id
+  name          String
+  icon          String
+  image         String
+  parentId      String?
+  parent        Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: Cascade)
+  subcategories Category[] @relation("CategoryParent")
+  dishes        Dish[]
 }
 
 model Dish {

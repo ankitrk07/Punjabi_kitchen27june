@@ -5,8 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useApp } from "@/src/context/AppContext";
-import { CATEGORIES, DISHES, Dish } from "@/src/data/menu";
+import { CATEGORIES, Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
+import { resolveImageUrl } from "@/src/utils/apiClient";
 
 const { width, height } = Dimensions.get("window");
 
@@ -15,19 +16,46 @@ type FlyingItem = { id: string; image: string; x: number; y: number };
 export default function CategoryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { addToCart, cart } = useApp();
-  const cat = CATEGORIES.find((c) => c.id === id);
-  const dishes = DISHES.filter((d) => d.category === id);
+  const { addToCart, cart, dishes, categories: contextCategories } = useApp();
+  const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
+  
+  const catsList = contextCategories && contextCategories.length > 0 ? contextCategories : CATEGORIES;
+  const cat = catsList.find((c) => c.id === id);
+
+  const isCategoryDescendant = (childCatId: string, parentCatId: string): boolean => {
+    if (childCatId === parentCatId) return true;
+    const parentCat = catsList.find((c) => c.id === childCatId);
+    if (!parentCat || !parentCat.parentId) return false;
+    return isCategoryDescendant(parentCat.parentId, parentCatId);
+  };
+
+  const subCats = catsList.filter((c) => c.parentId === id);
+
+  const categoryDishes = dishes.filter((d) => {
+    const dishCat = d.category || (d as any).categoryId || "";
+    if (selectedSubTab === "all") {
+      return isCategoryDescendant(dishCat, id);
+    } else {
+      return isCategoryDescendant(dishCat, selectedSubTab);
+    }
+  });
+
   const [flying, setFlying] = useState<FlyingItem[]>([]);
-  const itemAnims = useRef(dishes.map(() => new Animated.Value(0))).current;
+  const itemAnims = useRef<Animated.Value[]>([]);
+  
+  if (itemAnims.current.length !== categoryDishes.length) {
+    itemAnims.current = categoryDishes.map(() => new Animated.Value(0));
+  }
+
   const count = cart.reduce((s, i) => s + i.qty, 0);
 
   useEffect(() => {
+    itemAnims.current.forEach(a => a.setValue(0));
     Animated.stagger(
-      60,
-      itemAnims.map((a) => Animated.spring(a, { toValue: 1, friction: 6, useNativeDriver: true }))
+      40,
+      itemAnims.current.map((a) => Animated.spring(a, { toValue: 1, friction: 8, useNativeDriver: true }))
     ).start();
-  }, []);
+  }, [categoryDishes.length, selectedSubTab]);
 
   const handleAdd = (d: Dish, layout: { x: number; y: number }) => {
     const flyId = `${d.id}-${Date.now()}`;
@@ -55,20 +83,42 @@ export default function CategoryDetail() {
         </TouchableOpacity>
       </View>
 
+      {subCats.length > 0 && (
+        <View style={styles.tabContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
+            <TouchableOpacity
+              style={[styles.tabBtn, selectedSubTab === "all" && styles.tabBtnActive]}
+              onPress={() => setSelectedSubTab("all")}
+            >
+              <Text style={[styles.tabText, selectedSubTab === "all" && styles.tabTextActive]}>All</Text>
+            </TouchableOpacity>
+            {subCats.map((sc) => (
+              <TouchableOpacity
+                key={sc.id}
+                style={[styles.tabBtn, selectedSubTab === sc.id && styles.tabBtnActive]}
+                onPress={() => setSelectedSubTab(sc.id)}
+              >
+                <Text style={[styles.tabText, selectedSubTab === sc.id && styles.tabTextActive]}>{sc.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        {dishes.length === 0 ? (
+        {categoryDishes.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="restaurant-outline" size={56} color={colors.textSecondary} />
             <Text style={styles.emptyText}>More dishes coming soon!</Text>
           </View>
         ) : (
-          dishes.map((d, idx) => {
-            const opacity = itemAnims[idx];
-            const translateY = itemAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [20, 0] });
+          categoryDishes.map((d, idx) => {
+            const opacity = itemAnims.current[idx] || 1;
+            const translateY = itemAnims.current[idx]?.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) || 0;
             return (
               <Animated.View key={d.id} style={{ opacity, transform: [{ translateY }] }}>
                 <View style={styles.dishCard}>
-                  <Image source={{ uri: d.image }} style={styles.dishImg} />
+                  <Image source={{ uri: resolveImageUrl(d.image) }} style={styles.dishImg} />
                   <View style={styles.dishInfo}>
                     <View style={styles.dishHead}>
                       <View style={[styles.vegDot, { borderColor: d.veg ? colors.success : colors.error }]}>
@@ -140,12 +190,18 @@ function FlyingDish({ image, fromX, fromY }: { image: string; fromX: number; fro
         },
       ]}
     >
-      <Image source={{ uri: image }} style={styles.flyingImg} />
+      <Image source={{ uri: resolveImageUrl(image) }} style={styles.flyingImg} />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  tabContainer: { borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 10, backgroundColor: "#000" },
+  tabScroll: { paddingHorizontal: 16, gap: 8 },
+  tabBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border },
+  tabBtnActive: { backgroundColor: colors.gold, borderColor: colors.gold },
+  tabText: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
+  tabTextActive: { color: "#000", fontWeight: "700" },
   safe: { flex: 1, backgroundColor: colors.bg },
   header: { height: 60, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.borderGold },

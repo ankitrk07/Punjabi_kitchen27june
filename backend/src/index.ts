@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
+import path from "path";
+import fs from "fs";
 
 dotenv.config();
 
@@ -10,7 +12,12 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+// Set high payload limits for Base64 image uploads
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Serve static uploaded dish images
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Static Offers for Punjab Kitchen App
 const OFFERS = [
@@ -40,6 +47,59 @@ app.get("/api/categories", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+
+app.post("/api/categories", async (req, res) => {
+  const { id, name, icon, image, parentId } = req.body;
+  if (!id || !name) {
+    return res.status(400).json({ error: "Missing required category fields (id, name)" });
+  }
+  try {
+    const category = await prisma.category.create({
+      data: {
+        id,
+        name,
+        icon: icon || "restaurant",
+        image: image || "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80",
+        parentId: parentId || null,
+      },
+    });
+    res.json(category);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to create category" });
+  }
+});
+
+app.put("/api/categories/:id", async (req, res) => {
+  const { name, icon, image, parentId } = req.body;
+  try {
+    const category = await prisma.category.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        icon,
+        image,
+        parentId: parentId !== undefined ? (parentId || null) : undefined,
+      },
+    });
+    res.json(category);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update category" });
+  }
+});
+
+app.delete("/api/categories/:id", async (req, res) => {
+  try {
+    await prisma.category.delete({
+      where: { id: req.params.id },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete category" });
   }
 });
 
@@ -407,8 +467,9 @@ app.post("/api/reservations/:id/cancel", async (req, res) => {
 
 // 11. Dishes CRUD
 app.post("/api/dishes", async (req, res) => {
-  const { id, name, price, description, image, veg, categoryId, rating } = req.body;
-  if (!id || !name || price === undefined || !categoryId) {
+  const { id, name, price, description, image, veg, categoryId, category, rating } = req.body;
+  const targetCategoryId = categoryId || category;
+  if (!id || !name || price === undefined || !targetCategoryId) {
     return res.status(400).json({ error: "Missing required dish fields" });
   }
   try {
@@ -420,7 +481,7 @@ app.post("/api/dishes", async (req, res) => {
         description: description || "",
         image: image || "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&q=80",
         veg: Boolean(veg),
-        categoryId,
+        categoryId: targetCategoryId,
         rating: Number(rating) || 4.5,
       },
     });
@@ -432,7 +493,8 @@ app.post("/api/dishes", async (req, res) => {
 });
 
 app.put("/api/dishes/:id", async (req, res) => {
-  const { name, price, description, image, veg, categoryId, rating } = req.body;
+  const { name, price, description, image, veg, categoryId, category, rating } = req.body;
+  const targetCategoryId = categoryId || category;
   try {
     const dish = await prisma.dish.update({
       where: { id: req.params.id },
@@ -442,7 +504,7 @@ app.put("/api/dishes/:id", async (req, res) => {
         description,
         image,
         veg: veg !== undefined ? Boolean(veg) : undefined,
-        categoryId,
+        categoryId: targetCategoryId,
         rating: rating !== undefined ? Number(rating) : undefined,
       },
     });
@@ -659,6 +721,35 @@ app.post("/api/notifications", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to create notification" });
+  }
+});
+
+// 16. Local Image Upload
+app.post("/api/upload", async (req, res) => {
+  const { name, base64 } = req.body;
+  if (!name || !base64) {
+    return res.status(400).json({ error: "Name and base64 image data are required" });
+  }
+
+  try {
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+
+    const sanitizedName = name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const uniqueFileName = `${Date.now()}-${sanitizedName}`;
+    const filePath = path.join(uploadsDir, uniqueFileName);
+
+    fs.writeFileSync(filePath, buffer);
+
+    res.json({ imageUrl: `/uploads/${uniqueFileName}` });
+  } catch (error) {
+    console.error("Image upload failed:", error);
+    res.status(500).json({ error: "Failed to upload image" });
   }
 });
 

@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "es2022",
     "module": "commonjs",
-    "lib": ["es2022"],
+    "lib": [
+      "es2022"
+    ],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -11,5 +13,9 @@
     "rootDir": "./",
     "moduleResolution": "node"
   },
-  "include": ["src/**/*", "prisma/**/*"]
+  "include": [
+    "src/**/*",
+    "prisma/**/*"
+  ],
+  "extends": "expo/tsconfig.base"
 }

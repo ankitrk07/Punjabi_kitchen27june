@@ -13,7 +13,7 @@ import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -144,12 +144,18 @@ export default function MenuScreen() {
 
   const filters = useMemo(() => {
     const list = apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES;
-    return [ALL_FILTER, ...list.filter(cat => cat.id !== "veg" && cat.id !== "non-veg" && cat.id !== "nonveg")];
+    return [ALL_FILTER, ...list.filter(cat => cat.parentId === null)];
   }, [apiCategories]);
 
   // Filter states
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
+
+  useEffect(() => {
+    setSelectedSubTab("all");
+  }, [selectedCategory]);
+
   const [dishType, setDishType] = useState<DishTypeFilter>("all");
   const [priceRange, setPriceRange] = useState<PriceRangeFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("popular");
@@ -255,13 +261,30 @@ export default function MenuScreen() {
     router.push({ pathname: "/dish/[id]", params: { id: dish.id } } as any);
   };
 
+  const isCategoryDescendant = (childCatId: string, parentCatId: string): boolean => {
+    if (childCatId === parentCatId) return true;
+    const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    const parentCat = catsSource.find((c) => c.id === childCatId);
+    if (!parentCat || !parentCat.parentId) return false;
+    return isCategoryDescendant(parentCat.parentId, parentCatId);
+  };
+
   const filteredDishes = useMemo(() => {
     const term = search.trim().toLowerCase();
     const dishesSource = apiDishes.length > 0 ? apiDishes : DISHES;
 
     let result = dishesSource.filter((dish) => {
       const itemCat = dish.category || (dish as any).categoryId || "";
-      const matchesCategory = selectedCategory === "all" || itemCat === selectedCategory;
+      let matchesCategory = false;
+      if (selectedCategory === "all") {
+        matchesCategory = true;
+      } else {
+        if (selectedSubTab === "all") {
+          matchesCategory = isCategoryDescendant(itemCat, selectedCategory);
+        } else {
+          matchesCategory = isCategoryDescendant(itemCat, selectedSubTab);
+        }
+      }
       const matchesType =
         dishType === "all" ||
         (dishType === "veg" && dish.veg) ||
@@ -296,24 +319,38 @@ export default function MenuScreen() {
     }
 
     return result;
-  }, [search, selectedCategory, dishType, priceRange, sortBy, apiDishes]);
+  }, [search, selectedCategory, selectedSubTab, dishType, priceRange, sortBy, apiDishes, apiCategories]);
 
   const categorySections = useMemo(() => {
-    const categoriesSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
-    const categoriesToShow =
-      selectedCategory === "all"
-        ? categoriesSource
-        : categoriesSource.filter((category) => category.id === selectedCategory);
+    const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    let categoriesToShow = catsSource.filter((c) => c.parentId !== null);
+
+    if (selectedCategory !== "all") {
+      if (selectedSubTab === "all") {
+        categoriesToShow = categoriesToShow.filter((c) => isCategoryDescendant(c.id, selectedCategory));
+      } else {
+        categoriesToShow = categoriesToShow.filter((c) => isCategoryDescendant(c.id, selectedSubTab));
+      }
+    }
 
     return categoriesToShow
       .map((category) => ({
         ...category,
-        dishes: filteredDishes.filter((dish) => (dish.category || (dish as any).categoryId) === category.id),
+        dishes: filteredDishes.filter((dish) => {
+          const dishCat = dish.category || (dish as any).categoryId || "";
+          return isCategoryDescendant(dishCat, category.id);
+        }),
       }))
       .filter((section) => section.dishes.length > 0);
-  }, [filteredDishes, selectedCategory, apiCategories]) as MenuSectionData[];
+  }, [filteredDishes, selectedCategory, selectedSubTab, apiCategories]);
 
 
+
+  const currentSubCats = useMemo(() => {
+    if (selectedCategory === "all") return [];
+    const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    return catsSource.filter((c) => c.parentId === selectedCategory);
+  }, [selectedCategory, apiCategories]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -356,6 +393,28 @@ export default function MenuScreen() {
             selectedId={selectedCategory}
             onSelect={setSelectedCategory}
           />
+
+          {currentSubCats.length > 0 && (
+            <View style={styles.subTabsContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabsScroll} style={{ maxHeight: 50 }}>
+                <TouchableOpacity
+                  style={[styles.subTabBtn, selectedSubTab === "all" && styles.subTabBtnActive]}
+                  onPress={() => setSelectedSubTab("all")}
+                >
+                  <Text style={[styles.subTabText, selectedSubTab === "all" && styles.subTabTextActive]}>All</Text>
+                </TouchableOpacity>
+                {currentSubCats.map((sc) => (
+                  <TouchableOpacity
+                    key={sc.id}
+                    style={[styles.subTabBtn, selectedSubTab === sc.id && styles.subTabBtnActive]}
+                    onPress={() => setSelectedSubTab(sc.id)}
+                  >
+                    <Text style={[styles.subTabText, selectedSubTab === sc.id && styles.subTabTextActive]}>{sc.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Dietary Segment Row (Spacious & Clean) */}
           <View style={styles.dietaryRow}>
@@ -719,6 +778,37 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: colors.gold,
     fontWeight: "800",
+  },
+  subTabsContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  subTabsScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  subTabBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  subTabBtnActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  subTabText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  subTabTextActive: {
+    color: "#000",
+    fontWeight: "700",
   },
   sectionsWrap: { paddingTop: 16, gap: 16 },
 });

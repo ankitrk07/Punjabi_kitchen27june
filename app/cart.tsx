@@ -1,7 +1,7 @@
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
-import { apiClient } from "@/src/utils/apiClient";
+import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -187,7 +187,7 @@ export default function Cart() {
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
               {cart.map((item) => (
                 <View key={item.id} style={styles.row} testID={`cart-item-${item.id}`}>
-                  <Image source={{ uri: item.image }} style={styles.img} />
+                  <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.img} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.price}>₹{item.price}</Text>
