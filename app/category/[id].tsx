@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Dimensions, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,8 +16,21 @@ type FlyingItem = { id: string; image: string; x: number; y: number };
 export default function CategoryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { addToCart, cart, dishes, categories: contextCategories } = useApp();
+  const { addToCart, cart, dishes, categories: contextCategories, refreshAllData } = useApp();
   const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAllData();
+      setSelectedSubTab("all");
+    } catch (e) {
+      console.log("Failed to refresh category detail:", e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   
   const catsList = contextCategories && contextCategories.length > 0 ? contextCategories : CATEGORIES;
   const cat = catsList.find((c) => c.id === id);
@@ -105,7 +118,18 @@ export default function CategoryDetail() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.gold}
+            colors={[colors.gold]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+      >
         {categoryDishes.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="restaurant-outline" size={56} color={colors.textSecondary} />

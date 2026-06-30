@@ -116,7 +116,7 @@ export default function DishDetail() {
                     { translateX: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [Number(fromX), 0] }) },
                     { translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [Number(fromY), 0] }) },
                     { scaleX: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [Number(fromW) / width, 1] }) },
-                    { scaleY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [Number(fromH) / 360, 1] }) },
+                    {scaleY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [Number(fromH) / 480, 1] }) },
                   ],
                 },
               ]}
@@ -190,8 +190,8 @@ export default function DishDetail() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  heroWrap: { height: 360, position: "relative" },
-  heroFloat: { position: "absolute", left: 0, top: 0, width: "100%", height: 360, borderRadius: 22, overflow: "hidden" },
+  heroWrap: { height: 480, position: "relative" },
+  heroFloat: { position: "absolute", left: 0, top: 0, width: "100%", height: 480, borderRadius: 22, overflow: "hidden" },
   heroImg: { width: "100%", height: "100%" },
   topBar: { position: "absolute", top: 14, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(10,10,10,0.55)", borderWidth: 1, borderColor: colors.borderGold, alignItems: "center", justifyContent: "center" },

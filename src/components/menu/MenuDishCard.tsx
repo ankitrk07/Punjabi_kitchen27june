@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderGold,
   },
-  imageWrap: { height: 160, backgroundColor: "#1B1B1B", position: "relative" },
+  imageWrap: { height: 230, backgroundColor: "#1B1B1B", position: "relative" },
   cardImg: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   topBadge: {
     position: "absolute",

@@ -558,7 +558,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addDish: async (dish) => {
       try {
         const created = await apiClient.addDish(dish);
-        setDishes((prev) => [...prev, created]);
+        const mapped = { ...created, category: created.category || created.categoryId };
+        setDishes((prev) => [...prev, mapped]);
       } catch (e) {
         console.log("Failed to add dish:", e);
       }
@@ -566,7 +567,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateDish: async (id, dishData) => {
       try {
         const updated = await apiClient.updateDish(id, dishData);
-        setDishes((prev) => prev.map((d) => (d.id === id ? updated : d)));
+        const mapped = { ...updated, category: updated.category || updated.categoryId };
+        setDishes((prev) => prev.map((d) => (d.id === id ? mapped : d)));
       } catch (e) {
         console.log("Failed to update dish:", e);
       }

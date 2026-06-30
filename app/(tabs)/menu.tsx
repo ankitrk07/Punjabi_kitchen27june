@@ -13,7 +13,7 @@ import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View, ScrollView } from "react-native";
+import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View, ScrollView, RefreshControl } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -136,7 +136,7 @@ const FlyingDish: React.FC<FlyingDishProps> = ({
 };
 
 export default function MenuScreen() {
-  const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim } = useApp();
+  const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim, refreshAllData } = useApp();
   const scrollY = useSharedValue(0);
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
@@ -162,6 +162,24 @@ export default function MenuScreen() {
   const [viewMode, setViewMode] = useState<"grid" | "cinematic">("grid");
   const [showExtendedFilters, setShowExtendedFilters] = useState(false);
   const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAllData();
+      setSelectedCategory("all");
+      setSelectedSubTab("all");
+      setDishType("all");
+      setPriceRange("all");
+      setSortBy("popular");
+      setSearch("");
+    } catch (e) {
+      console.log("Failed to refresh menu:", e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   interface FlyingItem {
     id: string;
@@ -363,12 +381,23 @@ export default function MenuScreen() {
       />
 
       <Animated.ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[2]}
-        keyboardShouldPersistTaps="handled"
-        onScroll={onScroll}
-        scrollEventThrottle={16}
+        {...({
+          contentContainerStyle: styles.content,
+          showsVerticalScrollIndicator: false,
+          stickyHeaderIndices: [2],
+          keyboardShouldPersistTaps: "handled",
+          onScroll: onScroll,
+          scrollEventThrottle: 16,
+          refreshControl: (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.gold}
+              colors={[colors.gold]}
+              progressBackgroundColor={colors.surface}
+            />
+          )
+        } as any)}
       >
         {/* Executive Header */}
         <View style={styles.menuHeader}>

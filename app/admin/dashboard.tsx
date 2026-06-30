@@ -48,6 +48,25 @@ export default function AdminDashboard() {
     setRefreshing(true);
     try {
       await refreshAllData();
+      setExpandedCats({
+        page_1: true,
+        page_2: true,
+        page_3: true,
+        page_4: true,
+        page_5: true,
+      });
+      setActiveActionNode(null);
+      setIsAddingCategory(false);
+      setIsCategoryFormMinimized(false);
+      setIsAddingNew(false);
+      setIsDishFormMinimized(false);
+      setEditingCategory(null);
+      setEditingDish(null);
+      setCategoryName("");
+      setDishName("");
+      setDishPrice("");
+      setDishDesc("");
+      setDishImage("");
     } catch (e) {
       console.log("Failed to refresh admin data:", e);
     } finally {
@@ -493,38 +512,43 @@ export default function AdminDashboard() {
               </View>
             )}
 
+            {/* Heading CRUD Form Card */}
             {isAddingCategory && !isCategoryFormMinimized && (
-              <View style={s.formCard}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <Text style={[s.formTitle, { marginBottom: 0 }]}>{editingCategory ? "Rename / Edit Menu Heading" : "Add New Menu Heading"}</Text>
-                  <TouchableOpacity onPress={() => setIsCategoryFormMinimized(true)} style={{ padding: 4 }}>
-                    <Ionicons name="remove-circle-outline" size={20} color={colors.gold} />
-                  </TouchableOpacity>
+              <Modal transparent animationType="fade" visible={isAddingCategory && !isCategoryFormMinimized} onRequestClose={() => setIsAddingCategory(false)}>
+                <View style={s.modalCenterOverlay}>
+                  <View style={[s.formCard, { width: width - 32 }]}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <Text style={[s.formTitle, { marginBottom: 0 }]}>{editingCategory ? "Rename / Edit Menu Heading" : "Add New Menu Heading"}</Text>
+                      <TouchableOpacity onPress={() => setIsCategoryFormMinimized(true)} style={{ padding: 4 }}>
+                        <Ionicons name="remove-circle-outline" size={20} color={colors.gold} />
+                      </TouchableOpacity>
+                    </View>
+                    {categoryParentId && (
+                      <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                        Adding subheading under: "{categories.find(c => c.id === categoryParentId)?.name || categoryParentId}"
+                      </Text>
+                    )}
+                    <TextInput
+                      style={s.input}
+                      placeholder="Heading Name (e.g. DAL or Veg)"
+                      placeholderTextColor={colors.textSecondary}
+                      value={categoryName}
+                      onChangeText={setCategoryName}
+                    />
+                    <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+                      <TouchableOpacity style={[s.saveBtn, { flex: 1, backgroundColor: colors.gold, marginTop: 0 }]} onPress={handleSaveCategory}>
+                        <Text style={s.saveBtnText}>Save Heading</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[s.saveBtn, { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border, marginTop: 0 }]}
+                        onPress={() => setIsAddingCategory(false)}
+                      >
+                        <Text style={[s.saveBtnText, { color: colors.textPrimary }]}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
-                {categoryParentId && (
-                  <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
-                    Adding subheading under: "{categories.find(c => c.id === categoryParentId)?.name || categoryParentId}"
-                  </Text>
-                )}
-                <TextInput
-                  style={s.input}
-                  placeholder="Heading Name (e.g. DAL or Veg)"
-                  placeholderTextColor={colors.textSecondary}
-                  value={categoryName}
-                  onChangeText={setCategoryName}
-                />
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
-                  <TouchableOpacity style={[s.saveBtn, { flex: 1, backgroundColor: colors.gold, marginTop: 0 }]} onPress={handleSaveCategory}>
-                    <Text style={s.saveBtnText}>Save Heading</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.saveBtn, { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border, marginTop: 0 }]}
-                    onPress={() => setIsAddingCategory(false)}
-                  >
-                    <Text style={[s.saveBtnText, { color: colors.textPrimary }]}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </Modal>
             )}
 
             {/* Dish CRUD Form Card */}
@@ -551,73 +575,79 @@ export default function AdminDashboard() {
             )}
 
             {isAddingNew && !isDishFormMinimized && (
-              <View style={s.formCard}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <Text style={[s.formTitle, { marginBottom: 0 }]}>{editingDish ? "Modify Dish Attributes" : "Add New Dish to Menu"}</Text>
-                  <TouchableOpacity onPress={() => setIsDishFormMinimized(true)} style={{ padding: 4 }}>
-                    <Ionicons name="remove-circle-outline" size={20} color={colors.gold} />
-                  </TouchableOpacity>
-                </View>
-                <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
-                  Category Slot: "{categories.find(c => c.id === dishCategory)?.name || dishCategory}"
-                </Text>
-                <TextInput style={s.input} placeholder="Dish Name (e.g. Kadai Chicken)" placeholderTextColor={colors.textSecondary} value={dishName} onChangeText={setDishName} />
-                <TextInput style={s.input} placeholder="Price (INR)" placeholderTextColor={colors.textSecondary} keyboardType="numeric" value={dishPrice} onChangeText={setDishPrice} />
-                <TextInput style={s.input} placeholder="Description details..." placeholderTextColor={colors.textSecondary} multiline numberOfLines={3} value={dishDesc} onChangeText={setDishDesc} />
-                
-                <View style={{ flexDirection: "row", gap: 10, alignItems: "center", marginBottom: 12 }}>
-                  <TextInput
-                    style={[s.input, { flex: 1, marginBottom: 0 }]}
-                    placeholder="Image URL link"
-                    placeholderTextColor={colors.textSecondary}
-                    value={dishImage}
-                    onChangeText={setDishImage}
-                  />
-                  <TouchableOpacity
-                    style={[s.addNewBtn, { backgroundColor: colors.gold, paddingVertical: 14, height: 48, justifyContent: "center" }]}
-                    onPress={handlePickImage}
-                    disabled={uploadingImage}
-                  >
-                    {uploadingImage ? (
-                      <ActivityIndicator size="small" color="#000" />
-                    ) : (
-                      <>
-                        <Ionicons name="image" size={16} color="#000" />
-                        <Text style={s.addNewText}>Upload</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
+              <Modal transparent animationType="fade" visible={isAddingNew && !isDishFormMinimized} onRequestClose={() => setIsAddingNew(false)}>
+                <View style={s.modalCenterOverlay}>
+                  <View style={[s.formCard, { width: width - 32, maxHeight: "85%" }]}>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <Text style={[s.formTitle, { marginBottom: 0 }]}>{editingDish ? "Modify Dish Attributes" : "Add New Dish to Menu"}</Text>
+                        <TouchableOpacity onPress={() => setIsDishFormMinimized(true)} style={{ padding: 4 }}>
+                          <Ionicons name="remove-circle-outline" size={20} color={colors.gold} />
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                        Category Slot: "{categories.find(c => c.id === dishCategory)?.name || dishCategory}"
+                      </Text>
+                      <TextInput style={s.input} placeholder="Dish Name (e.g. Kadai Chicken)" placeholderTextColor={colors.textSecondary} value={dishName} onChangeText={setDishName} />
+                      <TextInput style={s.input} placeholder="Price (INR)" placeholderTextColor={colors.textSecondary} keyboardType="numeric" value={dishPrice} onChangeText={setDishPrice} />
+                      <TextInput style={s.input} placeholder="Description details..." placeholderTextColor={colors.textSecondary} multiline numberOfLines={3} value={dishDesc} onChangeText={setDishDesc} />
+                      
+                      <View style={{ flexDirection: "row", gap: 10, alignItems: "center", marginBottom: 12 }}>
+                        <TextInput
+                          style={[s.input, { flex: 1, marginBottom: 0 }]}
+                          placeholder="Image URL link"
+                          placeholderTextColor={colors.textSecondary}
+                          value={dishImage}
+                          onChangeText={setDishImage}
+                        />
+                        <TouchableOpacity
+                          style={[s.addNewBtn, { backgroundColor: colors.gold, paddingVertical: 14, height: 48, justifyContent: "center" }]}
+                          onPress={handlePickImage}
+                          disabled={uploadingImage}
+                        >
+                          {uploadingImage ? (
+                            <ActivityIndicator size="small" color="#000" />
+                          ) : (
+                            <>
+                              <Ionicons name="image" size={16} color="#000" />
+                              <Text style={s.addNewText}>Upload</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
 
-                {!!dishImage && (
-                  <View style={{ position: "relative", marginBottom: 12, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
-                    <Image source={{ uri: resolveImageUrl(dishImage) }} style={{ width: "100%", height: 160 }} />
-                    <TouchableOpacity
-                      style={{ position: "absolute", top: 8, right: 8, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center" }}
-                      onPress={() => setDishImage("")}
-                    >
-                      <Ionicons name="trash" size={16} color={colors.error} />
-                    </TouchableOpacity>
+                      {!!dishImage && (
+                        <View style={{ position: "relative", marginBottom: 12, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
+                          <Image source={{ uri: resolveImageUrl(dishImage) }} style={{ width: "100%", height: 160 }} />
+                          <TouchableOpacity
+                            style={{ position: "absolute", top: 8, right: 8, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 15, width: 30, height: 30, alignItems: "center", justifyContent: "center" }}
+                            onPress={() => setDishImage("")}
+                          >
+                            <Ionicons name="trash" size={16} color={colors.error} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      
+                      <View style={s.switchRow}>
+                        <Text style={s.switchLabel}>Pure Vegetarian (Veg)</Text>
+                        <Switch trackColor={{ false: "#333", true: colors.success }} thumbColor={dishVeg ? colors.success : "#999"} value={dishVeg} onValueChange={setDishVeg} />
+                      </View>
+
+                      <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                        <TouchableOpacity style={[s.saveBtn, { flex: 1, backgroundColor: colors.gold, marginTop: 0 }]} onPress={handleSaveDish}>
+                          <Text style={s.saveBtnText}>{editingDish ? "Save Changes" : "Submit Dish"}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.saveBtn, { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border, marginTop: 0 }]}
+                          onPress={() => setIsAddingNew(false)}
+                        >
+                          <Text style={[s.saveBtnText, { color: colors.textPrimary }]}>Cancel</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </ScrollView>
                   </View>
-                )}
-                
-                <View style={s.switchRow}>
-                  <Text style={s.switchLabel}>Pure Vegetarian (Veg)</Text>
-                  <Switch trackColor={{ false: "#333", true: colors.success }} thumbColor={dishVeg ? colors.success : "#999"} value={dishVeg} onValueChange={setDishVeg} />
                 </View>
-
-                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                  <TouchableOpacity style={[s.saveBtn, { flex: 1, backgroundColor: colors.gold, marginTop: 0 }]} onPress={handleSaveDish}>
-                    <Text style={s.saveBtnText}>{editingDish ? "Save Changes" : "Submit Dish"}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.saveBtn, { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: colors.border, marginTop: 0 }]}
-                    onPress={() => setIsAddingNew(false)}
-                  >
-                    <Text style={[s.saveBtnText, { color: colors.textPrimary }]}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </Modal>
             )}
 
             {/* Tree Nodes List */}
@@ -957,6 +987,7 @@ export default function AdminDashboard() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  modalCenterOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" },
   minimizedBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.surface, borderStyle: "dashed", borderWidth: 1, borderColor: colors.gold, borderRadius: 12, padding: 12, marginBottom: 16 },
   minimizedText: { fontSize: 12, fontWeight: "700", color: colors.textPrimary },
   minimizedBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: colors.gold },
