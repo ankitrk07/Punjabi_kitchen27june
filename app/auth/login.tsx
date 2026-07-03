@@ -115,6 +115,7 @@ export default function Login() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              autoCapitalize="none"
               testID="password-input"
               editable={!loading}
             />

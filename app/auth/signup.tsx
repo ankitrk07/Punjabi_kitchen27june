@@ -88,7 +88,7 @@ export default function SignUp() {
           </View>
           <View style={styles.field}>
             <Ionicons name="lock-closed-outline" size={18} color={colors.gold} />
-            <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={setPassword} secureTextEntry testID="password-input" editable={!loading} />
+            <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" testID="password-input" editable={!loading} />
           </View>
 
           <Text style={styles.genderLabel}>Gender (for avatar)</Text>
