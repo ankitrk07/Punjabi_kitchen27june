@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Dimensions, Image, RefreshControl, Modal } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Dimensions, Image, RefreshControl, Modal, Animated, LayoutAnimation } from "react-native";
+import { BeautifulRefreshControl } from "../../src/components/BeautifulRefreshControl";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -43,8 +44,10 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const onRefresh = async () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setRefreshing(true);
     try {
       await refreshAllData();
@@ -70,6 +73,7 @@ export default function AdminDashboard() {
     } catch (e) {
       console.log("Failed to refresh admin data:", e);
     } finally {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setRefreshing(false);
     }
   };
@@ -415,17 +419,27 @@ export default function AdminDashboard() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={s.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.gold}
-            colors={[colors.gold]}
-            progressBackgroundColor={colors.surface}
-          />
-        }
+        contentContainerStyle={[
+          s.content,
+          refreshing && { paddingTop: 60 }
+        ]}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          if (e.nativeEvent.contentOffset.y <= -80 && !refreshing) {
+            onRefresh();
+          }
+        }}
       >
+        <BeautifulRefreshControl
+          scrollY={scrollY}
+          refreshing={refreshing}
+          title="Refreshing Royal Records..."
+          color={colors.accent}
+        />
 
         {/* 1. OVERVIEW PANEL */}
         {activeTab === "overview" && (

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Dimensions, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Dimensions, RefreshControl, LayoutAnimation } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -8,6 +8,7 @@ import { useApp } from "@/src/context/AppContext";
 import { CATEGORIES, Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { resolveImageUrl } from "@/src/utils/apiClient";
+import { BeautifulRefreshControl } from "@/src/components/BeautifulRefreshControl";
 
 const { width, height } = Dimensions.get("window");
 
@@ -19,8 +20,10 @@ export default function CategoryDetail() {
   const { addToCart, cart, dishes, categories: contextCategories, refreshAllData } = useApp();
   const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const onRefresh = async () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setRefreshing(true);
     try {
       await refreshAllData();
@@ -28,6 +31,7 @@ export default function CategoryDetail() {
     } catch (e) {
       console.log("Failed to refresh category detail:", e);
     } finally {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setRefreshing(false);
     }
   };
@@ -119,17 +123,27 @@ export default function CategoryDetail() {
       )}
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.gold}
-            colors={[colors.gold]}
-            progressBackgroundColor={colors.surface}
-          />
-        }
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 40,
+          paddingTop: refreshing ? 60 : 16
+        }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        onScrollEndDrag={(e) => {
+          if (e.nativeEvent.contentOffset.y <= -80 && !refreshing) {
+            onRefresh();
+          }
+        }}
       >
+        <BeautifulRefreshControl
+          scrollY={scrollY}
+          refreshing={refreshing}
+          title="Refreshing Royal Dishes..."
+        />
         {categoryDishes.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="restaurant-outline" size={56} color={colors.textSecondary} />

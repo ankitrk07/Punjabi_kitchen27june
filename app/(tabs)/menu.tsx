@@ -13,9 +13,10 @@ import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View, ScrollView, RefreshControl } from "react-native";
+import { Dimensions, Animated as RNAnimated, StyleSheet, Text, TouchableOpacity, View, ScrollView, RefreshControl, LayoutAnimation } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BeautifulRefreshControl } from "@/src/components/BeautifulRefreshControl";
 
 const ALL_FILTER = { id: "all", name: "All", icon: "grid", image: "" };
 
@@ -141,6 +142,14 @@ export default function MenuScreen() {
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
   const router = useRouter();
+  const refreshScrollY = useRef(new RNAnimated.Value(0)).current;
+
+  const handleScroll = (event: any) => {
+    if (onScroll) {
+      onScroll(event);
+    }
+    refreshScrollY.setValue(event.nativeEvent.contentOffset.y);
+  };
 
   const filters = useMemo(() => {
     const list = apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES;
@@ -165,6 +174,7 @@ export default function MenuScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setRefreshing(true);
     try {
       await refreshAllData();
@@ -177,6 +187,7 @@ export default function MenuScreen() {
     } catch (e) {
       console.log("Failed to refresh menu:", e);
     } finally {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setRefreshing(false);
     }
   };
@@ -382,23 +393,27 @@ export default function MenuScreen() {
 
       <Animated.ScrollView
         {...({
-          contentContainerStyle: styles.content,
+          contentContainerStyle: [
+            styles.content,
+            refreshing && { paddingTop: 60 }
+          ],
           showsVerticalScrollIndicator: false,
           stickyHeaderIndices: [2],
           keyboardShouldPersistTaps: "handled",
-          onScroll: onScroll,
+          onScroll: handleScroll,
           scrollEventThrottle: 16,
-          refreshControl: (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.gold}
-              colors={[colors.gold]}
-              progressBackgroundColor={colors.surface}
-            />
-          )
+          onScrollEndDrag: (e: any) => {
+            if (e.nativeEvent.contentOffset.y <= -80 && !refreshing) {
+              onRefresh();
+            }
+          }
         } as any)}
       >
+        <BeautifulRefreshControl
+          scrollY={refreshScrollY}
+          refreshing={refreshing}
+          title="Refreshing Master Menu..."
+        />
         {/* Executive Header */}
         <View style={styles.menuHeader}>
           <View style={{ flex: 1, paddingRight: 60 }}>
