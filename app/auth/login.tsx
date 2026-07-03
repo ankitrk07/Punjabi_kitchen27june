@@ -137,12 +137,29 @@ export default function Login() {
       {loading && (
         <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]}>
           <View style={styles.loadingContainer}>
-            <View style={styles.loadingLogoWrap}>
-              <Ionicons name="restaurant" size={36} color={colors.gold} />
+            <View style={[
+              styles.loadingLogoWrap,
+              email.trim().toLowerCase() === "admin@punjabikitchen.com" && { borderColor: "rgba(229, 139, 34, 0.45)", shadowColor: colors.accent }
+            ]}>
+              <Ionicons 
+                name={email.trim().toLowerCase() === "admin@punjabikitchen.com" ? "shield-checkmark-outline" : "restaurant"} 
+                size={36} 
+                color={email.trim().toLowerCase() === "admin@punjabikitchen.com" ? colors.accent : colors.gold} 
+              />
             </View>
-            <ActivityIndicator size="large" color={colors.gold} style={styles.spinner} />
-            <Animated.Text style={[styles.loadingText, { opacity: pulseAnim }]}>
-              Preparing your feast...
+            <ActivityIndicator 
+              size="large" 
+              color={email.trim().toLowerCase() === "admin@punjabikitchen.com" ? colors.accent : colors.gold} 
+              style={styles.spinner} 
+            />
+            <Animated.Text style={[
+              styles.loadingText, 
+              { opacity: pulseAnim },
+              email.trim().toLowerCase() === "admin@punjabikitchen.com" && { color: colors.accent }
+            ]}>
+              {email.trim().toLowerCase() === "admin@punjabikitchen.com" 
+                ? "Accessing Control Panel..." 
+                : "Preparing your feast..."}
             </Animated.Text>
           </View>
         </Animated.View>
