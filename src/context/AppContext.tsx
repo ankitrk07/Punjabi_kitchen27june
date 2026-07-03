@@ -33,6 +33,7 @@ export type User = {
   favorites?: string[];
   membershipTier?: string;
   loyaltyPoints?: number;
+  password?: string;
 };
 
 export type Reservation = {

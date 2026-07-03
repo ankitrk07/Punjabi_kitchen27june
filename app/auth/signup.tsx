@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,14 +15,55 @@ export default function SignUp() {
   const [password, setPassword] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.4,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      fadeAnim.setValue(0);
+      pulseAnim.setValue(0.4);
+    }
+  }, [loading]);
 
   const onSignup = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
       setError("Please fill all fields");
       return;
     }
-    await signIn({ name: name.trim(), email: email.trim(), gender });
-    router.replace("/(tabs)/home");
+
+    setError("");
+    setLoading(true);
+
+    try {
+      // Pass password so it is registered on the backend
+      await signIn({ name: name.trim(), email: email.trim(), gender, password: password.trim() });
+      router.replace("/(tabs)/home");
+    } catch (err: any) {
+      setError(err.message || "Signup failed. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,7 +71,7 @@ export default function SignUp() {
       <LinearGradient colors={["#000", "#0A0A0A", "#1A0F00"]} style={StyleSheet.absoluteFill} />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.back} disabled={loading}>
             <Ionicons name="chevron-back" size={22} color={colors.gold} />
           </TouchableOpacity>
 
@@ -39,21 +80,21 @@ export default function SignUp() {
 
           <View style={styles.field}>
             <Ionicons name="person-outline" size={18} color={colors.gold} />
-            <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={colors.textSecondary} value={name} onChangeText={setName} testID="name-input" />
+            <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={colors.textSecondary} value={name} onChangeText={setName} testID="name-input" editable={!loading} />
           </View>
           <View style={styles.field}>
             <Ionicons name="mail-outline" size={18} color={colors.gold} />
-            <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textSecondary} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" testID="email-input" />
+            <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textSecondary} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" testID="email-input" editable={!loading} />
           </View>
           <View style={styles.field}>
             <Ionicons name="lock-closed-outline" size={18} color={colors.gold} />
-            <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={setPassword} secureTextEntry testID="password-input" />
+            <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textSecondary} value={password} onChangeText={setPassword} secureTextEntry testID="password-input" editable={!loading} />
           </View>
 
           <Text style={styles.genderLabel}>Gender (for avatar)</Text>
           <View style={styles.genderRow}>
             {(["male", "female"] as const).map((g) => (
-              <TouchableOpacity key={g} style={[styles.genderBtn, gender === g && styles.genderBtnActive]} onPress={() => setGender(g)} testID={`gender-${g}`}>
+              <TouchableOpacity key={g} style={[styles.genderBtn, gender === g && styles.genderBtnActive]} onPress={() => setGender(g)} testID={`gender-${g}`} disabled={loading}>
                 <Text style={[styles.genderText, gender === g && { color: "#000" }]}>{g === "male" ? "♂ Male" : "♀ Female"}</Text>
               </TouchableOpacity>
             ))}
@@ -61,11 +102,25 @@ export default function SignUp() {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <TouchableOpacity style={styles.btn} onPress={onSignup} testID="signup-btn">
+          <TouchableOpacity style={styles.btn} onPress={onSignup} testID="signup-btn" disabled={loading}>
             <Text style={styles.btnText}>CREATE ACCOUNT</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {loading && (
+        <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]}>
+          <View style={styles.loadingContainer}>
+            <View style={styles.loadingLogoWrap}>
+              <Ionicons name="restaurant" size={36} color={colors.gold} />
+            </View>
+            <ActivityIndicator size="large" color={colors.gold} style={styles.spinner} />
+            <Animated.Text style={[styles.loadingText, { opacity: pulseAnim }]}>
+              Creating your royal table...
+            </Animated.Text>
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -86,4 +141,43 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: colors.gold, paddingVertical: 14, borderRadius: 24, alignItems: "center", marginTop: 18 },
   btnText: { color: "#000", fontWeight: "800", letterSpacing: 2 },
   error: { color: colors.error, fontSize: 12, marginTop: 8 },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(5, 5, 5, 0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingLogoWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 1.5,
+    borderColor: colors.borderGold,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  spinner: {
+    transform: [{ scale: 1.25 }],
+    marginBottom: 16,
+  },
+  loadingText: {
+    color: colors.gold,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginTop: 8,
+  },
 });

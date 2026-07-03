@@ -156,7 +156,7 @@ const mapOrder = (o: any) => ({
 
 // 6. User Profiles (sync or create with favorites)
 app.post("/api/users", async (req, res) => {
-  const { name, email, phone, gender, favorites } = req.body;
+  const { name, email, phone, gender, favorites, password } = req.body;
   if (!email || !name) {
     return res.status(400).json({ error: "Email and Name are required" });
   }
@@ -168,12 +168,14 @@ app.post("/api/users", async (req, res) => {
         phone,
         gender,
         ...(favorites !== undefined ? { favorites } : {}),
+        ...(password !== undefined ? { password } : {}),
       },
       create: {
         name,
         email,
         phone,
         gender,
+        password: password || "123456",
         favorites: favorites || [],
       },
       include: { addresses: true },
@@ -197,6 +199,55 @@ app.get("/api/users/:email", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
+// Authenticate User / Admin
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  const trimmedEmail = email.trim().toLowerCase();
+  
+  // 1. Admin login path
+  if (trimmedEmail === "admin@punjabikitchen.com") {
+    if (password === "admin123") {
+      return res.json({
+        id: "admin-id",
+        email: "admin@punjabikitchen.com",
+        name: "Restaurant Manager",
+        gender: "male",
+        membershipTier: "Gold",
+        loyaltyPoints: 5000,
+        addresses: [],
+        favorites: [],
+      });
+    } else {
+      return res.status(401).json({ error: "Invalid admin password" });
+    }
+  }
+
+  // 2. Regular user login path
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: trimmedEmail },
+      include: { addresses: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User account does not exist. Please sign up first." });
+    }
+
+    if (user.password !== password) {
+      return res.status(401).json({ error: "Incorrect password" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to authenticate" });
   }
 });
 

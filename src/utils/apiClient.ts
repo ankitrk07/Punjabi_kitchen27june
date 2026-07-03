@@ -250,4 +250,11 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ name, base64 }),
     }),
+
+  // Authentication API
+  login: (credentials: { email: string; password?: string }) =>
+    apiCall<any>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    }),
 };

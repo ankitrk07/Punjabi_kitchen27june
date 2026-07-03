@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
+import { apiClient } from "@/src/utils/apiClient";
 
 export default function Login() {
   const router = useRouter();
@@ -13,6 +14,37 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.4,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      fadeAnim.setValue(0);
+      pulseAnim.setValue(0.4);
+    }
+  }, [loading]);
 
   const onLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -20,28 +52,27 @@ export default function Login() {
       return;
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
-    if (trimmedEmail === "admin@punjabikitchen.com") {
-      if (password !== "admin123") {
-        setError("Invalid admin password");
-        return;
-      }
-      await signIn({
-        name: "Restaurant Manager",
-        email: "admin@punjabikitchen.com",
-        gender: "male",
-      });
-      router.replace("/admin/dashboard");
-      return;
-    }
+    setError("");
+    setLoading(true);
 
-    const name = email.split("@")[0].replace(/[._-]/g, " ");
-    await signIn({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      email: email.trim(),
-      gender: "male",
-    });
-    router.replace("/(tabs)/home");
+    try {
+      const trimmedEmail = email.trim().toLowerCase();
+      // Verify credentials on backend
+      const userProfile = await apiClient.login({ email: trimmedEmail, password: password.trim() });
+      
+      // Complete sign in and load context
+      await signIn(userProfile);
+
+      // Route based on role
+      if (trimmedEmail === "admin@punjabikitchen.com") {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/(tabs)/home");
+      }
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,6 +102,7 @@ export default function Login() {
               autoCapitalize="none"
               keyboardType="email-address"
               testID="email-input"
+              editable={!loading}
             />
           </View>
 
@@ -84,22 +116,37 @@ export default function Login() {
               onChangeText={setPassword}
               secureTextEntry
               testID="password-input"
+              editable={!loading}
             />
           </View>
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <TouchableOpacity style={styles.loginBtn} onPress={onLogin} testID="login-btn">
+          <TouchableOpacity style={styles.loginBtn} onPress={onLogin} testID="login-btn" disabled={loading}>
             <Text style={styles.loginText}>LOGIN</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/auth/signup")} testID="goto-signup">
+          <TouchableOpacity onPress={() => router.push("/auth/signup")} testID="goto-signup" disabled={loading}>
             <Text style={styles.linkText}>
               New to Punjabi Kitchen? <Text style={{ color: colors.gold }}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {loading && (
+        <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]}>
+          <View style={styles.loadingContainer}>
+            <View style={styles.loadingLogoWrap}>
+              <Ionicons name="restaurant" size={36} color={colors.gold} />
+            </View>
+            <ActivityIndicator size="large" color={colors.gold} style={styles.spinner} />
+            <Animated.Text style={[styles.loadingText, { opacity: pulseAnim }]}>
+              Preparing your feast...
+            </Animated.Text>
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -119,4 +166,43 @@ const styles = StyleSheet.create({
   loginText: { color: "#000", fontWeight: "800", letterSpacing: 2 },
   linkText: { color: colors.textSecondary, textAlign: "center", marginTop: 20, fontSize: 13 },
   error: { color: colors.error, fontSize: 12, marginBottom: 8 },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(5, 5, 5, 0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingLogoWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 1.5,
+    borderColor: colors.borderGold,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  spinner: {
+    transform: [{ scale: 1.25 }],
+    marginBottom: 16,
+  },
+  loadingText: {
+    color: colors.gold,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginTop: 8,
+  },
 });
