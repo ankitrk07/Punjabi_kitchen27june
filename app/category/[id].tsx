@@ -1,14 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Animated, Dimensions, RefreshControl, LayoutAnimation } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { useApp } from "@/src/context/AppContext";
 import { CATEGORIES, Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { resolveImageUrl } from "@/src/utils/apiClient";
-import { BeautifulRefreshControl } from "@/src/components/BeautifulRefreshControl";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Dimensions, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
@@ -20,10 +18,8 @@ export default function CategoryDetail() {
   const { addToCart, cart, dishes, categories: contextCategories, refreshAllData } = useApp();
   const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   const onRefresh = async () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setRefreshing(true);
     try {
       await refreshAllData();
@@ -31,11 +27,10 @@ export default function CategoryDetail() {
     } catch (e) {
       console.log("Failed to refresh category detail:", e);
     } finally {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setRefreshing(false);
     }
   };
-  
+
   const catsList = contextCategories && contextCategories.length > 0 ? contextCategories : CATEGORIES;
   const cat = catsList.find((c) => c.id === id);
 
@@ -59,7 +54,7 @@ export default function CategoryDetail() {
 
   const [flying, setFlying] = useState<FlyingItem[]>([]);
   const itemAnims = useRef<Animated.Value[]>([]);
-  
+
   if (itemAnims.current.length !== categoryDishes.length) {
     itemAnims.current = categoryDishes.map(() => new Animated.Value(0));
   }
@@ -123,27 +118,17 @@ export default function CategoryDetail() {
       )}
 
       <ScrollView
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 40,
-          paddingTop: refreshing ? 60 : 16
-        }}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-        onScrollEndDrag={(e) => {
-          if (e.nativeEvent.contentOffset.y <= -80 && !refreshing) {
-            onRefresh();
-          }
-        }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.gold}
+            colors={[colors.gold]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
-        <BeautifulRefreshControl
-          scrollY={scrollY}
-          refreshing={refreshing}
-          title="Refreshing Royal Dishes..."
-        />
         {categoryDishes.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="restaurant-outline" size={56} color={colors.textSecondary} />

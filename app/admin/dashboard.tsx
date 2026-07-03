@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, ActivityIndicator, Dimensions, Image, RefreshControl, Modal, Animated, LayoutAnimation } from "react-native";
-import { BeautifulRefreshControl } from "../../src/components/BeautifulRefreshControl";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useApp } from "@/src/context/AppContext";
+import { Category } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { Category } from "@/src/data/menu";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Dimensions, Image, Modal, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -38,16 +37,14 @@ export default function AdminDashboard() {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<"overview" | "menu" | "orders" | "bookings" | "support" | "broadcast">("overview");
-  
+
   // Overview state
   const [metrics, setMetrics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   const onRefresh = async () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setRefreshing(true);
     try {
       await refreshAllData();
@@ -73,7 +70,6 @@ export default function AdminDashboard() {
     } catch (e) {
       console.log("Failed to refresh admin data:", e);
     } finally {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setRefreshing(false);
     }
   };
@@ -96,7 +92,7 @@ export default function AdminDashboard() {
   const [categoryParentId, setCategoryParentId] = useState<string | null>(null);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isCategoryFormMinimized, setIsCategoryFormMinimized] = useState(false);
-  const [expandedCats, setExpandedCats] = useState<{[key: string]: boolean}>({
+  const [expandedCats, setExpandedCats] = useState<{ [key: string]: boolean }>({
     page_1: true,
     page_2: true,
     page_3: true,
@@ -164,7 +160,7 @@ export default function AdminDashboard() {
         setUploadingImage(true);
         const originalName = asset.uri.split("/").pop() || "upload.jpg";
         const response = await apiClient.uploadImage(originalName, asset.base64);
-        
+
         if (response && response.imageUrl) {
           setDishImage(response.imageUrl);
         } else {
@@ -419,27 +415,17 @@ export default function AdminDashboard() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          s.content,
-          refreshing && { paddingTop: 60 }
-        ]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-        onScrollEndDrag={(e) => {
-          if (e.nativeEvent.contentOffset.y <= -80 && !refreshing) {
-            onRefresh();
-          }
-        }}
+        contentContainerStyle={s.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.gold}
+            colors={[colors.gold]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
-        <BeautifulRefreshControl
-          scrollY={scrollY}
-          refreshing={refreshing}
-          title="Refreshing Royal Records..."
-          color={colors.accent}
-        />
 
         {/* 1. OVERVIEW PANEL */}
         {activeTab === "overview" && (
@@ -605,7 +591,7 @@ export default function AdminDashboard() {
                       <TextInput style={s.input} placeholder="Dish Name (e.g. Kadai Chicken)" placeholderTextColor={colors.textSecondary} value={dishName} onChangeText={setDishName} />
                       <TextInput style={s.input} placeholder="Price (INR)" placeholderTextColor={colors.textSecondary} keyboardType="numeric" value={dishPrice} onChangeText={setDishPrice} />
                       <TextInput style={s.input} placeholder="Description details..." placeholderTextColor={colors.textSecondary} multiline numberOfLines={3} value={dishDesc} onChangeText={setDishDesc} />
-                      
+
                       <View style={{ flexDirection: "row", gap: 10, alignItems: "center", marginBottom: 12 }}>
                         <TextInput
                           style={[s.input, { flex: 1, marginBottom: 0 }]}
@@ -641,7 +627,7 @@ export default function AdminDashboard() {
                           </TouchableOpacity>
                         </View>
                       )}
-                      
+
                       <View style={s.switchRow}>
                         <Text style={s.switchLabel}>Pure Vegetarian (Veg)</Text>
                         <Switch trackColor={{ false: "#333", true: colors.success }} thumbColor={dishVeg ? colors.success : "#999"} value={dishVeg} onValueChange={setDishVeg} />
@@ -836,7 +822,7 @@ export default function AdminDashboard() {
             <Text style={s.sectionHeader}>Push Announcements</Text>
             <View style={s.formCard}>
               <Text style={s.formTitle}>Send Notification Broadcast</Text>
-              
+
               <TextInput
                 style={s.input}
                 placeholder="Notification Title (e.g. 🎉 Midweek Feast Promo!)"
@@ -1011,18 +997,18 @@ const s = StyleSheet.create({
   headerSubtitle: { fontSize: 10, color: colors.textSecondary, marginTop: 2, letterSpacing: 0.5 },
   logoutBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   logoutText: { fontSize: 11, color: colors.error, fontWeight: "700" },
-  
+
   tabsScroll: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   tabBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
   tabBtnActive: { backgroundColor: colors.gold, borderColor: colors.gold },
   tabText: { color: colors.textSecondary, fontSize: 11, fontWeight: "700" },
   tabTextActive: { color: "#000" },
-  
+
   content: { padding: 16, paddingBottom: 40 },
   sectionHeader: { fontSize: 12, fontWeight: "800", color: colors.gold, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
   emptyMsg: { color: colors.textSecondary, fontSize: 12, textAlign: "center", marginVertical: 20 },
-  
+
   // Overview Tab
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   metricCard: { width: (width - 42) / 2, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, gap: 6 },
@@ -1036,7 +1022,7 @@ const s = StyleSheet.create({
   userPhone: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
   userStatRow: { flexDirection: "row", gap: 10, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.03)" },
   userStatText: { fontSize: 10, color: colors.goldBright, fontWeight: "600" },
-  
+
   // Menu Editor Tab
   addNewBtn: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: colors.gold, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   addNewText: { fontSize: 10, fontWeight: "800", color: "#000" },
