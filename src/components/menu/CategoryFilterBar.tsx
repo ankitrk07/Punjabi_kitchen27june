@@ -11,7 +11,7 @@ type Props = {
   onSelect: (id: string) => void;
 };
 
-export default function CategoryFilterBar({ filters, selectedId, onSelect }: Props) {
+const CategoryFilterBar = React.memo(function CategoryFilterBar({ filters, selectedId, onSelect }: Props) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {filters.map((filter) => {
@@ -31,7 +31,9 @@ export default function CategoryFilterBar({ filters, selectedId, onSelect }: Pro
       })}
     </ScrollView>
   );
-}
+});
+
+export default CategoryFilterBar;
 
 const styles = StyleSheet.create({
   row: { paddingHorizontal: 16, gap: 18, paddingBottom: 10 },

@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, TextInput } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, withRepeat, withSequence, Easing } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import DailyOffersCarousel from "@/src/components/DailyOffersCarousel";
+import TopBar from "@/src/components/TopBar";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
-import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { DISHES } from "@/src/data/menu";
+import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
-import TopBar from "@/src/components/TopBar";
-import DailyOffersCarousel from "@/src/components/DailyOffersCarousel";
 import { storage } from "@/src/utils/storage";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import LottieView from 'lottie-react-native';
 
 
 
@@ -46,11 +47,11 @@ const SAMPLE_OFFERS = [
 type StatusKey = "Delivered" | "On the Way" | "Preparing" | "Ready" | string;
 
 const STATUS_CONFIG: Record<StatusKey, { color: string; bg: string; icon: string }> = {
-  "Delivered":  { color: colors.success, bg: "rgba(16,185,129,0.12)",  icon: "checkmark-circle-outline" },
-  "On the Way": { color: colors.gold,    bg: "rgba(212,175,55,0.12)",   icon: "bicycle-outline"          },
-  "Preparing":  { color: "#FF9F43",      bg: "rgba(255,159,67,0.12)",   icon: "flame-outline"            },
-  "Ready":      { color: "#54A0FF",      bg: "rgba(84,160,255,0.12)",   icon: "bag-check-outline"        },
-  "Cancelled":  { color: colors.error,   bg: "rgba(239,68,68,0.12)",    icon: "close-circle-outline"     },
+  "Delivered": { color: colors.success, bg: "rgba(16,185,129,0.12)", icon: "checkmark-circle-outline" },
+  "On the Way": { color: colors.gold, bg: "rgba(212,175,55,0.12)", icon: "bicycle-outline" },
+  "Preparing": { color: "#FF9F43", bg: "rgba(255,159,67,0.12)", icon: "flame-outline" },
+  "Ready": { color: "#54A0FF", bg: "rgba(84,160,255,0.12)", icon: "bag-check-outline" },
+  "Cancelled": { color: colors.error, bg: "rgba(239,68,68,0.12)", icon: "close-circle-outline" },
 };
 
 const getStatus = (s: string) =>
@@ -77,7 +78,7 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
   const pulseAnim = useSharedValue(1);
   const fadeAnim = useSharedValue(0);
   const slideAnim = useSharedValue(-15);
-  
+
   // Emoji animations
   const emojiScale = useSharedValue(1);
   const emojiY = useSharedValue(0);
@@ -192,8 +193,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
 
         {/* Support helper and quick actions */}
         <View style={s.helperRow}>
-          <TouchableOpacity 
-            style={[s.helperChip, cutlery && s.helperChipActive]} 
+          <TouchableOpacity
+            style={[s.helperChip, cutlery && s.helperChipActive]}
             onPress={() => {
               setCutlery(!cutlery);
               alert(cutlery ? "Eco-friendly cutlery removed." : "Eco-friendly cutlery added to your order.");
@@ -205,8 +206,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[s.helperChip, !!deliveryNote && s.helperChipActive]} 
+          <TouchableOpacity
+            style={[s.helperChip, !!deliveryNote && s.helperChipActive]}
             onPress={() => {
               setGateCodeOpen(true);
             }}
@@ -217,8 +218,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={s.helperChip} 
+          <TouchableOpacity
+            style={s.helperChip}
             onPress={() => {
               alert("Calling Rider Ramesh... Please look out for a call from +91 98765 43210.");
             }}
@@ -254,9 +255,41 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
 
         <View style={s.liveInfo}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <Reanimated.Text style={[s.liveEmoji, emojiAnimatedStyle]}>
-              {EMOJI_MAP[order.status] ?? "✨"}
-            </Reanimated.Text>
+            {order.status === "Placed" ? (
+              <LottieView
+                source={require("../../assets/placed-status.json")}
+                autoPlay
+                loop={true}
+                style={{ width: 80, height: 80, marginTop: -8 }}
+              />
+            ) : order.status === "Preparing" ? (
+              <LottieView
+                source={require("../../assets/cooking.json")}
+                autoPlay
+                loop={true}
+                style={{ width: 80, height: 80, marginTop: -8 }}
+              />
+            ) : order.status === "Ready" ? (
+              <LottieView
+                source={require("../../assets/packed.json")}
+                autoPlay
+                loop={true}
+                style={{ width: 80, height: 80, marginTop: -8 }}
+              />
+            ) : order.status === "On the Way" ? (
+              <LottieView
+                source={require("../../assets/delivery.json")}
+                autoPlay
+                loop={true}
+                style={{ width: 80, height: 80, marginTop: -8 }}
+              />
+            ) : (
+              <Reanimated.Text style={[s.liveEmoji, emojiAnimatedStyle]}>
+                {EMOJI_MAP[order.status] ?? "✨"}
+              </Reanimated.Text>
+            )}
+
+
             <View>
               <Text style={s.liveStatusLabel}>CURRENT STATUS</Text>
               <Text style={[s.liveStatus, { color: getStatus(order.status).color }]}>{order.status}</Text>
@@ -280,8 +313,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
           <View style={s.consoleContainer}>
             <Text style={s.consoleTitle}>ORDER SIMULATOR (TEST PANEL)</Text>
             <View style={s.consoleBtnRow}>
-              <TouchableOpacity 
-                style={[s.consoleBtn, currentStep === 0 && s.consoleBtnDisabled]} 
+              <TouchableOpacity
+                style={[s.consoleBtn, currentStep === 0 && s.consoleBtnDisabled]}
                 onPress={handlePrevStep}
                 disabled={currentStep === 0}
               >
@@ -289,8 +322,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
                 <Text style={s.consoleBtnText}>Prev Stage</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[s.consoleBtn, currentStep === STEPS.length - 1 && s.consoleBtnDisabled]} 
+              <TouchableOpacity
+                style={[s.consoleBtn, currentStep === STEPS.length - 1 && s.consoleBtnDisabled]}
                 onPress={handleNextStep}
                 disabled={currentStep === STEPS.length - 1}
               >
@@ -298,9 +331,9 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
                 <Ionicons name="arrow-forward-outline" size={12} color="#000" />
               </TouchableOpacity>
             </View>
-            
-            <TouchableOpacity 
-              style={s.consoleResetBtn} 
+
+            <TouchableOpacity
+              style={s.consoleResetBtn}
               onPress={handleResetSimulation}
             >
               <Ionicons name="refresh-outline" size={12} color={colors.gold} />
@@ -322,7 +355,7 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
           <View style={styles.ratingCard}>
             <Text style={styles.ratingTitle}>Add Delivery Instructions</Text>
             <Text style={styles.ratingSub}>Tell Rider Ramesh where to leave your food</Text>
-            
+
             <TextInput
               style={styles.ratingInput}
               placeholder="e.g. Leave at gate, ring doorbell twice, etc."
@@ -332,8 +365,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
             />
 
             <View style={styles.ratingActions}>
-              <TouchableOpacity 
-                style={styles.ratingSubmitBtn} 
+              <TouchableOpacity
+                style={styles.ratingSubmitBtn}
                 onPress={() => {
                   setGateCodeOpen(false);
                   if (deliveryNote.trim()) {
@@ -343,8 +376,8 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
               >
                 <Text style={styles.ratingSubmitText}>Save Instruction</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.ratingCancelBtn} 
+              <TouchableOpacity
+                style={styles.ratingCancelBtn}
                 onPress={() => {
                   setDeliveryNote("");
                   setGateCodeOpen(false);
@@ -405,7 +438,7 @@ const OrderCard = React.memo(function OrderCard({
       <View style={s.orderCard}>
         <View style={[s.orderBar, { backgroundColor: cfg.color }]} />
         <View style={s.orderContent}>
-          
+
           {/* Header Row */}
           <View style={s.orderHead}>
             <View style={s.orderIconWrap}>
@@ -506,18 +539,18 @@ export default function Orders() {
   // States
   const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
-  const [ordersFilter, setOrdersFilter] = useState<"all"|"active"|"completed"|"cancelled">("all");
+  const [ordersFilter, setOrdersFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [configuratorOrder, setConfiguratorOrder] = useState<any | null>(null);
   const [configuratorItems, setConfiguratorItems] = useState<Record<string, { selected: boolean; qty: number }>>({});
-  
+
   // Custom Modals
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [ratingId, setRatingId] = useState<string | null>(null);
   const [ratingsMap, setRatingsMap] = useState<Record<string, number>>({});
   const [ratingStars, setRatingStars] = useState(5);
   const [ratingText, setRatingText] = useState("");
-  
+
   // Stats Dashboard values
   const totalSpent = useMemo(() => orders.reduce((acc, o) => acc + o.total, 0), [orders]);
   const activeOrder = useMemo(() => orders.find((o) => o.status !== "Delivered" && o.status !== "Cancelled"), [orders]);
@@ -656,9 +689,9 @@ export default function Orders() {
 
         {/* Dynamic Order Stats Dashboard Banner */}
         <View style={styles.statsCardContainer}>
-          <TouchableOpacity 
-            style={styles.statsCard} 
-            activeOpacity={0.9} 
+          <TouchableOpacity
+            style={styles.statsCard}
+            activeOpacity={0.9}
             onPress={() => setStatsExpanded(!statsExpanded)}
           >
             <View style={styles.statsRow}>
@@ -680,10 +713,10 @@ export default function Orders() {
 
             <View style={styles.expandHeader}>
               <Text style={styles.expandText}>{statsExpanded ? "Hide Analytics Dashboard" : "Show Analytics Dashboard"}</Text>
-              <Ionicons 
-                name={statsExpanded ? "chevron-up" : "chevron-down"} 
-                size={12} 
-                color={colors.gold} 
+              <Ionicons
+                name={statsExpanded ? "chevron-up" : "chevron-down"}
+                size={12}
+                color={colors.gold}
               />
             </View>
           </TouchableOpacity>
@@ -691,9 +724,9 @@ export default function Orders() {
           {statsExpanded && (
             <View style={styles.insightsContainer}>
               <View style={styles.insightsDivider} />
-              
+
               <Text style={styles.insightTitle}>TASTY INSIGHTS</Text>
-              
+
               {/* Stat breakdown */}
               <View style={styles.insightsRow}>
                 <View style={styles.insightStatBox}>
@@ -730,8 +763,8 @@ export default function Orders() {
                   <View style={[styles.tierProgressBarFill, { width: `${Math.min(100, Math.round((totalSpent / 5000) * 100))}%` }]} />
                 </View>
                 <Text style={styles.progressSubText}>
-                  {totalSpent >= 5000 
-                    ? "🎉 Congratulations! You have reached Platinum level!" 
+                  {totalSpent >= 5000
+                    ? "🎉 Congratulations! You have reached Platinum level!"
                     : `Order for ₹${Math.max(0, 5000 - totalSpent)} more to upgrade to Platinum and unlock Free Delivery.`}
                 </Text>
               </View>
@@ -854,7 +887,7 @@ export default function Orders() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.invoiceRef}>Transaction ID: TXN-{String(selectedInvoice.id).slice(-8).toUpperCase()}</Text>
                 <Text style={styles.invoiceDate}>Placed: {new Date(selectedInvoice.createdAt).toLocaleString("en-IN")}</Text>
-                
+
                 <View style={styles.invoiceDivider} />
                 <Text style={styles.invoiceLabel}>Items Summary</Text>
                 {selectedInvoice.items.map((it: any, i: number) => (
@@ -877,7 +910,7 @@ export default function Orders() {
                   <Text style={styles.invoiceMetaText}>Delivery Partner Fee</Text>
                   <Text style={styles.invoiceMetaText}>₹15</Text>
                 </View>
-                
+
                 <View style={styles.invoiceDivider} />
                 <View style={styles.invoiceItemRow}>
                   <Text style={[styles.invoiceItemText, { color: colors.gold }]}>Net Paid Amount</Text>
@@ -910,7 +943,7 @@ export default function Orders() {
           <View style={styles.ratingCard}>
             <Text style={styles.ratingTitle}>Rate Your Meal Experience</Text>
             <Text style={styles.ratingSub}>How was the quality of Punjabi Kitchen dishes?</Text>
-            
+
             {/* Stars Row */}
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
@@ -964,17 +997,17 @@ export default function Orders() {
                   const state = configuratorItems[it.id] || { selected: false, qty: 0 };
                   return (
                     <View key={it.id} style={styles.configItemRow}>
-                      <TouchableOpacity 
-                        style={styles.configCheckbox} 
+                      <TouchableOpacity
+                        style={styles.configCheckbox}
                         onPress={() => setConfiguratorItems(prev => ({
                           ...prev,
                           [it.id]: { ...prev[it.id], selected: !prev[it.id].selected }
                         }))}
                       >
-                        <Ionicons 
-                          name={state.selected ? "checkbox" : "square-outline"} 
-                          size={20} 
-                          color={state.selected ? colors.gold : colors.textSecondary} 
+                        <Ionicons
+                          name={state.selected ? "checkbox" : "square-outline"}
+                          size={20}
+                          color={state.selected ? colors.gold : colors.textSecondary}
                         />
                       </TouchableOpacity>
 
@@ -987,7 +1020,7 @@ export default function Orders() {
 
                       {state.selected && (
                         <View style={styles.configQtyContainer}>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.configQtyBtn}
                             onPress={() => {
                               if (state.qty > 1) {
@@ -1001,7 +1034,7 @@ export default function Orders() {
                             <Ionicons name="remove" size={12} color="#FFF" />
                           </TouchableOpacity>
                           <Text style={styles.configQtyText}>{state.qty}</Text>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.configQtyBtn}
                             onPress={() => {
                               setConfiguratorItems(prev => ({

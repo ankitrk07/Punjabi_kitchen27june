@@ -9,15 +9,28 @@ import React, { useEffect, useRef, useState } from "react";
 import { Animated, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LottieView from "lottie-react-native";
+import thankYouJson from "../assets/thank-you.json";
+
 
 export default function Cart() {
   const router = useRouter();
   const { cart, updateQty, removeFromCart, placeOrder, user } = useApp();
   const fade = useRef(new Animated.Value(0)).current;
+  const lottieRef = useRef<LottieView>(null);
+  const tempOrderRef = useRef<any>(null);
   const [success, setSuccess] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
-  const [rating, setRating] = useState<number>(5);
-  const [feedback, setFeedback] = useState<string>("");
+  const [selectedMode, setSelectedMode] = useState<"Dine In" | "Takeaway" | "Delivery">("Dine In");
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        lottieRef.current?.play();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
@@ -25,7 +38,7 @@ export default function Cart() {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const taxes = Math.round(subtotal * 0.05);
-  const delivery = subtotal > 0 ? (subtotal > 499 ? 0 : 40) : 0;
+  const delivery = selectedMode === "Delivery" ? (subtotal > 0 ? (subtotal > 499 ? 0 : 40) : 0) : 0;
   const total = subtotal + taxes + delivery;
 
   const saveReceipt = async (receipt: any) => {
@@ -34,34 +47,14 @@ export default function Cart() {
     await storage.setItem("pk_receipts", all);
   };
 
-  const saveReview = async (review: any) => {
-    const all = (await storage.getItem<any[]>("pk_reviews", [])) || [];
-    all.unshift(review);
-    await storage.setItem("pk_reviews", all);
-
-    // Sync to backend PostgreSQL database
-    try {
-      await apiClient.submitReview({
-        name: user?.name || "Guest User",
-        avatar: user?.avatar || undefined,
-        rating: review.rating,
-        text: review.feedback,
-      });
-    } catch (e) {
-      console.log("Failed to submit review to backend:", e);
-    }
-  };
-
   const onPlace = (mode: "Dine In" | "Takeaway" | "Delivery") => {
     if (cart.length === 0) return;
     const order = placeOrder(mode);
+    tempOrderRef.current = order;
     setSuccess(true);
-    setReceiptOrder(order);
-    // keep success overlay briefly while modal appears
-    setTimeout(() => setSuccess(false), 800);
   };
 
-  const submitFeedback = async () => {
+  const handleDone = () => {
     if (!receiptOrder) return;
     const receipt = {
       orderId: receiptOrder.id,
@@ -71,11 +64,8 @@ export default function Cart() {
       mode: receiptOrder.mode,
       seatNumber: receiptOrder.seatNumber ?? null,
     };
-    await saveReceipt(receipt);
-    await saveReview({ orderId: receiptOrder.id, rating, feedback, createdAt: Date.now() });
+    saveReceipt(receipt).catch(err => console.log("Failed to save receipt:", err));
     setReceiptOrder(null);
-    setFeedback("");
-    setRating(5);
     router.replace("/(tabs)/orders");
   };
 
@@ -98,7 +88,7 @@ export default function Cart() {
     }
   };
 
-  if (cart.length === 0) {
+  if (cart.length === 0 && !success && !receiptOrder) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.header}>
@@ -143,7 +133,7 @@ export default function Cart() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Text style={styles.titleText}>Your Cart</Text>
@@ -208,6 +198,33 @@ export default function Cart() {
                 </View>
               ))}
 
+              {/* Order Mode Selector Card (Moved Up) */}
+              <View style={styles.modeContainer}>
+                <Text style={styles.modeTitle}>Select Service Mode</Text>
+                <View style={styles.modeRow}>
+                  {[
+                    { mode: "Dine In", icon: "restaurant-outline" },
+                    { mode: "Takeaway", icon: "bag-handle-outline" },
+                    { mode: "Delivery", icon: "bicycle-outline" },
+                  ].map((m) => {
+                    const isSelected = selectedMode === m.mode;
+                    return (
+                      <TouchableOpacity
+                        key={m.mode}
+                        style={[styles.modeBtn, isSelected && styles.modeBtnActive]}
+                        onPress={() => setSelectedMode(m.mode as any)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name={m.icon as any} size={16} color={isSelected ? "#000" : colors.gold} />
+                        <Text style={[styles.modeText, isSelected && styles.modeTextActive]}>
+                          {m.mode}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
               <View style={styles.bill}>
                 <View style={styles.billRow}><Text style={styles.billLabel}>Subtotal</Text><Text style={styles.billVal}>₹{subtotal}</Text></View>
                 <View style={styles.billRow}><Text style={styles.billLabel}>Taxes (5%)</Text><Text style={styles.billVal}>₹{taxes}</Text></View>
@@ -220,29 +237,46 @@ export default function Cart() {
             </ScrollView>
 
             <View style={styles.footer}>
-              <View style={styles.modeRow}>
-                {(["Dine In", "Takeaway", "Delivery"] as const).map((m) => (
-                  <TouchableOpacity key={m} style={styles.modeBtn} onPress={() => onPlace(m)} testID={`place-${m}`}>
-                    <Text style={styles.modeText}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <TouchableOpacity
+                style={styles.checkoutBtn}
+                onPress={() => onPlace(selectedMode)}
+                activeOpacity={0.8}
+                testID="checkout-btn"
+              >
+                <LinearGradient
+                  colors={["#F0D488", "#C9A84C"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.checkoutBtnGradient}
+                >
+                  <Text style={styles.checkoutText}>CONFIRM ORDER (₹{total})</Text>
+                  <Ionicons name="arrow-forward-outline" size={16} color="#000" />
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </>
         )}
       </Animated.View>
 
-      {success && (
-        <View style={styles.successOverlay} pointerEvents="none">
-          <View style={styles.successCard}>
-            <Ionicons name="checkmark-circle" size={64} color={colors.gold} />
-            <Text style={styles.successTitle}>Order Placed!</Text>
-            <Text style={styles.successSub}>Your royal feast is on the way 🙏</Text>
-          </View>
+      <Modal transparent visible={success} animationType="fade" statusBarTranslucent>
+        <View style={styles.successOverlay}>
+          <LottieView
+            ref={lottieRef}
+            source={thankYouJson}
+            autoPlay
+            loop={false}
+            onAnimationFinish={() => {
+              setSuccess(false);
+              setReceiptOrder(tempOrderRef.current);
+            }}
+            style={{ width: 280, height: 280 }}
+          />
         </View>
-      )}
+      </Modal>
 
-      {/* Receipt & Feedback Modal shown after placing order */}
+
+
+      {/* Receipt Modal shown after placing order */}
       <Modal visible={!!receiptOrder} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -268,31 +302,15 @@ export default function Cart() {
               </ScrollView>
             )}
 
-            <View style={{ height: 12 }} />
-            <Text style={styles.modalSub}>Rate your experience</Text>
-            <View style={{ flexDirection: "row", gap: 8, marginVertical: 8 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => setRating(s)} style={[styles.starBtn, rating === s && styles.starBtnActive]}>
-                  <Ionicons name={rating >= s ? "star" : "star-outline"} size={18} color={rating >= s ? colors.gold : colors.textSecondary} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            <View style={{ height: 16 }} />
 
-            <TextInput
-              placeholder="Leave a feedback (optional)"
-              placeholderTextColor={colors.textSecondary}
-              value={feedback}
-              onChangeText={setFeedback}
-              style={styles.feedbackInput}
-              multiline
-            />
-
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-              <TouchableOpacity style={[styles.modalBtn, { flex: 1 }]} onPress={submitFeedback} testID="submit-feedback-btn">
-                <Text style={styles.modalBtnText}>Submit</Text>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+              <TouchableOpacity style={[styles.modalBtn, { flex: 1.3, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.gold }]} onPress={shareReceipt} testID="share-receipt-btn">
+                <Ionicons name="share-social-outline" size={16} color="#0A0A0A" />
+                <Text style={styles.modalBtnText}>Share Receipt</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: "#333", borderColor: colors.border }]} onPress={shareReceipt} testID="share-receipt-btn">
-                <Text style={styles.modalBtnText}>Share</Text>
+              <TouchableOpacity style={[styles.modalBtn, { flex: 1, backgroundColor: "#333", borderColor: colors.border }]} onPress={handleDone} testID="close-receipt-btn">
+                <Text style={[styles.modalBtnText, { color: "#FFF" }]}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -334,11 +352,18 @@ const styles = StyleSheet.create({
   billVal: { color: "#FFF" },
   totalLabel: { color: "#FFF", fontWeight: "700", fontSize: 16 },
   totalVal: { color: colors.gold, fontWeight: "800", fontSize: 20 },
-  footer: { padding: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
+  footer: { paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg },
+  modeContainer: { padding: 16, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: "rgba(212, 175, 55, 0.15)", marginTop: 16 },
+  modeTitle: { color: "#FFF", fontSize: 13, fontWeight: "800", marginBottom: 12, letterSpacing: 0.5, textTransform: "uppercase" },
   modeRow: { flexDirection: "row", gap: 8 },
-  modeBtn: { flex: 1, paddingVertical: 14, borderRadius: 24, backgroundColor: colors.gold, alignItems: "center" },
-  modeText: { color: "#000", fontWeight: "800", fontSize: 12 },
-  successOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.85)", alignItems: "center", justifyContent: "center" },
+  modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: "rgba(212, 175, 55, 0.35)", backgroundColor: "transparent" },
+  modeBtnActive: { backgroundColor: colors.gold, borderColor: colors.gold },
+  modeText: { color: colors.gold, fontWeight: "800", fontSize: 12 },
+  modeTextActive: { color: "#000" },
+  checkoutBtn: { shadowColor: "#C9A84C", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6 },
+  checkoutBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 28 },
+  checkoutText: { color: "#000", fontSize: 14, fontWeight: "900", letterSpacing: 0.8 },
+  successOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.85)", alignItems: "center", justifyContent: "center" },
   successCard: { backgroundColor: colors.surface, padding: 30, borderRadius: 20, alignItems: "center", borderWidth: 1, borderColor: colors.gold, gap: 8 },
   successTitle: { color: "#FFF", fontSize: 20, fontWeight: "700", marginTop: 10 },
   successSub: { color: colors.textSecondary, fontSize: 13 },

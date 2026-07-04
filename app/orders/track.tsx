@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
+import LottieView from "lottie-react-native";
+// import placedStatusAnim from "@/assets/placed-status.json";
 
 const STEPS = [
   { key: "Placed", label: "Order Placed", desc: "We've received your order", icon: "checkmark-circle-outline" },
@@ -102,11 +104,21 @@ export default function TrackOrder() {
             </View>
             <View style={[styles.etaFooterDivider]} />
             <View style={styles.etaFooterCol}>
-              <Text style={styles.etaFooterLabel}>Status</Text>
-              <Text style={[styles.etaFooterVal, { color: colors.gold }]}>
-                {EMOJI_MAP[active.status] ?? ""} {active.status}
-              </Text>
+            <Text style={styles.etaFooterLabel}>Status</Text>
+            <View style={styles.statusRow}>
+              {active.status === "Placed" ? (
+                <LottieView
+                  source={require("../../assets/placed-status.json")}
+                  autoPlay
+                  loop={false}
+                  style={{ width: 24, height: 24 }}
+                />
+              ) : (
+                <Text style={styles.emojiText}>{EMOJI_MAP[active.status] ?? ""}</Text>
+              )}
+              <Text style={[styles.etaFooterVal, { color: colors.gold, marginLeft: 4 }]}> {active.status}</Text>
             </View>
+          </View>
           </View>
         </View>
 
@@ -599,9 +611,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#FFF",
   },
-  totalVal: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: colors.gold,
-  },
+  totalVal: { fontSize: 18, fontWeight: "900", color: colors.gold, },
+  statusRow: { flexDirection: "row", alignItems: "center" },
+  emojiText: { fontSize: 16 }
 });

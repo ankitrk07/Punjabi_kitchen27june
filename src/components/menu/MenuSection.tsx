@@ -22,7 +22,7 @@ type Props = {
   viewMode?: "grid" | "cinematic";
 };
 
-export default function MenuSection({ section, favorites, onToggleFavorite, onAddToCart, onOpen, onCardRef, viewMode = "grid" }: Props) {
+const MenuSection = React.memo(function MenuSection({ section, favorites, onToggleFavorite, onAddToCart, onOpen, onCardRef, viewMode = "grid" }: Props) {
   return (
     <View style={styles.block}>
       <View style={styles.head}>
@@ -56,7 +56,9 @@ export default function MenuSection({ section, favorites, onToggleFavorite, onAd
       </View>
     </View>
   );
-}
+});
+
+export default MenuSection;
 
 const styles = StyleSheet.create({
   block: { gap: 14, marginBottom: 8 },

@@ -75,33 +75,48 @@ const MODES = [
     label: "Dine In",
     icon: "restaurant",
     desc: "Reserve a table",
-    colors: ["rgba(0, 150, 136, 0.04)", "rgba(5, 5, 5, 0.96)"],
-    activeColors: ["rgba(0, 150, 136, 0.10)", "rgba(5, 5, 5, 0.96)"],
+    colors: ["rgba(0, 150, 136, 0.24)", "rgba(5, 5, 5, 0.88)"],
+    activeColors: ["rgba(0, 150, 136, 0.38)", "rgba(5, 5, 5, 0.85)"],
     iconGradient: ["#00897bac", "#004d408c"],
     borderColor: "rgba(0, 150, 135, 0.15)",
     activeBorderColor: "rgba(0, 150, 135, 0.22)",
+    bgImage: require("../../assets/images/dine_in.jpg"),
+    imageOpacity: 0.85,
+    activeImageOpacity: 1.0,
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 1 },
   },
   {
     id: "takeaway",
     label: "Takeaway",
     icon: "bag",
     desc: "Pick up your order",
-    colors: ["rgba(212, 175, 55, 0.04)", "rgba(5, 5, 5, 0.96)"],
-    activeColors: ["rgba(212, 175, 55, 0.10)", "rgba(5, 5, 5, 0.96)"],
+    colors: ["rgba(212, 175, 55, 0.18)", "rgba(5, 5, 5, 0.96)"],
+    activeColors: ["rgba(212, 175, 55, 0.32)", "rgba(5, 5, 5, 0.96)"],
     iconGradient: ["#b58f26ff", "#544525ff"],
     borderColor: "rgba(201, 168, 76, 0.11)",
     activeBorderColor: "rgba(201, 168, 76, 0.28)",
+    bgImage: require("../../assets/images/takeaway.jpg"),
+    imageOpacity: 0.55,
+    activeImageOpacity: 0.7,
+    start: { x: 1, y: 0 },
+    end: { x: 0, y: 1 },
   },
   {
     id: "delivery",
     label: "Delivery",
     icon: "bicycle",
-    desc: "Hot & fresh delivery",
-    colors: ["rgba(0, 150, 136, 0.04)", "rgba(5, 5, 5, 0.96)"],
-    activeColors: ["rgba(0, 150, 136, 0.10)", "rgba(5, 5, 5, 0.96)"],
+    desc: "Hot & fresh",
+    colors: ["rgba(0, 150, 136, 0.24)", "rgba(5, 5, 5, 0.88)"],
+    activeColors: ["rgba(0, 150, 136, 0.38)", "rgba(5, 5, 5, 0.85)"],
     iconGradient: ["#00897bac", "#004d408c"],
     borderColor: "rgba(0, 150, 135, 0.15)",
     activeBorderColor: "rgba(0, 150, 135, 0.22)",
+    bgImage: require("../../assets/images/delivery.png"),
+    imageOpacity: 0.85,
+    activeImageOpacity: 1.0,
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 1 },
   },
 ];
 
@@ -510,31 +525,56 @@ function AnimatedModeCard({
       >
         <LinearGradient
           colors={active ? (item.activeColors as [string, string]) : (item.colors as [string, string])}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+          start={item.start as any}
+          end={item.end as any}
           style={[
             modeCard.card,
-            {
-              borderColor: active ? item.activeBorderColor : item.borderColor,
-            }
+            { borderColor: active ? item.activeBorderColor : item.borderColor }
           ]}
         >
+          {item.bgImage && (
+            <Image
+              source={item.bgImage}
+              style={[
+                modeCard.bgImage,
+                { opacity: active ? item.activeImageOpacity : item.imageOpacity }
+              ]}
+              contentFit="cover"
+              contentPosition="right bottom"
+            />
+          )}
+          <LinearGradient
+            colors={["rgba(0, 0, 0, 0.98)", "rgba(0, 0, 0, 0.0)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.75, y: 0.75 }}
+            style={modeCard.overlay}
+          />
+
           <LinearGradient
             colors={item.iconGradient as [string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={modeCard.iconCircle}
           >
-            <Ionicons name={item.icon as any} size={20} color="#FFF" />
+            <Ionicons name={item.icon as any} size={17} color="#FFF" />
           </LinearGradient>
 
-          <Text style={modeCard.label}>
-            {item.label}
-          </Text>
-          <Text style={modeCard.desc}>{item.desc}</Text>
+          <View style={modeCard.textGroup}>
+            <Text style={modeCard.label} numberOfLines={1}>
+              {item.label}
+            </Text>
+            <Text style={modeCard.desc} numberOfLines={1}>
+              {item.desc}
+            </Text>
+          </View>
 
-          <View style={modeCard.arrowCircle}>
-            <Ionicons name="arrow-forward" size={11} color="rgba(255,255,255,0.7)" />
+          <View
+            style={[
+              modeCard.arrowCircle,
+              { borderColor: active ? item.activeBorderColor : item.borderColor }
+            ]}
+          >
+            <Ionicons name="chevron-forward" size={14} color="#FFF" />
           </View>
         </LinearGradient>
       </TouchableOpacity>
@@ -584,47 +624,63 @@ const modeCard = StyleSheet.create({
   },
   card: {
     borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: "center",
-    gap: 6,
+    borderWidth: 0.8,
+    paddingTop: 16,
+    paddingBottom: 14,
+    paddingHorizontal: 12,
+    alignItems: "flex-start",
     overflow: "hidden",
     position: "relative",
+    height: 155,
+    justifyContent: "space-between",
   },
   glowLayer: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 18,
   },
+  textGroup: {
+    width: "100%",
+    gap: 2,
+    alignItems: "center",
+  },
   iconCircle: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 34, height: 34, borderRadius: 17,
     alignItems: "center", justifyContent: "center",
+    alignSelf: "center",
   },
   label: {
     color: "#fff",
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif" }),
-    fontStyle: "italic",
-    fontWeight: "600",
-    fontSize: 14.5,
+    fontFamily: Platform.select({ ios: "System", android: "sans-serif" }),
+    fontWeight: "700",
+    fontSize: 16,
     letterSpacing: 0.1,
-    marginTop: 2,
+    textAlign: "center",
   },
   desc: {
     color: "rgba(255,255,255,0.45)",
     fontSize: 10,
     textAlign: "center",
-    letterSpacing: 0.2,
-    lineHeight: 13,
+    letterSpacing: 0.1,
   },
   arrowCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 0.8,
-    borderColor: "rgba(255, 255, 255, 0.25)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  bgImage: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: "90%",
+    height: "65%",
+    borderRadius: 18,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
   },
 });
 

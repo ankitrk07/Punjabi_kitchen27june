@@ -73,6 +73,7 @@ import Animated, {
     withTiming
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import LottieView from "lottie-react-native";
 
 /* ================================================================
    §1  SCREEN METRICS
@@ -953,9 +954,9 @@ function FoodTransitionOverlay({ visible }: { visible: boolean }) {
     const backdropOpacity = useSharedValue(0);
     const cardScale = useSharedValue(0.88);
     const cardY = useSharedValue(14);
-    const steamPulse = useSharedValue(0.2);
-    const leftFloat = useSharedValue(0);
-    const rightFloat = useSharedValue(0);
+    
+    // Load the Lottie JSON
+    const animJson = require("../../assets/dinner-anim.json");
 
     useEffect(() => {
         if (visible) {
@@ -969,30 +970,6 @@ function FoodTransitionOverlay({ visible }: { visible: boolean }) {
                 withSpring(-3, { damping: 20, stiffness: 220, overshootClamping: true }),
                 withSpring(0, { damping: 20, stiffness: 220, overshootClamping: true })
             );
-            steamPulse.value = withRepeat(
-                withSequence(
-                    withTiming(0.9, { duration: 320, easing: Easing.inOut(Easing.quad) }),
-                    withTiming(0.25, { duration: 320, easing: Easing.inOut(Easing.quad) })
-                ),
-                -1,
-                true
-            );
-            leftFloat.value = withRepeat(
-                withSequence(
-                    withTiming(-8, { duration: 320, easing: Easing.inOut(Easing.quad) }),
-                    withTiming(0, { duration: 320, easing: Easing.inOut(Easing.quad) })
-                ),
-                -1,
-                true
-            );
-            rightFloat.value = withRepeat(
-                withSequence(
-                    withTiming(8, { duration: 320, easing: Easing.inOut(Easing.quad) }),
-                    withTiming(0, { duration: 320, easing: Easing.inOut(Easing.quad) })
-                ),
-                -1,
-                true
-            );
         } else {
             backdropOpacity.value = withTiming(0, { duration: 180, easing: EASE_STANDARD });
         }
@@ -1001,9 +978,6 @@ function FoodTransitionOverlay({ visible }: { visible: boolean }) {
             cancelAnimation(backdropOpacity);
             cancelAnimation(cardScale);
             cancelAnimation(cardY);
-            cancelAnimation(steamPulse);
-            cancelAnimation(leftFloat);
-            cancelAnimation(rightFloat);
         };
     }, [visible]);
 
@@ -1015,42 +989,23 @@ function FoodTransitionOverlay({ visible }: { visible: boolean }) {
         transform: [{ translateY: cardY.value }, { scale: cardScale.value }],
     }));
 
-    const steamStyle = useAnimatedStyle(() => ({
-        opacity: steamPulse.value,
-        transform: [{ scaleY: 0.9 + steamPulse.value * 0.15 }],
-    }));
-
-    const leftEmojiStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: leftFloat.value }],
-    }));
-
-    const rightEmojiStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: rightFloat.value }],
-    }));
-
     return (
         <Modal transparent visible={visible} animationType="fade" statusBarTranslucent>
             <Animated.View pointerEvents="none" style={[styles.foodBackdrop, backdropStyle]}>
                 <LinearGradient
-                    colors={["rgba(0,0,0,0.82)", "rgba(0,0,0,0.62)", "rgba(0,0,0,0.82)"]}
+                    colors={["#000000", "#000000"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
                 />
 
-                <Animated.View style={[styles.foodCard, cardStyle]}>
-                    <View style={styles.foodGlow} />
-                    <Text style={styles.foodKicker}>PREPARING YOUR TABLE</Text>
-                    <Animated.Text style={[styles.foodMain, { transform: [{ translateY: -2 }] }]}>🍛</Animated.Text>
-                    <Animated.View style={[styles.foodSteamRow, steamStyle]}>
-                        <Text style={styles.foodSteam}>♨️</Text>
-                    </Animated.View>
-                    <View style={styles.foodSideRow}>
-                        <Animated.Text style={[styles.foodSideEmoji, leftEmojiStyle]}>🫓</Animated.Text>
-                        <Text style={styles.foodSideDivider}>•</Text>
-                        <Animated.Text style={[styles.foodSideEmoji, rightEmojiStyle]}>🌶️</Animated.Text>
-                    </View>
-                    <Text style={styles.foodCaption}>Serving something warm and fresh</Text>
+                <Animated.View pointerEvents="none" style={[styles.foodCard, cardStyle, { width: 340, height: 340, padding: 0, overflow: 'hidden', backgroundColor: 'transparent', borderWidth: 0, shadowColor: 'transparent' }]}>
+                    <LottieView
+                        source={animJson}
+                        autoPlay
+                        loop
+                        style={{ width: '100%', height: '100%' }}
+                    />
                 </Animated.View>
             </Animated.View>
         </Modal>
@@ -1240,10 +1195,16 @@ export default React.memo(function CustomTabBar({
                                                         clearTimeout(pendingNavigationTimeout.current);
                                                     }
                                                     setFoodTransitionVisible(true);
-                                                    pendingNavigationTimeout.current = setTimeout(() => {
+                                                    
+                                                    // Navigate after 200ms so the overlay is visible first
+                                                    setTimeout(() => {
                                                         navigation.navigate(route.name, route.params);
-                                                        setTimeout(() => setFoodTransitionVisible(false), 160);
-                                                    }, 820);
+                                                    }, 200);
+
+                                                    // Keep overlay for 3.2 seconds total, then fade out
+                                                    pendingNavigationTimeout.current = setTimeout(() => {
+                                                        setFoodTransitionVisible(false);
+                                                    }, 3200);
                                                     return;
                                                 }
                                                 navigation.navigate(route.name, route.params);

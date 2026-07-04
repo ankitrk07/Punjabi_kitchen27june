@@ -1,5 +1,5 @@
-import { colors } from "@/src/theme";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -10,6 +10,7 @@ interface Mode {
   label: string;
   icon: string;
   desc: string;
+  bgImage?: any;
 }
 
 interface Props {
@@ -32,6 +33,21 @@ export default function HomeModes({ modes }: Props) {
             end={{ x: 1, y: 1 }}
             style={styles.modeGrad}
           >
+            {m.bgImage && (
+              <Image
+                source={m.bgImage}
+                style={[
+                  styles.bgImage,
+                  { opacity: 0.22 }
+                ]}
+                contentFit="cover"
+              />
+            )}
+            <LinearGradient
+              colors={["rgba(5, 5, 5, 0.55)", "rgba(5, 5, 5, 0.96)"]}
+              style={styles.overlay}
+            />
+
             <View style={styles.iconWrap}>
               <Ionicons
                 name={m.icon as any}
@@ -67,46 +83,52 @@ const styles = StyleSheet.create({
   },
 
   modeGrad: {
-  minHeight: 140,
-  paddingTop: 10,
-  paddingBottom: 10,
-  paddingHorizontal: 10,
-  alignItems: "center",
-  justifyContent: "space-between",
-},
+    minHeight: 140,
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   iconWrap: {
-  width: 40,
-  height: 40,
-  borderRadius: 36,
-  justifyContent: "center",
-  alignItems: "center",
-  backgroundColor: "rgba(255,255,255,0.06)",
-  borderWidth: 1.5,
-  borderColor: "rgba(255, 255, 255, 0.17)",
-},
- modeLabel: {
-  marginTop: 0,
-  color: "#F5F1E8",
-  fontWeight: "400",
-  fontSize: 18,
-  fontFamily: "cursive",
-},
+    width: 40,
+    height: 40,
+    borderRadius: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.17)",
+  },
+  modeLabel: {
+    marginTop: 0,
+    color: "#F5F1E8",
+    fontWeight: "400",
+    fontSize: 18,
+    fontFamily: "cursive",
+  },
 
   modeDesc: {
-    marginTop:-5,
-  color: "rgba(255,255,255,0.65)",
-  fontSize: 10,
-  textAlign: "center",
-  lineHeight: 18,
-},
- arrowBtn: {
-  marginTop: 2 ,
-  width: 25,
-  height: 25,
-  borderRadius: 19,
-  borderWidth: 1,
-  borderColor: "rgba(212, 175, 55, 0.27)",
-  justifyContent: "center",
-  alignItems: "center",
-},
+    marginTop: -5,
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 10,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  arrowBtn: {
+    marginTop: 2,
+    width: 25,
+    height: 25,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: "rgba(212, 175, 55, 0.27)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
 });

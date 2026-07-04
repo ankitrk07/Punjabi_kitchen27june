@@ -12,8 +12,8 @@ import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -370,6 +370,204 @@ export default function MenuScreen() {
     return catsSource.filter((c) => c.parentId === selectedCategory);
   }, [selectedCategory, apiCategories]);
 
+
+
+  const flatListData = useMemo(() => {
+    const list: any[] = [];
+    list.push({ id: "header", type: "header" });
+    list.push({ id: "search", type: "search" });
+    list.push({ id: "filters", type: "filters" });
+
+    if (categorySections.length === 0) {
+      list.push({ id: "empty", type: "empty" });
+    } else {
+      categorySections.forEach((section) => {
+        list.push({ id: `section-${section.id}`, type: "section", data: section });
+      });
+    }
+    return list;
+  }, [categorySections]);
+
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    switch (item.type) {
+      case "header":
+        return (
+          <View style={styles.menuHeader}>
+            <View style={{ flex: 1, paddingRight: 60 }}>
+              <Text style={styles.kicker}>ROYAL CULINARY SELECTION</Text>
+              <Text style={styles.headerTitle}>Master Menu</Text>
+            </View>
+          </View>
+        );
+      case "search":
+        return (
+          <MenuSearchBar
+            value={search}
+            onChangeText={setSearch}
+            onClear={() => setSearch("")}
+            itemCount={filteredDishes.length}
+          />
+        );
+      case "filters":
+        return (
+          <View style={styles.stickyFilters}>
+            <CategoryFilterBar
+              filters={filters}
+              selectedId={selectedCategory}
+              onSelect={setSelectedCategory}
+            />
+
+            {currentSubCats.length > 0 && (
+              <View style={styles.subTabsContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabsScroll} style={{ maxHeight: 50 }}>
+                  <TouchableOpacity
+                    style={[styles.subTabBtn, selectedSubTab === "all" && styles.subTabBtnActive]}
+                    onPress={() => setSelectedSubTab("all")}
+                  >
+                    <Text style={[styles.subTabText, selectedSubTab === "all" && styles.subTabTextActive]}>All</Text>
+                  </TouchableOpacity>
+                  {currentSubCats.map((sc) => (
+                    <TouchableOpacity
+                      key={sc.id}
+                      style={[styles.subTabBtn, selectedSubTab === sc.id && styles.subTabBtnActive]}
+                      onPress={() => setSelectedSubTab(sc.id)}
+                    >
+                      <Text style={[styles.subTabText, selectedSubTab === sc.id && styles.subTabTextActive]}>{sc.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Dietary Segment Row (Spacious & Clean) */}
+            <View style={styles.dietaryRow}>
+              <DietaryFilter value={dishType} onChange={setDishType} />
+            </View>
+
+            {/* HUD actions Row (Spacious controls and result indicator) */}
+            <View style={styles.hudRow}>
+              <Text style={styles.resultCountText}>
+                Showing {filteredDishes.length} {filteredDishes.length === 1 ? 'dish' : 'dishes'}
+              </Text>
+
+              <View style={styles.hudActions}>
+                {/* Filter Drawer Toggle */}
+                <TouchableOpacity
+                  onPress={() => setShowExtendedFilters(!showExtendedFilters)}
+                  style={[styles.hudBtn, (priceRange !== "all" || sortBy !== "popular") && styles.hudBtnActive]}
+                >
+                  <Ionicons name="options-outline" size={14} color={(priceRange !== "all" || sortBy !== "popular") ? colors.gold : colors.textPrimary} />
+                  <Text style={[(priceRange !== "all" || sortBy !== "popular") ? styles.hudBtnTextActive : styles.hudBtnText]}>Filters</Text>
+                </TouchableOpacity>
+
+                {/* View Mode Toggle Switcher */}
+                <View style={styles.viewToggleBox}>
+                  <TouchableOpacity
+                    onPress={() => setViewMode("grid")}
+                    style={[styles.viewBtn, viewMode === "grid" && styles.viewBtnActive]}
+                  >
+                    <Ionicons name="grid-outline" size={13} color={viewMode === "grid" ? colors.gold : colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setViewMode("cinematic")}
+                    style={[styles.viewBtn, viewMode === "cinematic" && styles.viewBtnActive]}
+                  >
+                    <Ionicons name="tv-outline" size={13} color={viewMode === "cinematic" ? colors.gold : colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* Extended Custom Filter & Sort Drawer */}
+            {showExtendedFilters && (
+              <View style={styles.extendedDrawer}>
+                {/* Custom Price Filters */}
+                <View style={styles.filterGroup}>
+                  <Text style={styles.filterGroupTitle}>PRICE RANGE</Text>
+                  <View style={styles.chipGrid}>
+                    {[
+                      { id: "all", label: "All Prices" },
+                      { id: "under-200", label: "Under ₹200" },
+                      { id: "200-350", label: "₹200 - ₹350" },
+                      { id: "above-350", label: "Above ₹350" },
+                    ].map((p) => (
+                      <TouchableOpacity
+                        key={p.id}
+                        onPress={() => setPriceRange(p.id as PriceRangeFilter)}
+                        style={[styles.filterChip, priceRange === p.id && styles.filterChipActive]}
+                      >
+                        <Text style={[styles.filterChipText, priceRange === p.id && styles.filterChipTextActive]}>{p.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Sorting Options */}
+                <View style={styles.filterGroup}>
+                  <Text style={styles.filterGroupTitle}>SORT BY</Text>
+                  <View style={styles.chipGrid}>
+                    {[
+                      { id: "popular", label: "Popularity" },
+                      { id: "rating", label: "Top Rated ★" },
+                      { id: "price-asc", label: "Price: Low to High" },
+                      { id: "price-desc", label: "Price: High to Low" },
+                    ].map((s) => (
+                      <TouchableOpacity
+                        key={s.id}
+                        onPress={() => setSortBy(s.id as SortOption)}
+                        style={[styles.filterChip, sortBy === s.id && styles.filterChipActive]}
+                      >
+                        <Text style={[styles.filterChipText, sortBy === s.id && styles.filterChipTextActive]}>{s.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        );
+      case "empty":
+        return (
+          <MenuEmptyState
+            title="No dishes matched your filters"
+            message="Try clearing your price range or category search."
+          />
+        );
+      case "section":
+        return (
+          <View style={styles.sectionsWrap}>
+            <MenuSection
+              section={item.data}
+              favorites={favoritesIds}
+              onToggleFavorite={toggleFavorite}
+              onAddToCart={handleAddToCart}
+              onOpen={openDish}
+              onCardRef={(dishId, node) => { cardRefs.current[dishId] = node; }}
+              viewMode={viewMode}
+            />
+          </View>
+        );
+      default:
+        return null;
+    }
+  }, [
+    search,
+    filteredDishes,
+    filters,
+    selectedCategory,
+    currentSubCats,
+    selectedSubTab,
+    dishType,
+    showExtendedFilters,
+    priceRange,
+    sortBy,
+    viewMode,
+    favoritesIds,
+    toggleFavorite,
+    handleAddToCart,
+    openDish,
+  ]);
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <TopBar
@@ -380,180 +578,30 @@ export default function MenuScreen() {
         setSearch={setSearch}
       />
 
-      <Animated.ScrollView
-        {...({
-          contentContainerStyle: styles.content,
-          showsVerticalScrollIndicator: false,
-          stickyHeaderIndices: [2],
-          keyboardShouldPersistTaps: "handled",
-          onScroll: onScroll,
-          scrollEventThrottle: 16,
-          refreshControl: (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.gold}
-              colors={[colors.gold]}
-              progressBackgroundColor={colors.surface}
-            />
-          )
-        } as any)}
-      >
-        {/* Executive Header */}
-        <View style={styles.menuHeader}>
-          <View style={{ flex: 1, paddingRight: 60 }}>
-            <Text style={styles.kicker}>ROYAL CULINARY SELECTION</Text>
-            <Text style={styles.headerTitle}>Master Menu</Text>
-          </View>
-        </View>
-
-        {/* Menu Search Bar */}
-        <MenuSearchBar
-          value={search}
-          onChangeText={setSearch}
-          onClear={() => setSearch("")}
-          itemCount={filteredDishes.length}
-        />
-
-        {/* Sticky Control HUD — Genius Airy Structure */}
-        <View style={styles.stickyFilters}>
-          <CategoryFilterBar
-            filters={filters}
-            selectedId={selectedCategory}
-            onSelect={setSelectedCategory}
+      <Animated.FlatList
+        data={flatListData}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
+        keyboardShouldPersistTaps="handled"
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === "android"}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.gold}
+            colors={[colors.gold]}
+            progressBackgroundColor={colors.surface}
           />
-
-          {currentSubCats.length > 0 && (
-            <View style={styles.subTabsContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabsScroll} style={{ maxHeight: 50 }}>
-                <TouchableOpacity
-                  style={[styles.subTabBtn, selectedSubTab === "all" && styles.subTabBtnActive]}
-                  onPress={() => setSelectedSubTab("all")}
-                >
-                  <Text style={[styles.subTabText, selectedSubTab === "all" && styles.subTabTextActive]}>All</Text>
-                </TouchableOpacity>
-                {currentSubCats.map((sc) => (
-                  <TouchableOpacity
-                    key={sc.id}
-                    style={[styles.subTabBtn, selectedSubTab === sc.id && styles.subTabBtnActive]}
-                    onPress={() => setSelectedSubTab(sc.id)}
-                  >
-                    <Text style={[styles.subTabText, selectedSubTab === sc.id && styles.subTabTextActive]}>{sc.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Dietary Segment Row (Spacious & Clean) */}
-          <View style={styles.dietaryRow}>
-            <DietaryFilter value={dishType} onChange={setDishType} />
-          </View>
-
-          {/* HUD actions Row (Spacious controls and result indicator) */}
-          <View style={styles.hudRow}>
-            <Text style={styles.resultCountText}>
-              Showing {filteredDishes.length} {filteredDishes.length === 1 ? 'dish' : 'dishes'}
-            </Text>
-
-            <View style={styles.hudActions}>
-              {/* Filter Drawer Toggle */}
-              <TouchableOpacity
-                onPress={() => setShowExtendedFilters(!showExtendedFilters)}
-                style={[styles.hudBtn, (priceRange !== "all" || sortBy !== "popular") && styles.hudBtnActive]}
-              >
-                <Ionicons name="options-outline" size={14} color={(priceRange !== "all" || sortBy !== "popular") ? colors.gold : colors.textPrimary} />
-                <Text style={[(priceRange !== "all" || sortBy !== "popular") ? styles.hudBtnTextActive : styles.hudBtnText]}>Filters</Text>
-              </TouchableOpacity>
-
-              {/* View Mode Toggle Switcher */}
-              <View style={styles.viewToggleBox}>
-                <TouchableOpacity
-                  onPress={() => setViewMode("grid")}
-                  style={[styles.viewBtn, viewMode === "grid" && styles.viewBtnActive]}
-                >
-                  <Ionicons name="grid-outline" size={13} color={viewMode === "grid" ? colors.gold : colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setViewMode("cinematic")}
-                  style={[styles.viewBtn, viewMode === "cinematic" && styles.viewBtnActive]}
-                >
-                  <Ionicons name="tv-outline" size={13} color={viewMode === "cinematic" ? colors.gold : colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* Extended Custom Filter & Sort Drawer */}
-          {showExtendedFilters && (
-            <View style={styles.extendedDrawer}>
-              {/* Custom Price Filters */}
-              <View style={styles.filterGroup}>
-                <Text style={styles.filterGroupTitle}>PRICE RANGE</Text>
-                <View style={styles.chipGrid}>
-                  {[
-                    { id: "all", label: "All Prices" },
-                    { id: "under-200", label: "Under ₹200" },
-                    { id: "200-350", label: "₹200 - ₹350" },
-                    { id: "above-350", label: "Above ₹350" },
-                  ].map((p) => (
-                    <TouchableOpacity
-                      key={p.id}
-                      onPress={() => setPriceRange(p.id as PriceRangeFilter)}
-                      style={[styles.filterChip, priceRange === p.id && styles.filterChipActive]}
-                    >
-                      <Text style={[styles.filterChipText, priceRange === p.id && styles.filterChipTextActive]}>{p.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Sorting Options */}
-              <View style={styles.filterGroup}>
-                <Text style={styles.filterGroupTitle}>SORT BY</Text>
-                <View style={styles.chipGrid}>
-                  {[
-                    { id: "popular", label: "Popularity" },
-                    { id: "rating", label: "Top Rated ★" },
-                    { id: "price-asc", label: "Price: Low to High" },
-                    { id: "price-desc", label: "Price: High to Low" },
-                  ].map((s) => (
-                    <TouchableOpacity
-                      key={s.id}
-                      onPress={() => setSortBy(s.id as SortOption)}
-                      style={[styles.filterChip, sortBy === s.id && styles.filterChipActive]}
-                    >
-                      <Text style={[styles.filterChipText, sortBy === s.id && styles.filterChipTextActive]}>{s.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {categorySections.length === 0 ? (
-          <MenuEmptyState
-            title="No dishes matched your filters"
-            message="Try clearing your price range or category search."
-          />
-        ) : (
-          <View style={styles.sectionsWrap}>
-            {categorySections.map((section) => (
-              <MenuSection
-                key={section.id}
-                section={section}
-                favorites={favoritesIds}
-                onToggleFavorite={toggleFavorite}
-                onAddToCart={handleAddToCart}
-                onOpen={openDish}
-                onCardRef={(dishId, node) => { cardRefs.current[dishId] = node; }}
-                viewMode={viewMode}
-              />
-            ))}
-          </View>
-        )}
-      </Animated.ScrollView>
+        }
+      />
 
       {flyingItems.map((item) => (
         <FlyingDish

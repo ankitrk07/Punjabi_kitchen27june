@@ -77,7 +77,7 @@ function VegNonVegIndicator({ isVeg, size = 16 }: { isVeg: boolean; size?: numbe
   );
 }
 
-export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAddToCart, onOpen, cardRef, viewMode = "grid" }: Props) {
+const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAddToCart, onOpen, cardRef, viewMode = "grid" }: Props) {
   const specialTag = SPECIAL_TAGS[dish.id] ?? { label: "", bg: "", color: "", time: "15 mins", cal: "350 kcal" };
 
   if (viewMode === "cinematic") {
@@ -222,7 +222,9 @@ export default function MenuDishCard({ dish, isFavorite, onToggleFavorite, onAdd
       </View>
     </TouchableOpacity>
   );
-}
+});
+
+export default MenuDishCard;
 
 const styles = StyleSheet.create({
   // Grid styles
