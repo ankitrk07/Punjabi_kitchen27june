@@ -136,7 +136,7 @@ const FlyingDish: React.FC<FlyingDishProps> = ({
 };
 
 export default function MenuScreen() {
-  const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim, refreshAllData } = useApp();
+  const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim, refreshAllData, favorites: favoritesIds, toggleFavorite } = useApp();
   const scrollY = useSharedValue(0);
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
@@ -161,7 +161,6 @@ export default function MenuScreen() {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [viewMode, setViewMode] = useState<"grid" | "cinematic">("grid");
   const [showExtendedFilters, setShowExtendedFilters] = useState(false);
-  const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -241,22 +240,7 @@ export default function MenuScreen() {
     ]).start();
   };
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const saved = await storage.getItem<string[]>("pk_favorites", []);
-      if (mounted && saved) setFavoritesIds(saved);
-    })();
-    return () => { mounted = false; };
-  }, []);
 
-  const toggleFavorite = async (id: string) => {
-    setFavoritesIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [id, ...prev];
-      void storage.setItem("pk_favorites", next);
-      return next;
-    });
-  };
 
   const openDish = (dish: (typeof DISHES)[number]) => {
     const card = cardRefs.current[dish.id];
@@ -889,3 +873,4 @@ const styles = StyleSheet.create({
   },
   sectionsWrap: { paddingTop: 16, gap: 16 },
 });
+

@@ -145,6 +145,7 @@ function AnimatedPromoTicker() {
   const translateX = useSharedValue(0);
   const fullText = PROMO_ITEMS.join("          ");
   const TICKER_W = fullText.length * 7.2;
+  const fadeColor = "rgba(18, 12, 10, 0.9)";
 
   useEffect(() => {
     translateX.value = withRepeat(
@@ -161,7 +162,7 @@ function AnimatedPromoTicker() {
   return (
     <View style={ticker.wrap} pointerEvents="none">
       <LinearGradient
-        colors={[colors.bg, "transparent"]}
+        colors={[fadeColor, "transparent"]}
         start={{ x: 0, y: 0.5 }} end={{ x: 0.12, y: 0.5 }}
         style={ticker.fadeLeft} pointerEvents="none"
       />
@@ -169,7 +170,7 @@ function AnimatedPromoTicker() {
         {fullText}{"          "}{fullText}
       </Animated.Text>
       <LinearGradient
-        colors={["transparent", colors.bg]}
+        colors={["transparent", fadeColor]}
         start={{ x: 0.88, y: 0.5 }} end={{ x: 1, y: 0.5 }}
         style={ticker.fadeRight} pointerEvents="none"
       />
@@ -179,14 +180,18 @@ function AnimatedPromoTicker() {
 
 const ticker = StyleSheet.create({
   wrap: {
-    height: 34,
-    backgroundColor: GOLD_SOFT,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "rgba(201,168,76,0.3)",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 32,
+    backgroundColor: "rgba(18, 12, 10, 0.9)",
+    borderTopWidth: 0.5,
+    borderTopColor: "rgba(201,168,76,0.35)",
     overflow: "hidden",
     justifyContent: "center",
   },
-  text: { color: GOLD_LIGHT, fontSize: 12, fontWeight: "500", letterSpacing: 0.3, width: 9999 },
+  text: { color: GOLD_LIGHT, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, width: 9999 },
   fadeLeft: { position: "absolute", left: 0, top: 0, bottom: 0, width: 40, zIndex: 2 },
   fadeRight: { position: "absolute", right: 0, top: 0, bottom: 0, width: 40, zIndex: 2 },
 });
@@ -200,37 +205,17 @@ const ticker = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 function AnimatedGreeting() {
   const { user } = useApp();
-  const router = useRouter();
   const userName = user?.name || "Guest";
-  const initial = userName.charAt(0).toUpperCase();
 
   return (
     <Animated.View
       entering={FadeInDown.delay(100).springify().damping(20)}
       style={greeting.row}
     >
-      <View>
-        <Text style={greeting.welcomeLabel}>Hello there 👋</Text>
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+        <Text style={greeting.welcomeLabel}>Hello there 👋,</Text>
         <Text style={greeting.nameText}>{userName}</Text>
       </View>
-
-      <TouchableOpacity
-        style={greeting.avatarContainer}
-        onPress={() => router.replace("/(tabs)/profile")}
-        activeOpacity={0.8}
-        testID="profile-avatar-btn"
-      >
-        <LinearGradient
-          colors={["#F0D488", "#C9A84C"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={greeting.avatarBorder}
-        >
-          <View style={greeting.avatarBg}>
-            <Text style={greeting.avatarText}>{initial}</Text>
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -239,7 +224,6 @@ const greeting = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
@@ -248,42 +232,16 @@ const greeting = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.55)",
     fontSize: 14,
     fontWeight: "500",
-    marginBottom: 4,
   },
   nameText: {
     color: GOLD,
-    fontSize: 28,
+    fontSize: 20,
     fontFamily: Platform.select({
       ios: "Snell Roundhand",
       android: "cursive",
     }),
     fontWeight: "bold",
     letterSpacing: 0.5,
-  },
-  avatarContainer: {
-    shadowColor: "#C9A84C",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  avatarBorder: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    padding: 1.5,
-  },
-  avatarBg: {
-    flex: 1,
-    backgroundColor: "#111",
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    color: colors.gold,
-    fontSize: 16,
-    fontWeight: "800",
   },
 });
 
@@ -361,6 +319,19 @@ function AnimatedHeroBanner({
         <Text style={heroBanner.headlineGold}>Punjab's Soul</Text>
       </Animated.Text>
 
+      {ordersLength > 0 && (
+        <Animated.View
+          entering={FadeInDown.delay(380).springify()}
+          style={heroBanner.inlineOrdersBadge}
+        >
+          <Animated.View style={[heroBanner.ordersGlow, glowStyle]} />
+          <Ionicons name="receipt-outline" size={13} color={GOLD} />
+          <Text style={heroBanner.inlineOrdersText}>
+            {ordersLength} active order{ordersLength > 1 ? "s" : ""}
+          </Text>
+        </Animated.View>
+      )}
+
       <Animated.Text
         entering={FadeInUp.delay(460).duration(600)}
         style={heroBanner.sub}
@@ -392,18 +363,7 @@ function AnimatedHeroBanner({
         ))}
       </Animated.View>
 
-      {ordersLength > 0 && (
-        <Animated.View
-          entering={ZoomIn.delay(800).springify()}
-          style={heroBanner.ordersBadge}
-        >
-          <Animated.View style={[heroBanner.ordersGlow, glowStyle]} />
-          <Ionicons name="receipt-outline" size={14} color={GOLD} />
-          <Text style={heroBanner.ordersText}>
-            {ordersLength} active order{ordersLength > 1 ? "s" : ""}
-          </Text>
-        </Animated.View>
-      )}
+      <AnimatedPromoTicker />
     </Animated.View>
   );
 }
@@ -413,12 +373,16 @@ const heroBanner = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 4,
-    borderRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 60,
     overflow: "hidden",
     padding: 28,
+    paddingBottom: 48,
     borderWidth: 0.5,
     borderColor: "rgba(201,168,76,0.3)",
-    minHeight: 230,
+    minHeight: 240,
     justifyContent: "center",
   },
   arcWrap: {
@@ -467,13 +431,20 @@ const heroBanner = StyleSheet.create({
   },
   statVal: { color: GOLD_LIGHT, fontWeight: "700", fontSize: 15, marginBottom: 2 },
   statSub: { color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: 0.3 },
-  ordersBadge: {
-    position: "absolute", top: 20, right: 20,
-    flexDirection: "row", alignItems: "center", gap: 6,
+  inlineOrdersBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: GOLD_SOFT,
     borderRadius: 100,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 0.5, borderColor: "rgba(201,168,76,0.45)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 0.5,
+    borderColor: "rgba(201,168,76,0.45)",
+    alignSelf: "flex-start",
+    marginTop: 2,
+    marginBottom: 12,
+    position: "relative",
   },
   ordersGlow: {
     position: "absolute",
@@ -481,7 +452,7 @@ const heroBanner = StyleSheet.create({
     borderRadius: 100,
     backgroundColor: "rgba(201,168,76,0.15)",
   },
-  ordersText: { color: GOLD_LIGHT, fontSize: 12, fontWeight: "600" },
+  inlineOrdersText: { color: "#FFF", fontSize: 11, fontWeight: "700" },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1543,7 +1514,7 @@ export default function Home() {
 
         {/* CHANGE 1: Animated TopBar that hides on scroll */}
         <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }, topBarTranslateY]}>
-          <TopBar />
+          <TopBar showProfile={true} />
         </Animated.View>
 
         <Animated.ScrollView
@@ -1556,8 +1527,7 @@ export default function Home() {
           {/* Add top padding to prevent content under absolute TopBar */}
           <View style={{ height: Platform.OS === 'ios' ? 100 : 80 }} />
 
-          {/* 1. Promo ticker */}
-          <AnimatedPromoTicker />
+
 
           {/* 2. Greeting — "Hello" + user name, no PK logo */}
           <AnimatedGreeting />

@@ -1,48 +1,23 @@
+import AnimatedHeartButton from "@/src/components/AnimatedHeartButton";
 import DailyOffersCarousel from "@/src/components/DailyOffersCarousel";
 import TopBar from "@/src/components/TopBar";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
-import { DISHES } from "@/src/data/menu";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
+import { resolveImageUrl } from "@/src/utils/apiClient";
 import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import LottieView from 'lottie-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import LottieView from 'lottie-react-native';
 
 
 
-// Sample offers for the carousel
-const SAMPLE_OFFERS = [
-  {
-    id: "offer-1",
-    title: "Butter Chicken Feast",
-    subtitle: "25% off + complimentary naan",
-    price: 499,
-    image: "https://images.unsplash.com/photo-1604908177226-5c7b6a3a1b7b?q=80&w=1200&auto=format&fit=crop",
-    badge: "HOT",
-  },
-  {
-    id: "offer-2",
-    title: "Green Garden Bowl",
-    subtitle: "Buy 1 Get 1 (Veg Special)",
-    price: 299,
-    image: "https://images.unsplash.com/photo-1543352634-6f3d6f8b8b2c?q=80&w=1200&auto=format&fit=crop",
-    badge: "VEG",
-  },
-  {
-    id: "offer-3",
-    title: "Decadent Chocolate Lava",
-    subtitle: "Free scoop on orders above ₹399",
-    price: 149,
-    image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?q=80&w=1200&auto=format&fit=crop",
-    badge: "DESSERT",
-  },
-];
+// Dynamic status configurations
 
 type StatusKey = "Delivered" | "On the Way" | "Preparing" | "Ready" | string;
 
@@ -73,7 +48,7 @@ const EMOJI_MAP: Record<string, string> = {
 };
 
 // ─── Live Order progress card ────────────────────────────────────────────────
-const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { order: any; onPress: () => void }) {
+const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress, onDismiss }: { order: any; onPress: () => void; onDismiss: (id: string) => void }) {
   const { updateOrderStatus } = useApp();
   const pulseAnim = useSharedValue(1);
   const fadeAnim = useSharedValue(0);
@@ -149,6 +124,24 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
   const handleResetSimulation = () => {
     updateOrderStatus(order.id, "Placed");
   };
+
+  // Auto‑advance order status until Delivered
+  const intervalRef = useRef<any>(null);
+  useEffect(() => {
+    // Start interval only if order exists and not yet Delivered
+    if (!order || order.status === "Delivered") {
+      return;
+    }
+    intervalRef.current = setInterval(() => {
+      handleNextStep();
+    }, 3000); // advance every 3 seconds
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [order.status]);
 
   return (
     <Reanimated.View style={[s.liveCardContainer, animatedStyle]}>
@@ -283,6 +276,13 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
                 loop={true}
                 style={{ width: 80, height: 80, marginTop: -8 }}
               />
+            ) : order.status === "Delivered" ? (
+              <LottieView
+                source={require("../../assets/delivered.json")}
+                autoPlay
+                loop={false}
+                style={{ width: 80, height: 80, marginTop: -8 }}
+              />
             ) : (
               <Reanimated.Text style={[s.liveEmoji, emojiAnimatedStyle]}>
                 {EMOJI_MAP[order.status] ?? "✨"}
@@ -342,11 +342,19 @@ const LiveOrderCard = React.memo(function LiveOrderCard({ order, onPress }: { or
           </View>
         )}
 
-        <TouchableOpacity style={s.trackBtnRow} onPress={onPress}>
-          <Ionicons name="navigate-outline" size={14} color="#000" />
-          <Text style={s.trackBtnText}>Track Delivery Executive</Text>
-          <Ionicons name="arrow-forward" size={12} color="#000" style={{ marginLeft: 4 }} />
-        </TouchableOpacity>
+        {order.status === "Delivered" ? (
+          <TouchableOpacity style={s.trackBtnRow} onPress={() => onDismiss(order.id)}>
+            <Ionicons name="checkmark-circle-outline" size={14} color="#000" />
+            <Text style={s.trackBtnText}>OK</Text>
+            <Ionicons name="checkmark-circle" size={12} color="#000" style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={s.trackBtnRow} onPress={onPress}>
+            <Ionicons name="navigate-outline" size={14} color="#000" />
+            <Text style={s.trackBtnText}>Track Delivery Executive</Text>
+            <Ionicons name="arrow-forward" size={12} color="#000" style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
 
       {/* Delivery Note Modal */}
@@ -402,6 +410,8 @@ const OrderCard = React.memo(function OrderCard({
   onRate,
   onInvoice,
   ratingValue,
+  favoritesIds,
+  toggleFavorite,
 }: {
   order: any;
   index: number;
@@ -410,6 +420,8 @@ const OrderCard = React.memo(function OrderCard({
   onRate: (id: string) => void;
   onInvoice: (order: any) => void;
   ratingValue?: number;
+  favoritesIds: string[];
+  toggleFavorite: (id: string) => void;
 }) {
   const router = useRouter();
   const fadeAnim = useSharedValue(0);
@@ -461,13 +473,21 @@ const OrderCard = React.memo(function OrderCard({
 
           {/* Ordered Items list */}
           <View style={s.itemsBlock}>
-            {order.items.slice(0, 3).map((it: any, i: number) => (
-              <View key={i} style={s.itemRow}>
-                <View style={s.itemDot} />
-                <Text style={s.itemName} numberOfLines={1}>{it.name}</Text>
-                <Text style={s.itemQty}>x{it.qty}</Text>
-              </View>
-            ))}
+            {order.items.slice(0, 3).map((it: any, i: number) => {
+              const isFav = favoritesIds.includes(it.id);
+              return (
+                <View key={i} style={s.itemRow}>
+                  <View style={s.itemDot} />
+                  <Text style={s.itemName} numberOfLines={1}>{it.name}</Text>
+                  <Text style={s.itemQty}>x{it.qty}</Text>
+                  <AnimatedHeartButton
+                    isFavorite={isFav}
+                    onPress={() => toggleFavorite(it.id)}
+                    size={15}
+                  />
+                </View>
+              );
+            })}
             {order.items.length > 3 && (
               <Text style={s.itemMore}>+{order.items.length - 3} more items</Text>
             )}
@@ -532,12 +552,53 @@ const OrderCard = React.memo(function OrderCard({
 // ─── Main Screen component ──────────────────────────────────────────────────
 export default function Orders() {
   const router = useRouter();
-  const { orders, addToCart, cancelOrder, updateOrderStatus } = useApp();
+  const { orders, addToCart, cancelOrder, updateOrderStatus, favorites: favoritesIds, toggleFavorite, dishes } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
 
+  const specialOffers = useMemo(() => {
+    const butterChicken = dishes.find(d => d.id === "d-chk-1");
+    const paneerButter = dishes.find(d => d.id === "d-pan-2");
+    const biryani = dishes.find(d => d.id === "d-bir-1");
+
+    const list = [];
+    if (butterChicken) {
+      list.push({
+        id: butterChicken.id,
+        title: butterChicken.name,
+        subtitle: butterChicken.description,
+        price: Math.round(butterChicken.price * 0.8),
+        originalPrice: butterChicken.price,
+        image: butterChicken.image,
+        badge: "20% OFF",
+      });
+    }
+    if (paneerButter) {
+      list.push({
+        id: paneerButter.id,
+        title: paneerButter.name,
+        subtitle: paneerButter.description,
+        price: Math.round(paneerButter.price * 0.8),
+        originalPrice: paneerButter.price,
+        image: paneerButter.image,
+        badge: "VEG DELIGHT",
+      });
+    }
+    if (biryani) {
+      list.push({
+        id: biryani.id,
+        title: biryani.name,
+        subtitle: biryani.description,
+        price: Math.round(biryani.price * 0.85),
+        originalPrice: biryani.price,
+        image: biryani.image,
+        badge: "ROYAL FEAST",
+      });
+    }
+    return list;
+  }, [dishes]);
+
   // States
-  const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [ordersFilter, setOrdersFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
   const [statsExpanded, setStatsExpanded] = useState(false);
@@ -551,33 +612,41 @@ export default function Orders() {
   const [ratingStars, setRatingStars] = useState(5);
   const [ratingText, setRatingText] = useState("");
 
+  const [dismissedOrderIds, setDismissedOrderIds] = useState<string[]>([]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      const loadDismissed = async () => {
+        try {
+          const saved = await storage.getItem<string[]>("pk_dismissed_orders", []);
+          if (isActive && saved) {
+            setDismissedOrderIds(saved);
+          }
+        } catch (e) {
+          console.log(e);
+        }
+      };
+      loadDismissed();
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
   // Stats Dashboard values
   const totalSpent = useMemo(() => orders.reduce((acc, o) => acc + o.total, 0), [orders]);
-  const activeOrder = useMemo(() => orders.find((o) => o.status !== "Delivered" && o.status !== "Cancelled"), [orders]);
+  const activeOrder = useMemo(() => {
+    const active = orders.find((o) => o.status !== "Delivered" && o.status !== "Cancelled");
+    if (active) return active;
+    const latestOrder = orders[0];
+    if (latestOrder && latestOrder.status === "Delivered" && !dismissedOrderIds.includes(latestOrder.id)) {
+      return latestOrder;
+    }
+    return null;
+  }, [orders, dismissedOrderIds]);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const saved = await storage.getItem<string[]>("pk_favorites", []);
-      if (mounted && saved && saved.length > 0) {
-        setFavoritesIds(saved);
-        return;
-      }
-      const freq: Record<string, number> = {};
-      orders.forEach((o) => o.items.forEach((it: any) => { freq[it.id] = (freq[it.id] || 0) + (it.qty || 1); }));
-      const popular = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => id);
-      if (mounted && popular.length > 0) setFavoritesIds(popular);
-    })();
-    return () => { mounted = false; };
-  }, [orders]);
 
-  const toggleFavorite = async (id: string) => {
-    setFavoritesIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [id, ...prev];
-      void storage.setItem("pk_favorites", next);
-      return next;
-    });
-  };
 
   const handleReorder = useCallback((order: any) => {
     order.items.forEach((it: any) => {
@@ -615,11 +684,11 @@ export default function Orders() {
   };
 
   const filteredOrders = useMemo(() => {
-    if (ordersFilter === "all") return orders;
-    if (ordersFilter === "active") return orders.filter((o) => o.status !== "Delivered" && o.status !== "Cancelled");
-    if (ordersFilter === "completed") return orders.filter((o) => o.status === "Delivered");
-    if (ordersFilter === "cancelled") return orders.filter((o) => o.status === "Cancelled");
-    return orders;
+    let list = orders;
+    if (ordersFilter === "active") list = orders.filter((o) => o.status !== "Delivered" && o.status !== "Cancelled");
+    else if (ordersFilter === "completed") list = orders.filter((o) => o.status === "Delivered");
+    else if (ordersFilter === "cancelled") list = orders.filter((o) => o.status === "Cancelled");
+    return [...list].sort((a, b) => b.createdAt - a.createdAt);
   }, [orders, ordersFilter]);
 
   const avgOrderValue = useMemo(() => {
@@ -659,14 +728,9 @@ export default function Orders() {
       <View style={styles.ambientBlob1} />
       <View style={styles.ambientBlob2} />
 
-      <TopBar variant="minimal" />
+      <TopBar variant="minimal" isOrdersTab={true} />
 
-      <Reanimated.ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-      >
+      <Reanimated.ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {/* Visual Hero Heading */}
         <View style={styles.heroRow}>
           <View>
@@ -674,16 +738,27 @@ export default function Orders() {
             <Text style={styles.heroTitle}>Your Orders</Text>
           </View>
           <TouchableOpacity style={styles.heroFavBtn} activeOpacity={0.8} onPress={() => setFavoritesOpen(true)}>
-            <Ionicons name="heart" size={14} color={colors.gold} />
+            <Ionicons name="heart" size={14} color="#FF2D55" />
             <Text style={styles.heroFavText}>Favorites</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Active Live Order status */}
         {activeOrder && (
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.sectionLabel}>Active Order Tracking</Text>
-            <LiveOrderCard order={activeOrder} onPress={() => router.push("/orders/track")} />
+            <LiveOrderCard
+              order={activeOrder}
+              onPress={() => router.push("/orders/track")}
+              onDismiss={async (id) => {
+                try {
+                  const next = [...dismissedOrderIds, id];
+                  setDismissedOrderIds(next);
+                  await storage.setItem("pk_dismissed_orders", next);
+                } catch (e) {
+                  console.log(e);
+                }
+              }}
+            />
           </View>
         )}
 
@@ -775,10 +850,16 @@ export default function Orders() {
         {/* Daily Dish Offers */}
         <View style={{ marginBottom: 24 }}>
           <Text style={styles.sectionLabel}>Special Daily Offers</Text>
-          <DailyOffersCarousel offers={SAMPLE_OFFERS} />
+          <DailyOffersCarousel
+            offers={specialOffers}
+            onAddPress={(dishId) => {
+              const dish = dishes.find((d) => d.id === dishId);
+              if (dish) {
+                addToCart(dish);
+              }
+            }}
+          />
         </View>
-
-
 
         {/* Orders list and Filter tab options */}
         <View style={styles.sectionHeaderRow}>
@@ -816,16 +897,18 @@ export default function Orders() {
             </TouchableOpacity>
           </View>
         ) : (
-          filteredOrders.map((order, idx) => (
+          filteredOrders.map((item, index) => (
             <OrderCard
-              key={order.id}
-              order={order}
-              index={idx}
+              key={item.id}
+              order={item}
+              index={index}
               onCancel={cancelOrder}
               onReorder={openReorderConfigurator}
               onRate={setRatingId}
               onInvoice={setSelectedInvoice}
-              ratingValue={ratingsMap[order.id]}
+              ratingValue={ratingsMap[item.id]}
+              favoritesIds={favoritesIds}
+              toggleFavorite={toggleFavorite}
             />
           ))
         )}
@@ -843,24 +926,28 @@ export default function Orders() {
             </View>
             {favoritesIds.length === 0 ? (
               <View style={styles.popupEmpty}>
-                <Ionicons name="heart-dislike-outline" size={32} color={colors.gold} />
+                <Ionicons name="heart-dislike-outline" size={32} color="#FF2D55" />
                 <Text style={styles.popupEmptyText}>No favorites saved yet.</Text>
               </View>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {favoritesIds.map((id) => {
-                  const dish = DISHES.find((d) => d.id === id);
+                  const dish = dishes.find((d) => d.id === id);
                   if (!dish) return null;
                   return (
                     <View key={dish.id} style={styles.popupItem}>
-                      <Image source={{ uri: dish.image }} style={styles.popupItemImg} />
+                      <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.popupItemImg} />
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={styles.popupItemTitle} numberOfLines={1}>{dish.name}</Text>
                         <Text style={styles.popupItemPrice}>₹{dish.price}</Text>
                       </View>
-                      <TouchableOpacity onPress={() => toggleFavorite(dish.id)} style={{ marginRight: 10 }}>
-                        <Ionicons name="heart" size={20} color={colors.gold} />
-                      </TouchableOpacity>
+                      <View style={{ marginRight: 10 }}>
+                        <AnimatedHeartButton
+                          isFavorite={favoritesIds.includes(dish.id)}
+                          onPress={() => toggleFavorite(dish.id)}
+                          size={20}
+                        />
+                      </View>
                       <TouchableOpacity style={styles.popupAddBtn} onPress={() => addToCart(dish)}>
                         <Ionicons name="add" size={14} color="#000" />
                       </TouchableOpacity>

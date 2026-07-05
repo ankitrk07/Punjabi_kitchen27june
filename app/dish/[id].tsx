@@ -4,6 +4,7 @@ import { storage } from "@/src/utils/storage";
 import { resolveImageUrl } from "@/src/utils/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import AnimatedHeartButton from "@/src/components/AnimatedHeartButton";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -49,9 +50,8 @@ function VegNonVegIndicator({ isVeg, size = 16 }: { isVeg: boolean; size?: numbe
 export default function DishDetail() {
   const { id, fromX, fromY, fromW, fromH } = useLocalSearchParams<{ id: string; fromX?: string; fromY?: string; fromW?: string; fromH?: string }>();
   const router = useRouter();
-  const { addToCart, dishes } = useApp();
+  const { addToCart, dishes, favorites: favoritesIds, toggleFavorite } = useApp();
   const dish = dishes.find((item) => item.id === id);
-  const [favoritesIds, setFavoritesIds] = useState<string[]>([]);
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(18)).current;
   const heroAnim = useRef(new Animated.Value(0)).current;
@@ -71,23 +71,7 @@ export default function DishDetail() {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const saved = await storage.getItem<string[]>("pk_favorites", []);
-      if (mounted && saved) setFavoritesIds(saved);
-    })();
-    return () => { mounted = false; };
-  }, []);
 
-  const toggleFavorite = async () => {
-    if (!dish) return;
-    setFavoritesIds((prev) => {
-      const next = prev.includes(dish.id) ? prev.filter((item) => item !== dish.id) : [dish.id, ...prev];
-      void storage.setItem("pk_favorites", next);
-      return next;
-    });
-  };
 
   if (!dish) {
     return (
@@ -133,9 +117,13 @@ export default function DishDetail() {
             <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={22} color={colors.gold} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={toggleFavorite}>
-              <Ionicons name={favoritesIds.includes(dish.id) ? "heart" : "heart-outline"} size={20} color={colors.gold} />
-            </TouchableOpacity>
+            <View style={styles.iconBtn}>
+              <AnimatedHeartButton
+                isFavorite={favoritesIds.includes(dish.id)}
+                onPress={() => toggleFavorite(dish.id)}
+                size={22}
+              />
+            </View>
           </View>
 
           <Animated.View style={[styles.heroText, { opacity: imageOpacity, transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }]}>

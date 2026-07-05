@@ -11,6 +11,7 @@ import {
     Pressable,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from "react-native";
 
@@ -25,6 +26,7 @@ export type Offer = {
   title: string;
   subtitle?: string;
   price?: string | number;
+  originalPrice?: string | number;
   image?: string;
   badge?: string;
 };
@@ -33,9 +35,10 @@ type Props = {
   offers: Offer[];
   testID?: string;
   showPlaceholder?: boolean; // when true, show placeholder instead of hiding
+  onAddPress?: (id: string) => void;
 };
 
-export default function DailyOffersCarousel({ offers, testID = "daily-offers", showPlaceholder = false }: Props) {
+export default function DailyOffersCarousel({ offers, testID = "daily-offers", showPlaceholder = false, onAddPress }: Props) {
   const scrollX = useRef(new Animated.Value(0)).current;
   const listRef = useRef<FlatList<Offer> | null>(null);
   const autoIndex = useRef(0);
@@ -125,12 +128,20 @@ export default function DailyOffersCarousel({ offers, testID = "daily-offers", s
                 {item.subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{item.subtitle}</Text> : null}
 
                 <View style={styles.rowBottom}>
-                  <View style={styles.priceWrap}>
+                  <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
                     <Text style={styles.priceText}>₹{item.price}</Text>
+                    {item.originalPrice ? (
+                      <Text style={styles.originalPriceText}>₹{item.originalPrice}</Text>
+                    ) : null}
                   </View>
-                  <View style={styles.cta}>
-                    <Ionicons name="chevron-forward" size={18} color="#0A0A0A" />
-                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.addButton}
+                    onPress={() => onAddPress?.(item.id)}
+                  >
+                    <Ionicons name="add" size={13} color="#0A0A0A" />
+                    <Text style={styles.addButtonText}>ADD</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </Pressable>
@@ -190,9 +201,9 @@ const styles = StyleSheet.create({
   blurCard: {
     borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: Platform.OS === "android" ? "rgba(17,17,17,0.9)" : "transparent",
+    backgroundColor: "rgba(18, 12, 10, 0.75)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.03)",
+    borderColor: "rgba(212, 175, 55, 0.25)",
   },
   card: {
     width: "100%",
@@ -219,8 +230,34 @@ const styles = StyleSheet.create({
   badgeText: { color: "#0A0A0A", fontSize: 10, fontWeight: "800" },
   rowBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
   priceWrap: { backgroundColor: "rgba(212,175,55,0.08)", paddingHorizontal: 10, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  priceText: { color: colors.gold, fontSize: 13, fontWeight: "900" },
-  cta: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center" },
+  priceText: { color: colors.gold, fontSize: 14, fontWeight: "900" },
+  originalPriceText: {
+    color: "rgba(255, 255, 255, 0.36)",
+    fontSize: 11,
+    textDecorationLine: "line-through",
+    fontWeight: "600",
+  },
+  addButton: {
+    backgroundColor: colors.gold,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    height: 28,
+    borderRadius: 14,
+    gap: 2,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addButtonText: {
+    color: "#0A0A0A",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
 
   placeholderCard: { borderRadius: 14, padding: 16, marginHorizontal: 16 },
   placeholderContent: { alignItems: "center", gap: 6 },

@@ -99,6 +99,9 @@ type AppState = {
   orders: Order[];
   reservations: Reservation[];
   favorites: string[];
+  highlightedDishId: string | null;
+  setHighlightedDishId: (id: string | null) => void;
+  // setHighlightedDishId duplicate removed
   cateringRequests: CateringItem[];
   supportTickets: SupportTicket[];
   notifications: NotificationItem[];
@@ -162,6 +165,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [orders, setOrders] = useState<Order[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+  // ID of a dish that should be highlighted after navigation from Favorites
+  const [highlightedDishId, setHighlightedDishId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [cateringRequests, setCateringRequests] = useState<CateringItem[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
@@ -207,12 +212,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     (async () => {
+      // WIPE favorites initially so dishes are never pre-liked
+      await storage.setItem("pk_favorites", []);
+      setFavorites([]);
+
       // 1. Initial load from local storage
       const u = await storage.getItem<User | null>("pk_user", null);
       if (u) {
         setUser(u);
-        const savedFavs = await storage.getItem<string[]>("pk_favorites", []);
-        setFavorites(savedFavs ?? []);
         await loadData(u);
 
         // Fetch fresh profile details from server
@@ -231,10 +238,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             };
             setUser(mergedUser);
             setAddresses(apiUser.addresses);
-            if (apiUser.favorites) {
-              setFavorites(apiUser.favorites);
-              await storage.setItem("pk_favorites", apiUser.favorites);
-            }
             if (apiUser.cart) {
               setCart(apiUser.cart as CartItem[]);
             }
@@ -305,8 +308,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ]).start();
   };
 
-
-
   const selectedAddress = useMemo(() => addresses.find((address) => address.id === selectedAddressId) ?? addresses[0] ?? null, [addresses, selectedAddressId]);
 
   const value = useMemo<AppState>(() => ({
@@ -325,6 +326,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dishes,
     categories,
     cartBumpAnim,
+    highlightedDishId,
+    setHighlightedDishId,
     signIn: async (u) => {
       setUser(u);
       setIsAdmin(u.email === "admin@punjabikitchen.com");

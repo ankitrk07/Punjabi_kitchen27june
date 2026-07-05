@@ -1003,7 +1003,7 @@ function FoodTransitionOverlay({ visible }: { visible: boolean }) {
                     <LottieView
                         source={animJson}
                         autoPlay
-                        loop
+                        loop={false}
                         style={{ width: '100%', height: '100%' }}
                     />
                 </Animated.View>

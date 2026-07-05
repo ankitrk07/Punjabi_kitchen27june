@@ -1,11 +1,12 @@
 import { Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
+import { resolveImageUrl } from "@/src/utils/apiClient";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { resolveImageUrl } from "@/src/utils/apiClient";
+import AnimatedHeartButton from "../AnimatedHeartButton";
 
 type Props = {
   dish: Dish;
@@ -91,7 +92,7 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
       >
         <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.cinematicImg} />
         <LinearGradient
-          colors={["rgba(10,10,10,0.2)", "rgba(10,10,10,0.65)", "rgba(10,10,10,0.98)"]}
+          colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -106,9 +107,13 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
             )}
           </View>
 
-          <TouchableOpacity style={styles.favoriteBtnCinematic} activeOpacity={0.85} onPress={() => onToggleFavorite(dish.id)}>
-            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={16} color={isFavorite ? colors.gold : "#FFF"} />
-          </TouchableOpacity>
+          <View style={styles.favoriteBtnCinematic}>
+            <AnimatedHeartButton
+              isFavorite={isFavorite}
+              onPress={() => onToggleFavorite(dish.id)}
+              size={18}
+            />
+          </View>
         </View>
 
         {/* Bottom Hero Overlay */}
@@ -162,7 +167,7 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
       <View style={styles.imageWrap}>
         <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.cardImg} />
         <LinearGradient
-          colors={["rgba(10,10,10,0.3)", "rgba(10,10,10,0.1)", "rgba(10,10,10,0.95)"]}
+          colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -176,18 +181,14 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.favoriteBtnFloating}
-            activeOpacity={0.85}
-            onPress={() => onToggleFavorite(dish.id)}
-            testID={`fav-${dish.id}`}
-          >
-            <Ionicons
-              name={isFavorite ? "heart" : "heart-outline"}
-              size={13}
-              color={isFavorite ? colors.gold : "#FFF"}
+          <View style={styles.favoriteBtnFloating}>
+            <AnimatedHeartButton
+              isFavorite={isFavorite}
+              onPress={() => onToggleFavorite(dish.id)}
+              size={16}
+              testID={`fav-${dish.id}`}
             />
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Prep Time Indicator */}

@@ -1,12 +1,12 @@
 import {
-    useAnimatedScrollHandler,
-    useSharedValue,
-    withSpring,
-    type SharedValue,
+  useAnimatedScrollHandler,
+  useSharedValue,
+  withSpring,
+  type SharedValue,
 } from "react-native-reanimated";
 
-const DELTA_THRESHOLD = 20;
-const VELOCITY_THRESHOLD = 1600;
+const DELTA_THRESHOLD = 10;
+const VELOCITY_THRESHOLD = 800;
 
 const TAB_BAR_SPRING = {
   damping: 40,
