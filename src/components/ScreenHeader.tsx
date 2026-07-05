@@ -4,14 +4,16 @@ import { useRouter } from "expo-router";
 import React, { memo, useCallback } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated from "react-native-reanimated";
 
 type Props = {
   title: string;
   children: React.ReactNode;
   backHref?: string;
+  onScroll?: any;
 };
 
-const ScreenHeader = memo(function ScreenHeader({ title, children, backHref }: Props) {
+const ScreenHeader = memo(function ScreenHeader({ title, children, backHref, onScroll }: Props) {
   const router = useRouter();
 
   const handleBack = useCallback(() => {
@@ -40,17 +42,20 @@ const ScreenHeader = memo(function ScreenHeader({ title, children, backHref }: P
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         <View style={{ width: 40 }} />
       </View>
-      <ScrollView
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        alwaysBounceVertical={true}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
-        overScrollMode="never"
+        overScrollMode="always"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
         {children}
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 });
@@ -63,7 +68,7 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.borderGold },
   title: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "700", textAlign: "center" },
   scrollView: { flex: 1, backgroundColor: colors.bg },
-  scrollContent: { padding: 16, paddingBottom: 40, backgroundColor: colors.bg },
+  scrollContent: { padding: 16, paddingBottom: 160, backgroundColor: colors.bg },
 });
 
 

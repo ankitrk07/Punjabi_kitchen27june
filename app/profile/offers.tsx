@@ -3,17 +3,30 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
+import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
+import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 
 const DEALS = [
-  { code: "PUNJABI50", title: "50% OFF up to ₹150", minOrder: "₹299", desc: "Get 50% discount on all main course dishes. Valid once per user per day.", category: "DELIVERY", color: colors.gold },
-  { code: "TANDOOR30", title: "30% OFF on Starters", minOrder: "₹199", desc: "Applicable only on tandoori kebabs, paneer tikka, and chaap.", category: "DINE-IN", color: "#34d399" },
-  { code: "FREEKULCHA", title: "Free Kulcha on combos", minOrder: "₹399", desc: "Get a free butter Amritsari Kulcha with any family thali combo.", category: "DELIVERY", color: "#a78bfa" },
-  { code: "UPI100", title: "Flat ₹100 Cashback", minOrder: "₹590", desc: "Use Google Pay or PhonePe to get flat cashback directly in your bank account.", category: "ALL ORDERS", color: "#f87171" },
+  { code: "PUNJABI20", title: "20% OFF First Order", minOrder: "₹499", desc: "Welcome to Punjabi Kitchen! Enjoy 20% discount on your very first order.", category: "FIRST ORDER", color: "#F0C850" },
+  { code: "FREEDEL", title: "Free Delivery Today", minOrder: "₹399", desc: "Hungry? Get free delivery on all orders above ₹399. Fast delivery straight to your doorstep.", category: "DELIVERY", color: "#E8A838" },
+  { code: "BOGO", title: "Buy 1 Get 1 Naan", minOrder: "₹199", desc: "Buy any Naan and get the second one completely free. Fresh butter & garlic naans.", category: "DINE-IN", color: colors.gold },
+  { code: "SWEETPK", title: "Free Gulab Jamun", minOrder: "₹799", desc: "Get complimentary Gulab Jamuns dessert on your order above ₹799.", category: "FREE DESSERT", color: "#F3C846" },
+  { code: "THALI299", title: "Royal Thali at ₹299", minOrder: "₹299", desc: "Feast on a complete Family Thali with Dal Makhani, Shahi Paneer, Naan, Rice & Sweet.", category: "ALL ORDERS", color: "#E8C97A" },
+  { code: "PK100", title: "Flat ₹100 Cashback", minOrder: "₹699", desc: "Save big on your weekend order. Get flat ₹100 instant cashback on orders above ₹699.", category: "CASHBACK", color: "#F0C850" },
+  { code: "MIDNIGHT", title: "Late Night 15% OFF", minOrder: "₹349", desc: "Midnight cravings? Order between 10 PM and 1 AM to get flat 15% discount on all items.", category: "MIDNIGHT SPECIAL", color: "#E8A838" },
+  { code: "WEEKEND", title: "Weekend Special Deal", minOrder: "₹599", desc: "Make your weekend delicious! Enjoy 15% discount on all family platters and tandoor starters.", category: "WEEKEND ONLY", color: colors.gold },
 ];
 
 export default function OffersScreen() {
+  const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
+  const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
+
   return (
-    <ScreenHeader title="Offers & Promo Codes" backHref="/(tabs)/profile">
+    <ScreenHeader 
+      title="Offers & Promo Codes" 
+      backHref="/(tabs)/profile"
+      onScroll={onScroll}
+    >
       <View style={styles.banner}>
         <View style={styles.iconCircle}>
           <Ionicons name="pricetags" size={32} color={colors.gold} />

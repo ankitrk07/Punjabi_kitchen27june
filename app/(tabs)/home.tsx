@@ -33,12 +33,14 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
+  ImageSourcePropType,
   Linking,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ScrollView,
 } from "react-native";
 import Animated, {
   Easing,
@@ -56,6 +58,7 @@ import Animated, {
   withSpring,
   withTiming,
   ZoomIn,
+  useFrameCallback,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -120,12 +123,101 @@ const MODES = [
   },
 ];
 
-const PROMO_ITEMS = [
-  "🔥  Free delivery on orders above ₹499",
-  "⭐  4.9-rated Chef Specials available now",
-  "🎁  New member? Get 20% off on your first order",
-  "🕐  Live orders delivered in just 30 min",
-  "🌿  Fresh ingredients sourced daily",
+const OFFER_1 = require("../../assets/images/offer1.png");
+const OFFER_2 = require("../../assets/images/offer2.png");
+const OFFER_3 = require("../../assets/images/offer3.png");
+const OFFER_4 = require("../../assets/images/offer4.png");
+const OFFER_5 = require("../../assets/images/offer5.png");
+const OFFER_6 = require("../../assets/images/offer6.png");
+const OFFER_7 = require("../../assets/images/offer7.png");
+const OFFER_8 = require("../../assets/images/offer8.png");
+const OFFER_9 = require("../../assets/images/offer9.png");
+const OFFER_10 = require("../../assets/images/offer10.png");
+const OFFER_11 = require("../../assets/images/offer11.png");
+
+type PromoOffer = {
+  id: string;
+  icon: ImageSourcePropType;
+  headline: string;
+  sub: string;
+  code: string;
+  accent: string;
+  description: string;
+};
+
+const PROMO_OFFERS: PromoOffer[] = [
+  {
+    id: "p1",
+    icon: OFFER_11,
+    headline: "20% OFF First Order",
+    sub: "Use code PUNJABI20 · Min order ₹499",
+    code: "PUNJABI20",
+    accent: "#F0C850",
+    description: "Welcome to Punjabi Kitchen! Enjoy 20% discount on your very first order. Use coupon code PUNJABI20. Minimum order value ₹499.",
+  },
+  {
+    id: "p2",
+    icon: OFFER_10,
+    headline: "Free Delivery Today",
+    sub: "On all orders above ₹399",
+    code: "FREEDEL",
+    accent: "#E8A838",
+    description: "Hungry? Get free delivery on all orders above ₹399. Fast delivery straight to your doorstep.",
+  },
+  {
+    id: "p3",
+    icon: OFFER_3,
+    headline: "Buy 1 Get 1 Naan",
+    sub: "Fresh butter & garlic naans · Code BOGO",
+    code: "BOGO",
+    accent: "#D4AF37",
+    description: "Buy any Naan and get the second one completely free. Double the joy with code BOGO. Add both naans to cart to apply.",
+  },
+  {
+    id: "p4",
+    icon: OFFER_4,
+    headline: "Free Gulab Jamun",
+    sub: "On orders above ₹799 · Code SWEETPK",
+    code: "SWEETPK",
+    accent: "#F3C846",
+    description: "Get complimentary Gulab Jamuns dessert on your order above ₹799. Valid for a limited time with coupon code SWEETPK.",
+  },
+  {
+    id: "p5",
+    icon: OFFER_8,
+    headline: "Royal Thali at ₹299",
+    sub: "Full meal with sweet & drinks · Code THALI299",
+    code: "THALI299",
+    accent: "#E8C97A",
+    description: "Feast on a complete Family Thali with Dal Makhani, Shahi Paneer, Naan, Rice & Sweet for just ₹299. Code THALI299.",
+  },
+  {
+    id: "p6",
+    icon: OFFER_6,
+    headline: "Flat ₹100 Cashback",
+    sub: "Flat savings on orders above ₹699",
+    code: "PK100",
+    accent: "#F0C850",
+    description: "Save big on your weekend order. Get flat ₹100 instant cashback on orders above ₹699 with code PK100.",
+  },
+  {
+    id: "p7",
+    icon: OFFER_7,
+    headline: "Late Night 15% OFF",
+    sub: "Order 10 PM - 1 AM · Code MIDNIGHT",
+    code: "MIDNIGHT",
+    accent: "#E8A838",
+    description: "Midnight cravings? Order between 10 PM and 1 AM to get flat 15% discount on all items with code MIDNIGHT.",
+  },
+  {
+    id: "p8",
+    icon: OFFER_9,
+    headline: "Weekend Special Deal",
+    sub: "Flat 15% off family platters · Code WEEKEND",
+    code: "WEEKEND",
+    accent: "#D4AF37",
+    description: "Make your weekend delicious! Enjoy 15% discount on all family platters and tandoor starters. Use coupon code WEEKEND.",
+  },
 ];
 
 const MOODS = [
@@ -138,62 +230,378 @@ const MOODS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. AnimatedPromoTicker
-//    Infinite scrolling promo strip below TopBar
+// 1. AnimatedPromoTicker & OfferDetailModal
+//    Continuous scrolling offer text marquee. Tap anywhere to expand all active deals.
 // ─────────────────────────────────────────────────────────────────────────────
+const ITEM_WIDTH = 550;
+const TOTAL_W = PROMO_OFFERS.length * ITEM_WIDTH;
+
+let _setModalVisible: ((visible: boolean) => void) | null = null;
+
 function AnimatedPromoTicker() {
   const translateX = useSharedValue(0);
-  const fullText = PROMO_ITEMS.join("          ");
-  const TICKER_W = fullText.length * 7.2;
-  const fadeColor = "rgba(18, 12, 10, 0.9)";
 
-  useEffect(() => {
-    translateX.value = withRepeat(
-      withTiming(-TICKER_W / 2, { duration: 22000, easing: Easing.linear }),
-      -1,
-      false
-    );
-  }, []);
+  useFrameCallback((frameInfo) => {
+    const timeDelta = frameInfo.timeSincePreviousFrame || 16.67;
+    // 0.025 pixels per millisecond (around 25px per second) - extremely slow and readable
+    const speed = 0.025;
+    
+    translateX.value = translateX.value - speed * timeDelta;
+    
+    // Smooth loop reset
+    if (translateX.value <= -TOTAL_W) {
+      translateX.value += TOTAL_W;
+    }
+  });
 
-  const animStyle = useAnimatedStyle(() => ({
+  const scrollStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
+  const repeatedOffers = [...PROMO_OFFERS, ...PROMO_OFFERS, ...PROMO_OFFERS];
+
   return (
-    <View style={ticker.wrap} pointerEvents="none">
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={() => _setModalVisible?.(true)}
+      style={ticker.wrap}
+    >
       <LinearGradient
-        colors={[fadeColor, "transparent"]}
-        start={{ x: 0, y: 0.5 }} end={{ x: 0.12, y: 0.5 }}
+        colors={["rgba(201,168,76,0.3)", "rgba(201,168,76,0.05)", "transparent"]}
+        style={ticker.topGlow}
+      />
+
+      <Animated.View style={[ticker.scrollRow, scrollStyle]}>
+        {repeatedOffers.map((item, index) => {
+          // Combine headline and details into a single flat string to avoid nested text layout reflows
+          const combinedText = `${item.headline} · ${item.sub}`;
+          return (
+            <View key={`${item.id}-${index}`} style={ticker.marqueeItem}>
+              <View style={ticker.marqueeItemLeft}>
+                <Image
+                  source={item.icon}
+                  style={ticker.marqueeIcon}
+                  contentFit="contain"
+                />
+                <Text style={ticker.marqueeText} numberOfLines={1}>
+                  {combinedText}
+                </Text>
+                <View style={ticker.marqueeCodePill}>
+                  <Text style={ticker.marqueeCodeText}>{item.code}</Text>
+                </View>
+              </View>
+              <View style={ticker.marqueeDivider} />
+            </View>
+          );
+        })}
+      </Animated.View>
+
+      <LinearGradient
+        colors={["rgba(14, 10, 8, 1)", "transparent"]}
+        start={{ x: 0, y: 0.5 }} end={{ x: 0.08, y: 0.5 }}
         style={ticker.fadeLeft} pointerEvents="none"
       />
-      <Animated.Text style={[ticker.text, animStyle]}>
-        {fullText}{"          "}{fullText}
-      </Animated.Text>
       <LinearGradient
-        colors={["transparent", fadeColor]}
-        start={{ x: 0.88, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+        colors={["transparent", "rgba(14, 10, 8, 1)"]}
+        start={{ x: 0.92, y: 0.5 }} end={{ x: 1, y: 0.5 }}
         style={ticker.fadeRight} pointerEvents="none"
       />
+    </TouchableOpacity>
+  );
+}
+
+/** Rendered at the screen root level to display all active deals in detail */
+function OfferDetailModal() {
+  const [visible, setVisible] = useState(false);
+  const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
+  const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
+
+  useEffect(() => {
+    _setModalVisible = setVisible;
+    return () => { _setModalVisible = null; };
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <View style={ticker.modalOverlay}>
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        activeOpacity={1}
+        onPress={() => setVisible(false)}
+      />
+      <Animated.View
+        entering={FadeInDown.duration(260)}
+        style={ticker.modalCard}
+      >
+        <LinearGradient
+          colors={["rgba(26,20,16,1)", "rgba(16,12,8,1)"]}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        {/* Header */}
+        <View style={ticker.modalHeader}>
+          <View style={ticker.modalHeaderTitleWrap}>
+            <Ionicons name="gift" size={20} color={GOLD} />
+            <Text style={ticker.modalTitle}>Exclusive Offers</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setVisible(false)}
+            style={ticker.modalClose}
+          >
+            <Ionicons name="close" size={18} color="rgba(255,255,255,0.6)" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Scrollable list of all active deals */}
+        <Animated.ScrollView 
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={ticker.modalScrollContent}
+        >
+          {PROMO_OFFERS.map((offer, index) => (
+            <View key={offer.id} style={ticker.offerItemContainer}>
+              <View style={ticker.offerMainRow}>
+                {/* Contextual image wrapper */}
+                <View style={ticker.offerIconWrap}>
+                  <Image
+                    source={offer.icon}
+                    style={ticker.offerIcon}
+                    contentFit="contain"
+                  />
+                </View>
+                
+                {/* Text details */}
+                <View style={ticker.offerInfoCol}>
+                  <Text style={[ticker.offerHeadline, { color: offer.accent }]}>
+                    {offer.headline}
+                  </Text>
+                  <Text style={ticker.offerDescription}>
+                    {offer.description}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Promo code & apply row */}
+              <View style={ticker.offerActionRow}>
+                <View style={[ticker.codeBox, { borderColor: offer.accent + "40" }]}>
+                  <Text style={[ticker.codeLabel, { color: offer.accent }]}>{offer.code}</Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setVisible(false)}
+                  style={[ticker.applyBtn, { backgroundColor: offer.accent }]}
+                >
+                  <Text style={ticker.applyBtnText}>Apply</Text>
+                </TouchableOpacity>
+              </View>
+
+              {index < PROMO_OFFERS.length - 1 && <View style={ticker.offerSeparator} />}
+            </View>
+          ))}
+        </Animated.ScrollView>
+      </Animated.View>
     </View>
   );
 }
 
 const ticker = StyleSheet.create({
+  // Marquee Wrap Style
   wrap: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: 32,
-    backgroundColor: "rgba(18, 12, 10, 0.9)",
-    borderTopWidth: 0.5,
-    borderTopColor: "rgba(201,168,76,0.35)",
+    height: 52,
+    backgroundColor: "rgba(12, 8, 6, 0.98)",
+    borderTopWidth: 1.5,
+    borderTopColor: "rgba(201,168,76,0.45)",
     overflow: "hidden",
     justifyContent: "center",
   },
-  text: { color: GOLD_LIGHT, fontSize: 11, fontWeight: "600", letterSpacing: 0.3, width: 9999 },
-  fadeLeft: { position: "absolute", left: 0, top: 0, bottom: 0, width: 40, zIndex: 2 },
-  fadeRight: { position: "absolute", right: 0, top: 0, bottom: 0, width: 40, zIndex: 2 },
+  topGlow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    zIndex: 3,
+  },
+  scrollRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  marqueeItem: {
+    width: ITEM_WIDTH,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+  },
+  marqueeItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  marqueeIcon: {
+    width: 28,
+    height: 28,
+  },
+  marqueeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    maxWidth: 360, // Safe bounds preventing overlapping
+  },
+  marqueeCodePill: {
+    backgroundColor: "rgba(201, 168, 76, 0.15)",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(201, 168, 76, 0.4)",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  marqueeCodeText: {
+    color: GOLD_LIGHT,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  marqueeDivider: {
+    width: 1.5,
+    height: 16,
+    backgroundColor: "rgba(201, 168, 76, 0.4)",
+  },
+  fadeLeft: { position: "absolute", left: 0, top: 0, bottom: 0, width: 30, zIndex: 2 },
+  fadeRight: { position: "absolute", right: 0, top: 0, bottom: 0, width: 30, zIndex: 2 },
+
+  // Modal styles
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+  modalCard: {
+    width: SCREEN_W - 40,
+    maxHeight: "80%",
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    borderWidth: 1.5,
+    borderColor: "rgba(201,168,76,0.3)",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  modalHeaderTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  modalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalScrollContent: {
+    paddingVertical: 16,
+    paddingBottom: 24,
+  },
+  offerItemContainer: {
+    marginBottom: 8,
+  },
+  offerMainRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
+  offerIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "rgba(201,168,76,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(201,168,76,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  offerIcon: {
+    width: 38,
+    height: 38,
+  },
+  offerInfoCol: {
+    flex: 1,
+    gap: 4,
+  },
+  offerHeadline: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  offerDescription: {
+    color: "rgba(255, 255, 255, 0.55)",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  offerActionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 12,
+    paddingLeft: 66, // Align nicely under text
+  },
+  codeBox: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255,255,255,0.02)",
+  },
+  codeLabel: {
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  applyBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 10,
+    minWidth: 70,
+    alignItems: "center",
+  },
+  applyBtnText: {
+    color: "#0F0B08",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  offerSeparator: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginVertical: 18,
+  },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,8 +660,7 @@ const greeting = StyleSheet.create({
 //    • Keeps all original animations (parallax, stats, orders badge, glow)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const HERO_BG_URI =
-  "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=90&fit=crop";
+const HERO_BG_URI = require("../../assets/images/BACK.png");
 
 function AnimatedHeroBanner({
   ordersLength,
@@ -289,7 +696,7 @@ function AnimatedHeroBanner({
   return (
     <Animated.View style={[heroBanner.container, containerStyle]}>
       <Image
-        source={{ uri: HERO_BG_URI }}
+        source={HERO_BG_URI}
         style={StyleSheet.absoluteFillObject}
         resizeMode="cover"
       />
@@ -379,7 +786,7 @@ const heroBanner = StyleSheet.create({
     borderBottomRightRadius: 60,
     overflow: "hidden",
     padding: 28,
-    paddingBottom: 48,
+    paddingBottom: 88,
     borderWidth: 0.5,
     borderColor: "rgba(201,168,76,0.3)",
     minHeight: 240,
@@ -1575,6 +1982,9 @@ export default function Home() {
         </Animated.ScrollView>
 
       </Animated.View>
+
+      {/* Offer detail modal — rendered at root level to avoid overflow clipping */}
+      <OfferDetailModal />
     </SafeAreaView>
   );
 }

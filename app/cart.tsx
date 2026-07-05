@@ -1,15 +1,15 @@
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
+import { resolveImageUrl } from "@/src/utils/apiClient";
 import { storage } from "@/src/utils/storage";
-import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
-import { Animated, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Image } from "expo-image";
-import { SafeAreaView } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import thankYouJson from "../assets/thank-you.json";
 
 

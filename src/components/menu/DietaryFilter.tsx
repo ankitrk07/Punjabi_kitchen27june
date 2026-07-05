@@ -4,7 +4,6 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export type DishTypeFilter = "all" | "veg" | "nonveg";
-export type PriceRangeFilter = "all" | "under-200" | "200-350" | "above-350";
 
 type Props = {
   value: DishTypeFilter;
@@ -19,7 +18,7 @@ export default function DietaryFilter({ value, onChange }: Props) {
         activeOpacity={0.85}
         onPress={() => onChange("all")}
       >
-        <Ionicons name="grid-outline" size={12} color={value === "all" ? colors.gold : colors.textSecondary} />
+        <Ionicons name="grid-outline" size={13} color="#FFFFFF" />
         <Text numberOfLines={1} style={[styles.segmentText, value === "all" && styles.segmentTextSelected]}>All</Text>
       </TouchableOpacity>
 
@@ -28,7 +27,7 @@ export default function DietaryFilter({ value, onChange }: Props) {
         activeOpacity={0.85}
         onPress={() => onChange(value === "veg" ? "all" : "veg")}
       >
-        <Ionicons name="leaf" size={12} color={value === "veg" ? "#22c55e" : colors.textSecondary} />
+        <Ionicons name="leaf-outline" size={13} color="#FFFFFF" />
         <Text numberOfLines={1} style={[styles.segmentText, value === "veg" && styles.segmentTextSelected]}>Veg</Text>
       </TouchableOpacity>
 
@@ -37,7 +36,7 @@ export default function DietaryFilter({ value, onChange }: Props) {
         activeOpacity={0.85}
         onPress={() => onChange(value === "nonveg" ? "all" : "nonveg")}
       >
-        <Ionicons name="flame" size={12} color={value === "nonveg" ? "#ef4444" : colors.textSecondary} />
+        <Ionicons name="water-outline" size={13} color="#FFFFFF" />
         <Text numberOfLines={1} style={[styles.segmentText, value === "nonveg" && styles.segmentTextSelected]}>Non-Veg</Text>
       </TouchableOpacity>
     </View>
@@ -47,14 +46,14 @@ export default function DietaryFilter({ value, onChange }: Props) {
 const styles = StyleSheet.create({
   segment: {
     flexDirection: "row",
-    gap: 6,
+    gap: 4,
     padding: 4,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 24,
+    backgroundColor: "#0D0B08",
+    borderWidth: 1.2,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     flex: 1,
-    height: 40,
+    height: 48,
     alignItems: "center",
   },
   segmentBtn: {
@@ -62,23 +61,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 8,
-    height: 30,
-    borderRadius: 8,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "transparent",
   },
   segmentBtnSelected: {
-    backgroundColor: "rgba(212,175,55,0.14)",
-    borderColor: "rgba(212,175,55,0.35)",
+    backgroundColor: "#A08135",
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.35)",
   },
   segmentText: {
-    color: colors.textSecondary,
-    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.72)",
+    fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
   },
-  segmentTextSelected: { color: colors.gold, fontWeight: "800" },
+  segmentTextSelected: { 
+    color: "#FFFFFF", 
+    fontWeight: "800",
+  },
 });

@@ -1,5 +1,5 @@
 import CategoryFilterBar from "@/src/components/menu/CategoryFilterBar";
-import DietaryFilter, { DishTypeFilter, PriceRangeFilter } from "@/src/components/menu/DietaryFilter";
+import DietaryFilter, { DishTypeFilter } from "@/src/components/menu/DietaryFilter";
 import MenuEmptyState from "@/src/components/menu/MenuEmptyState";
 import MenuSearchBar from "@/src/components/menu/MenuSearchBar";
 import MenuSection from "@/src/components/menu/MenuSection";
@@ -13,13 +13,14 @@ import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const ALL_FILTER = { id: "all", name: "All", icon: "grid", image: "" };
 
 export type SortOption = "popular" | "price-asc" | "price-desc" | "rating";
+export type PriceRangeFilter = "all" | "under-200" | "200-350" | "above-350";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -178,6 +179,21 @@ export default function MenuScreen() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const handleSortPress = () => {
+    Alert.alert(
+      "Sort Dishes By",
+      "Select an option to sort the menu",
+      [
+        { text: "Popularity (default)", onPress: () => setSortBy("popular") },
+        { text: "Price: Low to High", onPress: () => setSortBy("price-asc") },
+        { text: "Price: High to Low", onPress: () => setSortBy("price-desc") },
+        { text: "Customer Rating", onPress: () => setSortBy("rating") },
+        { text: "Cancel", style: "cancel" }
+      ],
+      { cancelable: true }
+    );
   };
 
   interface FlyingItem {
@@ -389,7 +405,6 @@ export default function MenuScreen() {
             value={search}
             onChangeText={setSearch}
             onClear={() => setSearch("")}
-            itemCount={filteredDishes.length}
           />
         );
       case "filters":
@@ -431,7 +446,7 @@ export default function MenuScreen() {
             {/* HUD actions Row (Spacious controls and result indicator) */}
             <View style={styles.hudRow}>
               <Text style={styles.resultCountText}>
-                Showing {filteredDishes.length} {filteredDishes.length === 1 ? 'dish' : 'dishes'}
+                Showing <Text style={{ color: colors.gold, fontWeight: "800" }}>{filteredDishes.length}</Text> {filteredDishes.length === 1 ? 'dish' : 'dishes'}
               </Text>
 
               <View style={styles.hudActions}>
@@ -444,21 +459,14 @@ export default function MenuScreen() {
                   <Text style={[(priceRange !== "all" || sortBy !== "popular") ? styles.hudBtnTextActive : styles.hudBtnText]}>Filters</Text>
                 </TouchableOpacity>
 
-                {/* View Mode Toggle Switcher */}
-                <View style={styles.viewToggleBox}>
-                  <TouchableOpacity
-                    onPress={() => setViewMode("grid")}
-                    style={[styles.viewBtn, viewMode === "grid" && styles.viewBtnActive]}
-                  >
-                    <Ionicons name="grid-outline" size={13} color={viewMode === "grid" ? colors.gold : colors.textSecondary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setViewMode("cinematic")}
-                    style={[styles.viewBtn, viewMode === "cinematic" && styles.viewBtnActive]}
-                  >
-                    <Ionicons name="tv-outline" size={13} color={viewMode === "cinematic" ? colors.gold : colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
+                {/* Sort by button */}
+                <TouchableOpacity
+                  onPress={handleSortPress}
+                  style={[styles.hudBtn, sortBy !== "popular" && styles.hudBtnActive]}
+                >
+                  <Text style={[styles.hudBtnText, sortBy !== "popular" && styles.hudBtnTextActive]}>Sort by</Text>
+                  <Ionicons name="chevron-down" size={12} color={sortBy !== "popular" ? colors.gold : colors.textPrimary} />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -568,7 +576,6 @@ export default function MenuScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[2]}
         keyboardShouldPersistTaps="handled"
         onScroll={onScroll}
         scrollEventThrottle={16}
@@ -610,23 +617,23 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 38 },
   menuHeader: {
     paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 10,
+    paddingTop: 10,
+    paddingBottom: 4,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   kicker: {
     color: colors.gold,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "900",
-    letterSpacing: 2.2,
+    letterSpacing: 2,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "900",
     color: "#FFF",
-    marginTop: 2,
+    marginTop: 1,
     letterSpacing: -0.5,
   },
   toggleBannerBtn: {
@@ -721,11 +728,11 @@ const styles = StyleSheet.create({
   },
   stickyFilters: {
     backgroundColor: colors.bg,
-    paddingTop: 20,
-    paddingBottom: 22,
+    paddingTop: 10,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    gap: 22,
+    gap: 6,
   },
   hudRow: {
     flexDirection: "row",
@@ -733,7 +740,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     gap: 10,
-    marginTop: 14,
+    marginTop: 2,
   },
   dietaryRow: {
     paddingHorizontal: 16,

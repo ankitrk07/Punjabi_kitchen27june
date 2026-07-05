@@ -7,10 +7,9 @@ type Props = {
   value: string;
   onChangeText: (value: string) => void;
   onClear: () => void;
-  itemCount: number;
 };
 
-export default function MenuSearchBar({ value, onChangeText, onClear, itemCount }: Props) {
+export default function MenuSearchBar({ value, onChangeText, onClear }: Props) {
   return (
     <View style={styles.wrap}>
       <View style={styles.searchBar}>
@@ -32,24 +31,22 @@ export default function MenuSearchBar({ value, onChangeText, onClear, itemCount 
           </TouchableOpacity>
         )}
       </View>
-      <Text style={styles.helperText}>{itemCount} items found</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.bg },
+  wrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, backgroundColor: colors.bg },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingHorizontal: 14,
-    height: 52,
-    borderRadius: 18,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderGold,
   },
   input: { flex: 1, color: "#FFF", fontSize: 14, paddingVertical: 0 },
-  helperText: { color: colors.textSecondary, fontSize: 12, marginTop: 8, marginLeft: 4 },
 });

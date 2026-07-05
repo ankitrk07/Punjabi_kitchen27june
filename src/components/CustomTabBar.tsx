@@ -43,6 +43,7 @@ import { colors } from "@/src/theme";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import LottieView from "lottie-react-native";
 import React, {
     useCallback,
     useEffect,
@@ -73,7 +74,6 @@ import Animated, {
     withTiming
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import LottieView from "lottie-react-native";
 
 /* ================================================================
    §1  SCREEN METRICS
@@ -400,17 +400,17 @@ const DustMote: React.FC<DustMoteProps> = ({
     size = 2.5,
     layer = "mid",
 }) => {
-    const ty       = useSharedValue(0);
-    const op       = useSharedValue(0);
-    const driftX   = useSharedValue(0);
+    const ty = useSharedValue(0);
+    const op = useSharedValue(0);
+    const driftX = useSharedValue(0);
 
     const BASE_DURATION = (4800 + Math.random() * 1400) / speed;
 
     /* Layer-based opacity ceiling — back particles are dimmer */
     const opacityCeiling =
         layer === "front" ? 0.85 :
-        layer === "mid"   ? 0.55 :
-                            0.28;
+            layer === "mid" ? 0.55 :
+                0.28;
 
     useEffect(() => {
         /* Vertical rise */
@@ -449,7 +449,7 @@ const DustMote: React.FC<DustMoteProps> = ({
             delay,
             withRepeat(
                 withSequence(
-                    withTiming(5,  {
+                    withTiming(5, {
                         duration: BASE_DURATION * 0.6,
                         easing: Easing.inOut(Easing.ease),
                     }),
@@ -508,17 +508,17 @@ const DUST_CONFIGS: Array<{
     size: number;
     layer: "front" | "mid" | "back";
 }> = [
-    /* Back layer */
-    { xFraction: 0.20, delay: 1200, amplitude: 35, speed: 0.5, size: 1.2, layer: "back" },
-    { xFraction: 0.74, delay: 600, amplitude: 30, speed: 0.5, size: 1.6, layer: "back" },
+        /* Back layer */
+        { xFraction: 0.20, delay: 1200, amplitude: 35, speed: 0.5, size: 1.2, layer: "back" },
+        { xFraction: 0.74, delay: 600, amplitude: 30, speed: 0.5, size: 1.6, layer: "back" },
 
-    /* Mid layer */
-    { xFraction: 0.28, delay: 400, amplitude: 52, speed: 0.9, size: 2.2, layer: "mid" },
-    { xFraction: 0.80, delay: 700,  amplitude: 40, speed: 0.9, size: 2.6, layer: "mid" },
+        /* Mid layer */
+        { xFraction: 0.28, delay: 400, amplitude: 52, speed: 0.9, size: 2.2, layer: "mid" },
+        { xFraction: 0.80, delay: 700, amplitude: 40, speed: 0.9, size: 2.6, layer: "mid" },
 
-    /* Front layer */
-    { xFraction: 0.50, delay: 800, amplitude: 55, speed: 1.5, size: 3.8, layer: "front" },
-];
+        /* Front layer */
+        { xFraction: 0.50, delay: 800, amplitude: 55, speed: 1.5, size: 3.8, layer: "front" },
+    ];
 
 const BAR_WIDTH = SCREEN_WIDTH - TAB_BAR_HORIZONTAL_MARGIN * 2;
 
@@ -561,71 +561,71 @@ const ActivePill: React.FC<{
     ready,
     prevIndexRef,
 }) => {
-    const translateX = useSharedValue(0);
-    const pillWidth = useSharedValue(100);
-    const opacity = useSharedValue(0);
+        const translateX = useSharedValue(0);
+        const pillWidth = useSharedValue(100);
+        const opacity = useSharedValue(0);
 
-    /* ── Positional update ── */
-    useEffect(() => {
-        if (!ready || !tabLayouts[activeIndex]) return;
+        /* ── Positional update ── */
+        useEffect(() => {
+            if (!ready || !tabLayouts[activeIndex]) return;
 
-        const { x, width } = tabLayouts[activeIndex];
-        const EXTRA_WIDTH = 0;
-        const targetX = x - EXTRA_WIDTH / 2;
-        const targetW = width + EXTRA_WIDTH;
+            const { x, width } = tabLayouts[activeIndex];
+            const EXTRA_WIDTH = 0;
+            const targetX = x - EXTRA_WIDTH / 2;
+            const targetW = width + EXTRA_WIDTH;
 
-        if (opacity.value < 0.05) {
-            translateX.value = targetX;
-            pillWidth.value = targetW;
-            opacity.value = withTiming(1, { duration: 150 });
+            if (opacity.value < 0.05) {
+                translateX.value = targetX;
+                pillWidth.value = targetW;
+                opacity.value = withTiming(1, { duration: 150 });
+                prevIndexRef.current = activeIndex;
+                return;
+            }
+
             prevIndexRef.current = activeIndex;
-            return;
-        }
 
-        prevIndexRef.current = activeIndex;
+            /* Translate & width — simple fast spring */
+            translateX.value = withSpring(targetX, SPRING_PILL);
+            pillWidth.value = withSpring(targetW, SPRING_PILL);
+        }, [activeIndex, ready, tabLayouts]);
 
-        /* Translate & width — simple fast spring */
-        translateX.value = withSpring(targetX, SPRING_PILL);
-        pillWidth.value = withSpring(targetW, SPRING_PILL);
-    }, [activeIndex, ready, tabLayouts]);
+        const bloomStyle = useAnimatedStyle(() => ({
+            width: pillWidth.value + 20,
+            opacity: interpolate(opacity.value, [0, 1], [0, 0.42]),
+            transform: [
+                { translateX: translateX.value - 10 },
+                { scaleY: 1 },
+            ],
+        }));
 
-    const bloomStyle = useAnimatedStyle(() => ({
-        width: pillWidth.value + 20,
-        opacity: interpolate(opacity.value, [0, 1], [0, 0.42]),
-        transform: [
-            { translateX: translateX.value - 10 },
-            { scaleY: 1 },
-        ],
-    }));
+        const surfaceStyle = useAnimatedStyle(() => ({
+            width: pillWidth.value,
+            opacity: opacity.value,
+            transform: [
+                { translateX: translateX.value },
+                { scaleX: 1 },
+                { scaleY: 1 },
+                { skewX: "0deg" },
+            ],
+        }));
 
-    const surfaceStyle = useAnimatedStyle(() => ({
-        width: pillWidth.value,
-        opacity: opacity.value,
-        transform: [
-            { translateX: translateX.value },
-            { scaleX: 1 },
-            { scaleY: 1 },
-            { skewX: "0deg" },
-        ],
-    }));
-
-    return (
-        <>
-            <Animated.View pointerEvents="none" style={[styles.pillBloom, bloomStyle]} />
-            <Animated.View pointerEvents="none" style={[styles.pillSurface, surfaceStyle]}>
-                <LinearGradient
-                    colors={[C.pillTop, C.pillMid, C.pillBot]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                />
-                <View style={styles.pillSpecular} />
-                <View style={styles.pillEdgeSpecularRight} />
-                <View style={styles.pillGoldRim} />
-            </Animated.View>
-        </>
-    );
-};
+        return (
+            <>
+                <Animated.View pointerEvents="none" style={[styles.pillBloom, bloomStyle]} />
+                <Animated.View pointerEvents="none" style={[styles.pillSurface, surfaceStyle]}>
+                    <LinearGradient
+                        colors={[C.pillTop, C.pillMid, C.pillBot]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 0, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.pillSpecular} />
+                    <View style={styles.pillEdgeSpecularRight} />
+                    <View style={styles.pillGoldRim} />
+                </Animated.View>
+            </>
+        );
+    };
 
 /* ================================================================
    §13  TOP HIGHLIGHT
@@ -954,7 +954,7 @@ function FoodTransitionOverlay({ visible }: { visible: boolean }) {
     const backdropOpacity = useSharedValue(0);
     const cardScale = useSharedValue(0.88);
     const cardY = useSharedValue(14);
-    
+
     // Load the Lottie JSON
     const animJson = require("../../assets/dinner-anim.json");
 
@@ -1045,6 +1045,11 @@ export default React.memo(function CustomTabBar({
         transform: [{ translateY: animatedTranslateY.value }],
     }));
 
+    const backdropAnimStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: animatedTranslateY.value }],
+        opacity: interpolate(animatedTranslateY.value, [0, 80], [1, 0], "clamp"),
+    }));
+
     useEffect(() => {
         animatedTranslateY.value = withTiming(0, { duration: 250 });
     }, [focusedIndex]);
@@ -1073,213 +1078,232 @@ export default React.memo(function CustomTabBar({
     const bottomOffset = Math.max(insets.bottom, 10) + 14;
 
     return (
-        <View
-            pointerEvents="box-none"
-            style={[styles.absoluteRoot, { bottom: bottomOffset }]}
-        >
-            <Animated.View style={[styles.translateWrapper, translateStyle]}>
-                <Animated.View style={[styles.entranceWrapper, entranceStyle]}>
-                {/* ─────────────────────────────────────────────────
+        <>
+            {/* Smooth blackish gradient shade below tab bar, synchronized with hide/show animation */}
+            <Animated.View
+                pointerEvents="none"
+                style={[
+                    styles.backdropGradientContainer,
+                    backdropAnimStyle,
+                    { height: TAB_BAR_HEIGHT + bottomOffset + 30 },
+                ]}
+            >
+                <LinearGradient
+                    colors={["transparent", "rgba(0, 0, 0, 0.88)", "#000000"]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 0.75 }}
+                />
+            </Animated.View>
+
+            <View
+                pointerEvents="box-none"
+                style={[styles.absoluteRoot, { bottom: bottomOffset }]}
+            >
+                <Animated.View style={[styles.translateWrapper, translateStyle]}>
+                    <Animated.View style={[styles.entranceWrapper, entranceStyle]}>
+                    {/* ─────────────────────────────────────────────────
             Shadow caster stack
             Two layers compose into a richer drop shadow than
             a single shadowRadius can achieve.
             ───────────────────────────────────────────────── */}
-                <View style={styles.shadowA}>
-                    <View style={styles.shadowB}>
+                    <View style={styles.shadowA}>
+                        <View style={styles.shadowB}>
 
-                        {/* ───────────────────────────────────────────
+                            {/* ───────────────────────────────────────────
                 Bar shell — clips all children to the capsule.
                 ─────────────────────────────────────────── */}
-                        <View style={styles.barShell}>
+                            <View style={styles.barShell}>
 
-                            {/* Ambient glow tracking active tab */}
-                            <AmbientGlow
-                                activeIndex={focusedIndex}
-                                tabLayouts={tabLayoutsRef.current}
-                                ready={layoutsReady}
-                            />
-
-                            {/* ─────────────────────────────────────────
-                  Glass blur substrate
-                  ───────────────────────────────────────── */}
-                            <View style={styles.blurLayer}>
-                                {/* Dark tint overlay — stabilises blur on Android */}
-                                <View style={styles.darkTint} pointerEvents="none" />
-
-                                {/* Charcoal depth gradient — obsidian texture */}
-                                <LinearGradient
-                                    colors={[
-                                        "#0D0B08",
-                                        "#080808",
-                                        "#0A0909",
-                                    ]}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={StyleSheet.absoluteFill}
-                                    pointerEvents="none"
-                                />
-
-                                {/* Ultra-faint diagonal grain — matte micro-texture */}
-                                <LinearGradient
-                                    colors={["#FFFFFF", "#000000", "#FFFFFF"]}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={[StyleSheet.absoluteFill, styles.matteGrainOverlay]}
-                                    pointerEvents="none"
-                                />
-
-                                {/* Gold atmospheric gradient — top-to-bottom very faint */}
-                                <LinearGradient
-                                    colors={[C.goldFaint, "transparent", C.goldTrace]}
-                                    start={{ x: 0.5, y: 0 }}
-                                    end={{ x: 0.5, y: 1 }}
-                                    style={StyleSheet.absoluteFill}
-                                    pointerEvents="none"
-                                />
-
-                                {/* Periodic sweep glint */}
-                                <SweepLine />
-
-                                {/* Floating dust particles */}
-                                <FloatingDust />
-
-                                {/* Corner radial flares */}
-                                <CornerFlares />
-
-
-
-                                {/* Active pill — below tab content */}
-                                <ActivePill
+                                {/* Ambient glow tracking active tab */}
+                                <AmbientGlow
                                     activeIndex={focusedIndex}
                                     tabLayouts={tabLayoutsRef.current}
-                                    ready={layoutsReady}
-                                    prevIndexRef={prevIndexRef}
-                                />
-
-                                {/* Hairline dividers between cells (4+ tabs) */}
-                                <NotchDividers
-                                    count={state.routes.length}
-                                    tabLayouts={tabLayoutsRef.current}
-                                    activeIndex={focusedIndex}
                                     ready={layoutsReady}
                                 />
 
                                 {/* ─────────────────────────────────────────
+                  Glass blur substrate
+                  ───────────────────────────────────────── */}
+                                <View style={styles.blurLayer}>
+                                    {/* Dark tint overlay — stabilises blur on Android */}
+                                    <View style={styles.darkTint} pointerEvents="none" />
+
+                                    {/* Charcoal depth gradient — obsidian texture */}
+                                    <LinearGradient
+                                        colors={[
+                                            "#0D0B08",
+                                            "#080808",
+                                            "#0A0909",
+                                        ]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                        pointerEvents="none"
+                                    />
+
+                                    {/* Ultra-faint diagonal grain — matte micro-texture */}
+                                    <LinearGradient
+                                        colors={["#FFFFFF", "#000000", "#FFFFFF"]}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={[StyleSheet.absoluteFill, styles.matteGrainOverlay]}
+                                        pointerEvents="none"
+                                    />
+
+                                    {/* Gold atmospheric gradient — top-to-bottom very faint */}
+                                    <LinearGradient
+                                        colors={[C.goldFaint, "transparent", C.goldTrace]}
+                                        start={{ x: 0.5, y: 0 }}
+                                        end={{ x: 0.5, y: 1 }}
+                                        style={StyleSheet.absoluteFill}
+                                        pointerEvents="none"
+                                    />
+
+                                    {/* Periodic sweep glint */}
+                                    <SweepLine />
+
+                                    {/* Floating dust particles */}
+                                    <FloatingDust />
+
+                                    {/* Corner radial flares */}
+                                    <CornerFlares />
+
+
+
+                                    {/* Active pill — below tab content */}
+                                    <ActivePill
+                                        activeIndex={focusedIndex}
+                                        tabLayouts={tabLayoutsRef.current}
+                                        ready={layoutsReady}
+                                        prevIndexRef={prevIndexRef}
+                                    />
+
+                                    {/* Hairline dividers between cells (4+ tabs) */}
+                                    <NotchDividers
+                                        count={state.routes.length}
+                                        tabLayouts={tabLayoutsRef.current}
+                                        activeIndex={focusedIndex}
+                                        ready={layoutsReady}
+                                    />
+
+                                    {/* ─────────────────────────────────────────
                     Tab items
                     ───────────────────────────────────────── */}
-                                <View style={styles.tabsRow}>
-                                    {state.routes.map((route, index) => {
-                                        const { options } = descriptors[route.key];
+                                    <View style={styles.tabsRow}>
+                                        {state.routes.map((route, index) => {
+                                            const { options } = descriptors[route.key];
 
-                                        const rawLabel =
-                                            options.tabBarLabel !== undefined
-                                                ? options.tabBarLabel
-                                                : options.title !== undefined
-                                                    ? options.title
-                                                    : route.name;
+                                            const rawLabel =
+                                                options.tabBarLabel !== undefined
+                                                    ? options.tabBarLabel
+                                                    : options.title !== undefined
+                                                        ? options.title
+                                                        : route.name;
 
-                                        const label =
-                                            typeof rawLabel === "string" ? rawLabel : route.name;
+                                            const label =
+                                                typeof rawLabel === "string" ? rawLabel : route.name;
 
-                                        const isFocused = focusedIndex === index;
+                                            const isFocused = focusedIndex === index;
 
-                                        const onPress = () => {
-                                            const event = navigation.emit({
-                                                type: "tabPress",
-                                                target: route.key,
-                                                canPreventDefault: true,
-                                            });
-                                            if (!isFocused && !event.defaultPrevented) {
-                                                if (route.name === "reserves") {
-                                                    if (pendingNavigationTimeout.current) {
-                                                        clearTimeout(pendingNavigationTimeout.current);
+                                            const onPress = () => {
+                                                const event = navigation.emit({
+                                                    type: "tabPress",
+                                                    target: route.key,
+                                                    canPreventDefault: true,
+                                                });
+                                                if (!isFocused && !event.defaultPrevented) {
+                                                    if (route.name === "reserves") {
+                                                        if (pendingNavigationTimeout.current) {
+                                                            clearTimeout(pendingNavigationTimeout.current);
+                                                        }
+                                                        setFoodTransitionVisible(true);
+
+                                                        // Navigate after 200ms so the overlay is visible first
+                                                        setTimeout(() => {
+                                                            navigation.navigate(route.name, route.params);
+                                                        }, 200);
+
+                                                        // Keep overlay for 3.2 seconds total, then fade out
+                                                        pendingNavigationTimeout.current = setTimeout(() => {
+                                                            setFoodTransitionVisible(false);
+                                                        }, 3200);
+                                                        return;
                                                     }
-                                                    setFoodTransitionVisible(true);
-                                                    
-                                                    // Navigate after 200ms so the overlay is visible first
-                                                    setTimeout(() => {
-                                                        navigation.navigate(route.name, route.params);
-                                                    }, 200);
-
-                                                    // Keep overlay for 3.2 seconds total, then fade out
-                                                    pendingNavigationTimeout.current = setTimeout(() => {
-                                                        setFoodTransitionVisible(false);
-                                                    }, 3200);
-                                                    return;
+                                                    navigation.navigate(route.name, route.params);
                                                 }
-                                                navigation.navigate(route.name, route.params);
-                                            }
-                                        };
+                                            };
 
-                                        const onLongPress = () => {
-                                            navigation.emit({
-                                                type: "tabLongPress",
-                                                target: route.key,
-                                            });
-                                        };
+                                            const onLongPress = () => {
+                                                navigation.emit({
+                                                    type: "tabLongPress",
+                                                    target: route.key,
+                                                });
+                                            };
 
-                                        const inactiveIcon = options.tabBarIcon
-                                            ? options.tabBarIcon({
-                                                focused: false,
-                                                color: C.iconInactive,
-                                                size: ICON_SIZE,
-                                            })
-                                            : null;
+                                            const inactiveIcon = options.tabBarIcon
+                                                ? options.tabBarIcon({
+                                                    focused: false,
+                                                    color: C.iconInactive,
+                                                    size: ICON_SIZE,
+                                                })
+                                                : null;
 
-                                        const activeIcon = options.tabBarIcon
-                                            ? options.tabBarIcon({
-                                                focused: true,
-                                                color: C.iconActive,
-                                                size: ICON_SIZE,
-                                            })
-                                            : null;
+                                            const activeIcon = options.tabBarIcon
+                                                ? options.tabBarIcon({
+                                                    focused: true,
+                                                    color: C.iconActive,
+                                                    size: ICON_SIZE,
+                                                })
+                                                : null;
 
-                                        return (
-                                            <TabBarItem
-                                                key={route.key}
-                                                isFocused={isFocused}
-                                                onPress={onPress}
-                                                onLongPress={onLongPress}
-                                                onLayout={(x, w) => handleTabLayout(index, x, w)}
-                                                icon={inactiveIcon}
-                                                activeIcon={activeIcon}
-                                                label={label}
-                                            />
-                                        );
-                                    })}
-                                </View>
+                                            return (
+                                                <TabBarItem
+                                                    key={route.key}
+                                                    isFocused={isFocused}
+                                                    onPress={onPress}
+                                                    onLongPress={onLongPress}
+                                                    onLayout={(x, w) => handleTabLayout(index, x, w)}
+                                                    icon={inactiveIcon}
+                                                    activeIcon={activeIcon}
+                                                    label={label}
+                                                />
+                                            );
+                                        })}
+                                    </View>
 
-                                {/* Rim light at very top edge */}
-                                <TopHighlight />
+                                    {/* Rim light at very top edge */}
+                                    <TopHighlight />
                                     <FoodTransitionOverlay visible={foodTransitionVisible} />
 
-                                {/* Micro shadow at bottom edge — depth cue */}
-                                <View
-                                    pointerEvents="none"
-                                    style={styles.bottomEdgeShadow}
-                                />
+                                    {/* Micro shadow at bottom edge — depth cue */}
+                                    <View
+                                        pointerEvents="none"
+                                        style={styles.bottomEdgeShadow}
+                                    />
+
+                                </View>
+
+                                {/* Outer crisp border */}
+                                <View pointerEvents="none" style={styles.outerBorderRing} />
+
+                                {/* Gold hairline accent border */}
+                                <View pointerEvents="none" style={styles.goldBorderRing} />
 
                             </View>
-
-                            {/* Outer crisp border */}
-                            <View pointerEvents="none" style={styles.outerBorderRing} />
-
-                            {/* Gold hairline accent border */}
-                            <View pointerEvents="none" style={styles.goldBorderRing} />
+                            {/* end barShell */}
 
                         </View>
-                        {/* end barShell */}
-
                     </View>
-                </View>
-                {/* end shadow stack */}
+                    {/* end shadow stack */}
 
-                {/* Ambient ground glow beneath bar — very faint */}
-                <View pointerEvents="none" style={styles.groundPool} />
+                    {/* Ambient ground glow beneath bar — very faint */}
+                    <View pointerEvents="none" style={styles.groundPool} />
 
                 </Animated.View>
             </Animated.View>
-        </View>
+         </View>
+        </>
     );
 });
 
@@ -1293,6 +1317,14 @@ export default React.memo(function CustomTabBar({
 const styles = StyleSheet.create({
 
     /* ─── §22-A  Root positioning ─────────────────────────────── */
+
+    backdropGradientContainer: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 0,
+    },
 
     absoluteRoot: {
         position: "absolute",
@@ -1510,14 +1542,14 @@ const styles = StyleSheet.create({
     },
 
     pillInnerShadow: {
-    position: "absolute",
-    bottom: 0,
-    left: 10,
-    right: 10,
-    height: 3,
-    borderBottomLeftRadius: PILL_BORDER_RADIUS,
-    borderBottomRightRadius: PILL_BORDER_RADIUS,
-},
+        position: "absolute",
+        bottom: 0,
+        left: 10,
+        right: 10,
+        height: 3,
+        borderBottomLeftRadius: PILL_BORDER_RADIUS,
+        borderBottomRightRadius: PILL_BORDER_RADIUS,
+    },
 
     pillGoldRim: {
         ...StyleSheet.absoluteFillObject,

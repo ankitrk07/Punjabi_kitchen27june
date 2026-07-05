@@ -8,27 +8,22 @@ import { colors } from "../../src/theme";
 import CustomTabBar, { TAB_BAR_HEIGHT } from "../../src/components/CustomTabBar";
 import { TabBarAnimationProvider } from "../../src/context/TabBarAnimationContext";
 
-export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  const animatedTranslateY = useSharedValue(0);
-  const hiddenOffset = useSharedValue(TAB_BAR_HEIGHT + insets.bottom + 20);
+import { useTabBarAnimation } from "../../src/context/TabBarAnimationContext";
 
-  useEffect(() => {
-    hiddenOffset.value = TAB_BAR_HEIGHT + insets.bottom + 20;
-  }, [hiddenOffset, insets.bottom]);
+export default function TabsLayout() {
+  const { animatedTranslateY } = useTabBarAnimation();
 
   return (
-    <TabBarAnimationProvider value={{ animatedTranslateY, hiddenOffset }}>
-      <Tabs
-        tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} animatedTranslateY={animatedTranslateY} />}
-        screenOptions={{
-          headerShown: false,
-          sceneStyle: { backgroundColor: colors.bg },
-          lazy: false,
-          freezeOnBlur: false,
-          animation: "none",
-        }}
-      >
+    <Tabs
+      tabBar={(props: BottomTabBarProps) => <CustomTabBar {...props} animatedTranslateY={animatedTranslateY} />}
+      screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: colors.bg },
+        lazy: false,
+        freezeOnBlur: false,
+        animation: "none",
+      }}
+    >
         <Tabs.Screen
           name="menu"
           options={{
@@ -65,6 +60,5 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-    </TabBarAnimationProvider>
   );
 }
