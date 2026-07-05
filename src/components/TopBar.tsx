@@ -17,9 +17,10 @@ type TopBarProps = {
   cartRef?: React.RefObject<any>;
   isOrdersTab?: boolean;
   showProfile?: boolean;
+  onExplorePress?: () => void;
 };
 
-export default function TopBar({ variant = "full", scrollY, menuScrollY, search, setSearch, cartRef, isOrdersTab, showProfile = false }: TopBarProps) {
+export default function TopBar({ variant = "full", scrollY, menuScrollY, search, setSearch, cartRef, isOrdersTab, showProfile = false, onExplorePress }: TopBarProps) {
   const { cartBumpAnim, selectedAddress, cart, user } = useApp();
   const router = useRouter();
 
@@ -39,43 +40,17 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
     prevCartCountRef.current = cartCount;
   }, [cartCount]);
 
-  const animProgress = useSharedValue(0);
-  const minimalLottieRef = React.useRef<LottieView>(null);
-  const fullLottieRef = React.useRef<LottieView>(null);
+  const minimalNewCartRef = React.useRef<LottieView>(null);
+  const fullNewCartRef = React.useRef<LottieView>(null);
 
   React.useEffect(() => {
     if (playCartAnim) {
-      animProgress.value = 0;
-      animProgress.value = withTiming(1, { duration: 400 });
-
-      const lottieTimer = setTimeout(() => {
-        minimalLottieRef.current?.play(0, 100);
-        fullLottieRef.current?.play(0, 100);
-      }, 50);
-
-      const hideTimer = setTimeout(() => {
-        animProgress.value = withTiming(0, { duration: 400 }, (finished) => {
-          if (finished) {
-            runOnJS(setPlayCartAnim)(false);
-          }
-        });
-      }, 1600);
-
-      return () => {
-        clearTimeout(lottieTimer);
-        clearTimeout(hideTimer);
-      };
+      const timer = setTimeout(() => {
+        setPlayCartAnim(false);
+      }, 8000);
+      return () => clearTimeout(timer);
     }
   }, [playCartAnim]);
-
-  const wrapperStyle = useAnimatedStyle(() => {
-    const opacity = animProgress.value;
-    const translateX = interpolate(animProgress.value, [0, 1], [40, 0]);
-    return {
-      opacity,
-      transform: [{ translateX }],
-    };
-  });
 
   const progress = Math.min((scrollY ?? 0) / 84, 1);
   const hideLocations = progress > 0.28;
@@ -133,7 +108,7 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
 
   const cartAnimStyle = useAnimatedStyle(() => {
     if (!menuScrollY || showInlineSearch) return { transform: [{ translateX: 0 }] };
-    const translateX = interpolate(menuScrollY.value, [80, 150], [54, 0], "clamp");
+    const translateX = interpolate(menuScrollY.value, [60, 110], [104, 0], "clamp");
     return {
       transform: [{ translateX }],
     };
@@ -141,9 +116,20 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
 
   const searchIconStyle = useAnimatedStyle(() => {
     if (!menuScrollY) return { opacity: 0, transform: [{ scale: 0 }, { translateX: 0 }] };
-    const opacity = interpolate(menuScrollY.value, [80, 150], [0, 1], "clamp");
-    const scale = interpolate(menuScrollY.value, [80, 150], [0, 1], "clamp");
-    const translateX = interpolate(menuScrollY.value, [80, 150], [-54, 0], "clamp");
+    const opacity = interpolate(menuScrollY.value, [110, 150], [0, 1], "clamp");
+    const scale = interpolate(menuScrollY.value, [110, 150], [0, 1], "clamp");
+    const translateX = interpolate(menuScrollY.value, [110, 150], [-15, 0], "clamp");
+    return {
+      opacity,
+      transform: [{ scale }, { translateX }],
+    };
+  });
+
+  const exploreIconStyle = useAnimatedStyle(() => {
+    if (!menuScrollY) return { opacity: 0, transform: [{ scale: 0 }, { translateX: 0 }] };
+    const opacity = interpolate(menuScrollY.value, [110, 150], [0, 1], "clamp");
+    const scale = interpolate(menuScrollY.value, [110, 150], [0, 1], "clamp");
+    const translateX = interpolate(menuScrollY.value, [110, 150], [-15, 0], "clamp");
     return {
       opacity,
       transform: [{ scale }, { translateX }],
@@ -176,28 +162,6 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
           <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
             <Animated.View style={cartAnimStyle}>
               <View style={{ position: "relative", alignItems: "center", justifyContent: "center" }}>
-                {playCartAnim && (
-                  <Animated.View
-                    style={[
-                      {
-                        position: "absolute",
-                        left: -70,
-                        width: 75,
-                        height: 75,
-                        zIndex: -1,
-                      },
-                      wrapperStyle,
-                    ]}
-                  >
-                    <LottieView
-                      ref={minimalLottieRef}
-                      source={require("../../assets/cart.json")}
-                      loop={false}
-                      speed={1.6}
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  </Animated.View>
-                )}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   {showProfile && (
                     <TouchableOpacity
@@ -228,7 +192,26 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
 
                   <RNAnimated.View ref={cartRef} style={[styles.heartBtn, { zIndex: 2 }]}>
                     <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
-                      <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+                      {playCartAnim ? (
+                        <LottieView
+                          ref={minimalNewCartRef}
+                          source={require("../../assets/new-cart.json")}
+                          autoPlay
+                          loop={false}
+                          speed={1.2}
+                          onAnimationFinish={() => setPlayCartAnim(false)}
+                          style={{ width: 36, height: 36 }}
+                          colorFilters={[
+                            { keypath: "**.Fond 1", color: "#000000" },
+                            { keypath: "**.Contour 1", color: "#D4AF37" },
+                            { keypath: "ROUE Silhouettes.**", color: "#D4AF37" },
+                            { keypath: "BAC Silhouettes.**", color: "#D4AF37" },
+                            { keypath: "CADRE Silhouettes.**", color: "#D4AF37" }
+                          ]}
+                        />
+                      ) : (
+                        <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+                      )}
                       {cartCount > 0 && (
                         <View style={styles.cartBadge}>
                           <Text style={styles.cartBadgeText}>{cartCount}</Text>
@@ -244,6 +227,14 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
               <Animated.View style={[searchIconStyle, { marginLeft: 12 }]}>
                 <TouchableOpacity onPress={() => setShowInlineSearch(true)} activeOpacity={0.85} style={styles.headerSearchBtn}>
                   <Ionicons name="search-outline" size={20} color="#D4AF37" />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
+            {!showInlineSearch && !isOrdersTab && onExplorePress && (
+              <Animated.View style={[exploreIconStyle, { marginLeft: 8 }]}>
+                <TouchableOpacity onPress={onExplorePress} activeOpacity={0.85} style={styles.headerSearchBtn}>
+                  <Ionicons name="book-outline" size={20} color="#D4AF37" />
                 </TouchableOpacity>
               </Animated.View>
             )}
@@ -329,39 +320,35 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
           )}
 
           <RNAnimated.View ref={cartRef} style={[cartStyle, { zIndex: 2 }]}>
-            <View style={{ position: "relative", alignItems: "center", justifyContent: "center" }}>
-              {playCartAnim && (
-                <Animated.View
-                  style={[
-                    {
-                      position: "absolute",
-                      left: -70,
-                      width: 75,
-                      height: 75,
-                      zIndex: -1,
-                    },
-                    wrapperStyle,
-                  ]}
-                >
+            <View style={[styles.heartBtn, { zIndex: 2 }]}>
+              <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
+                {playCartAnim ? (
                   <LottieView
-                    ref={fullLottieRef}
-                    source={require("../../assets/cart.json")}
+                    ref={fullNewCartRef}
+                    source={require("../../assets/new-cart.json")}
+                    autoPlay
                     loop={false}
-                    speed={1.6}
-                    style={{ width: "100%", height: "100%" }}
+                    onAnimationFinish={() => setPlayCartAnim(false)}
+                    style={{ width: 30, height: 30 }}
+                    colorFilters={[
+                      { keypath: "ROUE Silhouettes", color: "#D4AF37" },
+                      { keypath: "BAC Silhouettes", color: "#D4AF37" },
+                      { keypath: "CADRE Silhouettes", color: "#D4AF37" },
+                      { keypath: "Forme 1", color: "#D4AF37" },
+                      { keypath: "Rectangle 1", color: "#D4AF37" },
+                      { keypath: "Ellipse 1", color: "#D4AF37" },
+                      { keypath: "**", color: "#D4AF37" }
+                    ]}
                   />
-                </Animated.View>
-              )}
-              <View style={[styles.heartBtn, { zIndex: 2 }]}>
-                <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
+                ) : (
                   <Ionicons name="cart-outline" size={22} color="#D4AF37" />
-                  {cartCount > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>{cartCount}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
+                )}
+                {cartCount > 0 && (
+                  <View style={styles.cartBadge}>
+                    <Text style={styles.cartBadgeText}>{cartCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </RNAnimated.View>
         </View>

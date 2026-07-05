@@ -14,8 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
-import Animated, { useSharedValue } from "react-native-reanimated";
+import Animated, { useSharedValue, FadeInDown, FadeOutUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 const ALL_FILTER = { id: "all", name: "All", icon: "grid", image: "" };
 
@@ -136,6 +137,47 @@ const FlyingDish: React.FC<FlyingDishProps> = ({
   );
 };
 
+const cleanCategoryName = (name: string) => {
+  if (name.includes(":")) {
+    return name.split(":")[1].trim();
+  }
+  return name;
+};
+
+function VegNonVegIndicator({ isVeg, size = 12 }: { isVeg: boolean; size?: number }) {
+  const color = isVeg ? "#22c55e" : "#dc2626";
+  const borderWidth = 1;
+  const dotSize = Math.round(size * 0.44);
+  const squareRadius = Math.max(1, Math.round(size * 0.15));
+
+  return (
+    <View style={{
+      width: size,
+      height: size,
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
+      <View style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderWidth: borderWidth,
+        borderColor: color,
+        borderRadius: squareRadius,
+        backgroundColor: "transparent",
+      }} />
+      <View style={{
+        width: dotSize,
+        height: dotSize,
+        borderRadius: dotSize / 2,
+        backgroundColor: color,
+      }} />
+    </View>
+  );
+}
+
 export default function MenuScreen() {
   const { addToCart, dishes: apiDishes, categories: apiCategories, cartBumpAnim, refreshAllData, favorites: favoritesIds, toggleFavorite } = useApp();
   const scrollY = useSharedValue(0);
@@ -152,6 +194,7 @@ export default function MenuScreen() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   useEffect(() => {
     setSelectedSubTab("all");
@@ -162,6 +205,7 @@ export default function MenuScreen() {
   const [sortBy, setSortBy] = useState<SortOption>("popular");
   const [viewMode, setViewMode] = useState<"grid" | "cinematic">("grid");
   const [showExtendedFilters, setShowExtendedFilters] = useState(false);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -174,11 +218,57 @@ export default function MenuScreen() {
       setPriceRange("all");
       setSortBy("popular");
       setSearch("");
+      setShowCategoryModal(false);
+      setShowTypeDropdown(false);
     } catch (e) {
       console.log("Failed to refresh menu:", e);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const categoryTree = useMemo(() => {
+    const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    return catsSource.filter((c) => c.parentId === null);
+  }, [apiCategories]);
+
+  const getSubCategories = useCallback((rootId: string) => {
+    const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    const list: typeof CATEGORIES = [];
+    
+    const traverse = (parentId: string) => {
+      const children = catsSource.filter((c) => c.parentId === parentId);
+      children.forEach((child) => {
+        if (!list.some((item) => item.id === child.id)) {
+          list.push(child);
+        }
+        traverse(child.id);
+      });
+    };
+    
+    traverse(rootId);
+    return list;
+  }, [apiCategories]);
+
+  const activeCategoryObj = useMemo(() => {
+    if (selectedCategory === "all") return null;
+    const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+    const catId = selectedSubTab === "all" ? selectedCategory : selectedSubTab;
+    return catsSource.find((c) => c.id === catId);
+  }, [selectedCategory, selectedSubTab, apiCategories]);
+
+  const handleDietaryPress = () => {
+    Alert.alert(
+      "Dietary Preference",
+      "Select a preference to filter the dishes",
+      [
+        { text: "All Types (Veg & Non-Veg)", onPress: () => setDishType("all") },
+        { text: "Veg Only 🟢", onPress: () => setDishType("veg") },
+        { text: "Non-Veg Only 🔴", onPress: () => setDishType("nonveg") },
+        { text: "Cancel", style: "cancel" }
+      ],
+      { cancelable: true }
+    );
   };
 
   const handleSortPress = () => {
@@ -393,10 +483,50 @@ export default function MenuScreen() {
       case "header":
         return (
           <View style={styles.menuHeader}>
-            <View style={{ flex: 1, paddingRight: 60 }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
               <Text style={styles.kicker}>ROYAL CULINARY SELECTION</Text>
               <Text style={styles.headerTitle}>Master Menu</Text>
             </View>
+
+            {/* Explore Menu button / Active Filter button on the right */}
+            {selectedCategory === "all" ? (
+              <TouchableOpacity
+                onPress={() => setShowCategoryModal(true)}
+                style={styles.headerExploreBtn}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="book-outline" size={14} color={colors.gold} />
+                <Text style={styles.headerExploreBtnText}>Explore Menu</Text>
+              </TouchableOpacity>
+            ) : (
+              activeCategoryObj && (
+                <View style={styles.headerFilterRow}>
+                  {/* Category Pill Button (opens modal) */}
+                  <TouchableOpacity
+                    onPress={() => setShowCategoryModal(true)}
+                    style={styles.headerExploreBtnActive}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="book" size={12} color="#0A0A0A" />
+                    <Text numberOfLines={1} style={styles.headerExploreBtnTextActive}>
+                      {cleanCategoryName(activeCategoryObj.name)}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {/* Clear Button */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedCategory("all");
+                      setSelectedSubTab("all");
+                    }}
+                    style={styles.headerFilterClear}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="close" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              )
+            )}
           </View>
         );
       case "search":
@@ -410,39 +540,6 @@ export default function MenuScreen() {
       case "filters":
         return (
           <View style={styles.stickyFilters}>
-            <CategoryFilterBar
-              filters={filters}
-              selectedId={selectedCategory}
-              onSelect={setSelectedCategory}
-            />
-
-            {currentSubCats.length > 0 && (
-              <View style={styles.subTabsContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabsScroll} style={{ maxHeight: 50 }}>
-                  <TouchableOpacity
-                    style={[styles.subTabBtn, selectedSubTab === "all" && styles.subTabBtnActive]}
-                    onPress={() => setSelectedSubTab("all")}
-                  >
-                    <Text style={[styles.subTabText, selectedSubTab === "all" && styles.subTabTextActive]}>All</Text>
-                  </TouchableOpacity>
-                  {currentSubCats.map((sc) => (
-                    <TouchableOpacity
-                      key={sc.id}
-                      style={[styles.subTabBtn, selectedSubTab === sc.id && styles.subTabBtnActive]}
-                      onPress={() => setSelectedSubTab(sc.id)}
-                    >
-                      <Text style={[styles.subTabText, selectedSubTab === sc.id && styles.subTabTextActive]}>{sc.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Dietary Segment Row (Spacious & Clean) */}
-            <View style={styles.dietaryRow}>
-              <DietaryFilter value={dishType} onChange={setDishType} />
-            </View>
-
             {/* HUD actions Row (Spacious controls and result indicator) */}
             <View style={styles.hudRow}>
               <Text style={styles.resultCountText}>
@@ -450,6 +547,22 @@ export default function MenuScreen() {
               </Text>
 
               <View style={styles.hudActions}>
+                {/* Veg/Non-Veg Dropdown */}
+                <TouchableOpacity
+                  onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+                  style={[styles.hudBtn, dishType !== "all" && styles.hudBtnActive]}
+                >
+                  {dishType === "all" ? (
+                    <Ionicons name="grid-outline" size={12} color={colors.textPrimary} />
+                  ) : (
+                    <VegNonVegIndicator isVeg={dishType === "veg"} size={11} />
+                  )}
+                  <Text style={[styles.hudBtnText, dishType !== "all" && styles.hudBtnTextActive]}>
+                    {dishType === "all" ? "Type" : dishType === "veg" ? "Veg" : "Non-Veg"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={11} color={dishType !== "all" ? colors.gold : colors.textPrimary} />
+                </TouchableOpacity>
+
                 {/* Filter Drawer Toggle */}
                 <TouchableOpacity
                   onPress={() => setShowExtendedFilters(!showExtendedFilters)}
@@ -458,21 +571,16 @@ export default function MenuScreen() {
                   <Ionicons name="options-outline" size={14} color={(priceRange !== "all" || sortBy !== "popular") ? colors.gold : colors.textPrimary} />
                   <Text style={[(priceRange !== "all" || sortBy !== "popular") ? styles.hudBtnTextActive : styles.hudBtnText]}>Filters</Text>
                 </TouchableOpacity>
-
-                {/* Sort by button */}
-                <TouchableOpacity
-                  onPress={handleSortPress}
-                  style={[styles.hudBtn, sortBy !== "popular" && styles.hudBtnActive]}
-                >
-                  <Text style={[styles.hudBtnText, sortBy !== "popular" && styles.hudBtnTextActive]}>Sort by</Text>
-                  <Ionicons name="chevron-down" size={12} color={sortBy !== "popular" ? colors.gold : colors.textPrimary} />
-                </TouchableOpacity>
               </View>
             </View>
 
             {/* Extended Custom Filter & Sort Drawer */}
             {showExtendedFilters && (
-              <View style={styles.extendedDrawer}>
+              <Animated.View
+                entering={FadeInDown.duration(200)}
+                exiting={FadeOutUp.duration(150)}
+                style={styles.extendedDrawer}
+              >
                 {/* Custom Price Filters */}
                 <View style={styles.filterGroup}>
                   <Text style={styles.filterGroupTitle}>PRICE RANGE</Text>
@@ -514,7 +622,7 @@ export default function MenuScreen() {
                     ))}
                   </View>
                 </View>
-              </View>
+              </Animated.View>
             )}
           </View>
         );
@@ -568,6 +676,7 @@ export default function MenuScreen() {
         menuScrollY={scrollY}
         search={search}
         setSearch={setSearch}
+        onExplorePress={() => setShowCategoryModal(true)}
       />
 
       <Animated.FlatList
@@ -608,6 +717,149 @@ export default function MenuScreen() {
           onAnimationComplete={() => handleAnimationComplete(item.id)}
         />
       ))}
+
+      {/* Category Structure Index Modal */}
+      {showCategoryModal && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowCategoryModal(false)}
+          />
+          <Animated.View
+            entering={FadeInDown.duration(260)}
+            style={styles.modalCard}
+          >
+            <LinearGradient
+              colors={["rgba(26,20,16,1)", "rgba(16,12,8,1)"]}
+              style={StyleSheet.absoluteFill}
+            />
+            
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Explore Menu</Text>
+                <Text style={styles.modalSubtitle}>Select a section or category to filter</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowCategoryModal(false)}
+                style={styles.modalClose}
+              >
+                <Ionicons name="close" size={20} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable list of categories */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              {categoryTree.map((root) => {
+                const subCats = getSubCategories(root.id);
+                const hasSubCats = subCats.length > 0;
+                
+                return (
+                  <View key={root.id} style={styles.rootSection}>
+                    {/* Root Category Row */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedCategory(root.id);
+                        setSelectedSubTab("all");
+                        setShowCategoryModal(false);
+                      }}
+                      style={[
+                        styles.rootHeader,
+                        selectedCategory === root.id && selectedSubTab === "all" && styles.rootHeaderActive
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="book" size={16} color={colors.gold} />
+                      <Text style={styles.rootHeaderText}>{cleanCategoryName(root.name)}</Text>
+                      <Text style={styles.rootHeaderBadge}>All</Text>
+                    </TouchableOpacity>
+
+                    {/* Subcategories list */}
+                    {hasSubCats && (
+                      <View style={styles.subCatsGrid}>
+                        {subCats.map((sub) => {
+                          const isSubSelected = selectedSubTab === sub.id;
+                          return (
+                            <TouchableOpacity
+                              key={sub.id}
+                              onPress={() => {
+                                setSelectedCategory(root.id);
+                                setSelectedSubTab(sub.id);
+                                setShowCategoryModal(false);
+                              }}
+                              style={[
+                                styles.subCatChip,
+                                isSubSelected && styles.subCatChipActive
+                              ]}
+                              activeOpacity={0.85}
+                            >
+                              <Text style={[styles.subCatChipText, isSubSelected && styles.subCatChipTextActive]}>
+                                {sub.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Veg/Non-Veg Type Dropdown Popover */}
+      {showTypeDropdown && (
+        <View style={styles.dropdownOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowTypeDropdown(false)}
+          />
+          <Animated.View
+            entering={FadeInDown.duration(180)}
+            style={styles.dropdownCard}
+          >
+            <LinearGradient
+              colors={["#1A1410", "#100C08"]}
+              style={StyleSheet.absoluteFill}
+            />
+            {[
+              { id: "all", label: "All Types" },
+              { id: "veg", label: "Veg Only" },
+              { id: "nonveg", label: "Non-Veg Only" },
+            ].map((opt) => {
+              const isSelected = dishType === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                  onPress={() => {
+                    setDishType(opt.id as DishTypeFilter);
+                    setShowTypeDropdown(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {opt.id === "all" ? (
+                    <Ionicons name="grid-outline" size={13} color={colors.gold} />
+                  ) : (
+                    <VegNonVegIndicator isVeg={opt.id === "veg"} size={12} />
+                  )}
+                  <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
+                    {opt.label}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={14} color={colors.gold} />}
+                </TouchableOpacity>
+              );
+            })}
+          </Animated.View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -879,5 +1131,261 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   sectionsWrap: { paddingTop: 16, gap: 16 },
+  categoriesRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  categoryBarBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#0D0B08",
+    borderWidth: 1.2,
+    borderColor: "rgba(201, 168, 76, 0.2)",
+  },
+  categoryBarBtnActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  categoryBarText: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  categoryBarTextActive: {
+    color: "#0A0A0A",
+  },
+  activeFilterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    flex: 1,
+    minWidth: 0,
+  },
+  activeFilterText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontWeight: "600",
+    flex: 1,
+  },
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    justifyContent: "flex-end",
+    zIndex: 9999,
+  },
+  modalCard: {
+    maxHeight: "80%",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: "rgba(201,168,76,0.25)",
+    borderBottomWidth: 0,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  modalTitle: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  modalSubtitle: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalScrollContent: {
+    padding: 20,
+    paddingBottom: 60,
+  },
+  rootSection: {
+    marginBottom: 20,
+  },
+  rootHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    gap: 8,
+  },
+  rootHeaderActive: {
+    borderColor: colors.gold,
+    backgroundColor: "rgba(212,175,55,0.08)",
+  },
+  rootHeaderText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "700",
+    flex: 1,
+  },
+  rootHeaderBadge: {
+    color: colors.gold,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    backgroundColor: "rgba(212,175,55,0.12)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  subCatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+    paddingLeft: 10,
+  },
+  subCatChip: {
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  subCatChipActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  subCatChipText: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  subCatChipTextActive: {
+    color: "#0A0A0A",
+    fontWeight: "800",
+  },
+  headerExploreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(212,175,55,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.25)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  headerExploreBtnText: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  headerFilterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 10,
+    padding: 3,
+    maxWidth: 150,
+  },
+  headerExploreBtnActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.gold,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 7,
+    flexShrink: 1,
+  },
+  headerExploreBtnTextActive: {
+    color: "#0A0A0A",
+    fontSize: 10.5,
+    fontWeight: "800",
+  },
+  headerFilterClear: {
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dropdownOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.15)",
+    zIndex: 999,
+  },
+  dropdownCard: {
+    position: "absolute",
+    top: 155,
+    right: 95,
+    width: 140,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1.2,
+    borderColor: "rgba(201, 168, 76, 0.25)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
+    padding: 4,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  dropdownItemActive: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  dropdownItemText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    fontWeight: "600",
+    flex: 1,
+  },
+  dropdownItemTextActive: {
+    color: "#FFF",
+    fontWeight: "800",
+  },
 });
 
