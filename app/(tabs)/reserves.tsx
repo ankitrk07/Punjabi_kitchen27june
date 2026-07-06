@@ -16,42 +16,44 @@ import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
+  View
 } from "react-native";
-import Reanimated, { useAnimatedRef, scrollTo, runOnUI } from "react-native-reanimated";
+import Reanimated, { runOnUI, scrollTo, useAnimatedRef } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 
 const { width, height } = Dimensions.get("window");
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const GOLD       = "#C9A84C";
+const GOLD = "#C9A84C";
 const GOLD_LIGHT = "#E8C97A";
-const GOLD_DIM   = "rgba(201,168,76,0.12)";
-const GOLD_SOFT  = "rgba(201,168,76,0.08)";
-const DARK_BG    = "#080808";
-const SURFACE    = "#111111";
-const SURFACE2   = "#161616";
-const SURFACE3   = "#1e1e1e";
-const MUTED      = "#555555";
-const WHITE      = "#FFFFFF";
+const GOLD_DIM = "rgba(201,168,76,0.12)";
+const GOLD_SOFT = "rgba(201,168,76,0.08)";
+const DARK_BG = "#080808";
+const SURFACE = "#111111";
+const SURFACE2 = "#161616";
+const SURFACE3 = "#1e1e1e";
+const MUTED = "#555555";
+const WHITE = "#FFFFFF";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function generateTimeSlots(year: number, month: number, day: number): string[] {
-  const now     = new Date();
+  const now = new Date();
   const isToday =
     now.getFullYear() === year &&
     now.getMonth() === month &&
@@ -100,6 +102,22 @@ function getBookedSlots(year: number, month: number, day: number): string[] {
   return DUMMY_RESERVATIONS[key] ?? [];
 }
 
+function getBookedSlotsForDate(year: number, month: number, day: number, activeReservations: any[]): string[] {
+  const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const dateStr = `${MONTH_NAMES[month]} ${day}, ${year}`;
+  const dummyBooked = DUMMY_RESERVATIONS[key] ?? [];
+
+  const slots = generateTimeSlots(year, month, day);
+  const fullyBookedFromApp = slots.filter(slot => {
+    const tableCount = activeReservations.filter(
+      r => r.status === "Active" && r.reservationDate === dateStr && r.reservationSlot === slot
+    ).length;
+    return tableCount >= 8;
+  });
+
+  return Array.from(new Set([...dummyBooked, ...fullyBookedFromApp]));
+}
+
 function getReservationToken(order: any, index: number) {
   const idSource = (order.id ?? `local-${index}`).toString();
   return `#${idSource.slice(-6).toUpperCase()}`;
@@ -129,7 +147,7 @@ function InputModal({
   onChange: (v: string) => void;
 }) {
   const slideAnim = useRef(new Animated.Value(300)).current;
-  const inputRef  = useRef<TextInput>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
@@ -289,8 +307,8 @@ function TappableField({
   const pressAnim = useRef(new Animated.Value(1)).current;
   const inputRef = useRef<TextInput>(null);
 
-  const onIn  = () => Animated.spring(pressAnim, { toValue: 0.96, useNativeDriver: true, speed: 80 }).start();
-  const onOut = () => Animated.spring(pressAnim, { toValue: 1,    useNativeDriver: true, speed: 80 }).start();
+  const onIn = () => Animated.spring(pressAnim, { toValue: 0.96, useNativeDriver: true, speed: 80 }).start();
+  const onOut = () => Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, speed: 80 }).start();
 
   return (
     <>
@@ -363,24 +381,24 @@ function TappableField({
 }
 
 const tf = StyleSheet.create({
-  wrap:  { flex: 1 },
+  wrap: { flex: 1 },
   label: {
-    color: MUTED, fontSize: 8, fontWeight: "800",
-    letterSpacing: 2.2, marginBottom: 7,
+    color: "#C9A84C", fontSize: 10, fontWeight: "800",
+    letterSpacing: 1.5, marginBottom: 8,
   },
   pill: {
-    flexDirection: "row", alignItems: "center", gap: 7,
-    backgroundColor: SURFACE2,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "rgba(14, 14, 14, 0.7)",
     borderRadius: 12,
-    borderWidth: 1, borderColor: `${GOLD}22`,
-    paddingHorizontal: 12, paddingVertical: 11,
+    borderWidth: 1, borderColor: "rgba(201, 168, 76, 0.15)",
+    paddingHorizontal: 12, paddingVertical: 13,
   },
   pillError: { borderColor: "#e85555" },
   pillText: {
-    flex: 1, color: WHITE, fontSize: 13, fontWeight: "500",
+    flex: 1, color: WHITE, fontSize: 14, fontWeight: "500",
   },
-  pillPlaceholder: { color: "#3a3a3a" },
-  errText: { color: "#e85555", fontSize: 9, marginTop: 4, letterSpacing: 0.3 },
+  pillPlaceholder: { color: "#555555" },
+  errText: { color: "#e85555", fontSize: 10, marginTop: 4, letterSpacing: 0.3 },
   clearBtn: {
     padding: 2,
     marginLeft: 4,
@@ -388,8 +406,7 @@ const tf = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-// REAL-TIME FULL CALENDAR - COMPLETELY REWRITTEN with proper alignment
+// REAL-TIME FULL CALENDAR
 // ─────────────────────────────────────────────────────────────────────────────
 function FullCalendar({
   selected,
@@ -403,56 +420,47 @@ function FullCalendar({
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  
-  // Get the first day of the month (0 = Sunday, 1 = Monday, etc.)
+
   const getFirstDayOfMonth = (year: number, month: number) => {
     return new Date(year, month, 1).getDay();
   };
-  
-  // Get number of days in month
+
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
   };
-  
+
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  
-  // Calculate total cells needed (42 = 6 rows x 7 days)
+
   const totalCells = 42;
   const offset = firstDayOfMonth;
-  
-  // Create array of days with null for empty cells
+
   const calendarDays: (number | null)[] = [];
-  
-  // Add empty cells for days before month starts
+
   for (let i = 0; i < offset; i++) {
     calendarDays.push(null);
   }
-  
-  // Add actual days of the month
+
   for (let i = 1; i <= daysInMonth; i++) {
     calendarDays.push(i);
   }
-  
-  // Fill remaining cells with null to reach totalCells (42)
+
   while (calendarDays.length < totalCells) {
     calendarDays.push(null);
   }
-  
-  // Check if a date is in the past
+
   const isPastDate = (year: number, month: number, day: number) => {
     const date = new Date(year, month, day);
     const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     return date < todayDate;
   };
-  
-  // Check if date is within 2 months from today
+
   const isWithinLimit = (year: number, month: number) => {
     const maxDate = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
     const checkDate = new Date(year, month, 1);
     return checkDate <= maxDate;
   };
-  
+
   const goToPreviousMonth = () => {
     let newMonth = currentMonth - 1;
     let newYear = currentYear;
@@ -460,14 +468,13 @@ function FullCalendar({
       newMonth = 11;
       newYear--;
     }
-    // Don't go before current month
     if (newYear < today.getFullYear() || (newYear === today.getFullYear() && newMonth < today.getMonth())) {
       return;
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
   };
-  
+
   const goToNextMonth = () => {
     let newMonth = currentMonth + 1;
     let newYear = currentYear;
@@ -475,76 +482,86 @@ function FullCalendar({
       newMonth = 0;
       newYear++;
     }
-    // Don't go more than 2 months ahead
     if (!isWithinLimit(newYear, newMonth)) {
       return;
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
   };
-  
+
   const handleDateSelect = (day: number) => {
     if (!isPastDate(currentYear, currentMonth, day)) {
       onSelect({ year: currentYear, month: currentMonth, day });
     }
   };
-  
+
   const isSelectedDate = (day: number) => {
-    return selected?.year === currentYear && 
-           selected?.month === currentMonth && 
-           selected?.day === day;
+    return selected?.year === currentYear &&
+      selected?.month === currentMonth &&
+      selected?.day === day;
   };
-  
+
   const isToday = (day: number) => {
-    return today.getFullYear() === currentYear && 
-           today.getMonth() === currentMonth && 
-           today.getDate() === day;
+    return today.getFullYear() === currentYear &&
+      today.getMonth() === currentMonth &&
+      today.getDate() === day;
   };
-  
+
   const isPast = (day: number) => {
     return isPastDate(currentYear, currentMonth, day);
   };
-  
+
   const canGoPrev = !(currentYear === today.getFullYear() && currentMonth === today.getMonth());
-  
-  // Weekday labels (Sunday to Saturday)
+
   const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  
-  // Split calendar days into rows of 7
+
   const rows: (number | null)[][] = [];
   for (let i = 0; i < calendarDays.length; i += 7) {
     rows.push(calendarDays.slice(i, i + 7));
   }
-  
+
   return (
     <View style={calendar.card}>
+      <Image
+        source={require("../../assets/images/date.png")}
+        style={calendar.dateTab}
+        resizeMode="contain"
+      />
+
       <View style={calendar.headerRow}>
-        <View style={calendar.badge}>
-          <Text style={calendar.badgeText}>DATE</Text>
+        <View style={{ width: 85, height: 26 }} />
+
+        <View style={calendar.headerHintRow}>
+          <Text style={calendar.headerHint}>Pick your reservation day</Text>
+          <Ionicons name="sparkles" size={12} color="#C9A84C" />
         </View>
-        <Text style={calendar.headerHint}>Pick your reservation day</Text>
       </View>
-      
-      {/* Month Navigation */}
+
       <View style={calendar.navRow}>
-        <TouchableOpacity 
-          onPress={goToPreviousMonth} 
+        <TouchableOpacity
+          onPress={goToPreviousMonth}
           style={[calendar.navBtn, !canGoPrev && calendar.navBtnDisabled]}
           disabled={!canGoPrev}
         >
-          <Ionicons name="chevron-back" size={20} color={canGoPrev ? GOLD : `${GOLD}30`} />
+          <Ionicons name="chevron-back" size={14} color={canGoPrev ? "#C9A84C" : "rgba(201,168,76,0.2)"} />
         </TouchableOpacity>
-        
-        <Text style={calendar.monthYear}>
-          {MONTH_NAMES[currentMonth]} {currentYear}
-        </Text>
-        
+
+        <View style={calendar.monthYearContainer}>
+          <Text style={calendar.monthYear}>
+            {MONTH_NAMES[currentMonth]} {currentYear}
+          </Text>
+          <Image
+            source={require("../../assets/images/designBar.png")}
+            style={calendar.designBar}
+            resizeMode="contain"
+          />
+        </View>
+
         <TouchableOpacity onPress={goToNextMonth} style={calendar.navBtn}>
-          <Ionicons name="chevron-forward" size={20} color={GOLD} />
+          <Ionicons name="chevron-forward" size={14} color="#C9A84C" />
         </TouchableOpacity>
       </View>
-      
-      {/* Weekday Headers */}
+
       <View style={calendar.weekdayRow}>
         {weekdays.map((day, index) => (
           <Text key={index} style={calendar.weekdayText}>
@@ -552,8 +569,7 @@ function FullCalendar({
           </Text>
         ))}
       </View>
-      
-      {/* Calendar Grid */}
+
       <View style={calendar.grid}>
         {rows.map((row, rowIndex) => (
           <View key={rowIndex} style={calendar.row}>
@@ -565,11 +581,16 @@ function FullCalendar({
                     disabled={isPast(day)}
                     style={[
                       calendar.dayBtn,
-                      isSelectedDate(day) && calendar.dayBtnSelected,
-                      isToday(day) && !isSelectedDate(day) && calendar.dayBtnToday,
                       isPast(day) && calendar.dayBtnDisabled,
                     ]}
                   >
+                    {isSelectedDate(day) && (
+                      <Image
+                        source={require("../../assets/images/ring.png")}
+                        style={calendar.selectedRing}
+                        resizeMode="contain"
+                      />
+                    )}
                     <Text style={[
                       calendar.dayText,
                       isSelectedDate(day) && calendar.dayTextSelected,
@@ -578,6 +599,9 @@ function FullCalendar({
                     ]}>
                       {day}
                     </Text>
+                    {isSelectedDate(day) && (
+                      <View style={calendar.selectedDot} />
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <View style={calendar.dayPlaceholder} />
@@ -587,7 +611,7 @@ function FullCalendar({
           </View>
         ))}
       </View>
-      
+
       {selected && (
         <Text style={calendar.selectedLabel}>
           Selected: {MONTH_NAMES[selected.month]} {selected.day}, {selected.year}
@@ -600,236 +624,223 @@ function FullCalendar({
 
 const calendar = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(17,17,17,0.98)",
-    borderRadius: 24,
+    backgroundColor: "rgba(12, 12, 12, 0.7)",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: `${GOLD}18`,
+    borderColor: "rgba(201, 168, 76, 0.25)",
     padding: 14,
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: GOLD,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.14,
-        shadowRadius: 18,
-      },
-      android: { elevation: 10 },
-    }),
+    position: "relative",
   },
-  wrap: {
-    marginBottom: 0,
+  dateTab: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 106,
+    height: 106 * (711 / 1523),
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
-    gap: 12,
+    marginBottom: 18,
   },
-  badge: {
-    alignSelf: "flex-start",
-    backgroundColor: GOLD_DIM,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: `${GOLD}25`,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  badgeText: {
-    color: GOLD_LIGHT,
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 2,
+  headerHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   headerHint: {
-    flex: 1,
-    textAlign: "right",
-    color: MUTED,
-    fontSize: 11,
+    color: "#C9A84C",
+    fontSize: 10,
     fontWeight: "600",
+    letterSpacing: 0.5,
   },
   navRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
-    paddingHorizontal: 2,
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: SURFACE3,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.35)",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: `${GOLD}18`,
   },
   navBtnDisabled: {
-    backgroundColor: SURFACE3,
-    borderColor: `${GOLD}10`,
+    borderColor: "rgba(201, 168, 76, 0.1)",
+  },
+  monthYearContainer: {
+    alignItems: "center",
   },
   monthYear: {
     color: WHITE,
-    fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0.4,
+    fontSize: 18,
+    fontWeight: "700",
+    fontFamily: Platform.select({ ios: "Palatino", android: "serif" }),
+  },
+  designBar: {
+    width: 110,
+    height: 110 * (219 / 1508),
+    marginTop: 4,
   },
   weekdayRow: {
     flexDirection: "row",
-    marginBottom: 10,
-    paddingHorizontal: 2,
+    marginBottom: 12,
   },
   weekdayText: {
     flex: 1,
     textAlign: "center",
-    color: `${GOLD}C0`,
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1.1,
+    color: "#C9A84C",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   grid: {
     flexDirection: "column",
   },
   row: {
     flexDirection: "row",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   dayCell: {
     flex: 1,
     aspectRatio: 1,
     padding: 2,
+    justifyContent: "center",
+    alignItems: "center",
   },
   dayBtn: {
-    flex: 1,
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.02)",
-    borderWidth: 1,
-    borderColor: `${GOLD}12`,
+    borderRadius: 999,
   },
-  dayBtnSelected: {
-    backgroundColor: GOLD,
-    borderColor: GOLD_LIGHT,
-    shadowColor: GOLD,
-    shadowOpacity: 0.24,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+  selectedRing: {
+    position: "absolute",
+    width: "115%",
+    height: "115%",
+    alignSelf: "center",
   },
-  dayBtnToday: {
-    borderColor: `${GOLD}60`,
-    backgroundColor: "rgba(201,168,76,0.12)",
+  selectedDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "#C9A84C",
+    position: "absolute",
+    bottom: 4,
   },
   dayBtnDisabled: {
-    backgroundColor: "rgba(255,255,255,0.015)",
-    borderColor: `${GOLD}08`,
-    opacity: 0.4,
+    opacity: 0.55,
   },
   dayText: {
     color: WHITE,
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
   },
   dayTextSelected: {
-    color: "#1a0d0a",
-    fontWeight: "800",
+    color: WHITE,
+    fontWeight: "700",
   },
   dayTextToday: {
-    color: GOLD_LIGHT,
-    fontWeight: "800",
+    color: "#C9A84C",
+    fontWeight: "700",
   },
   dayTextDisabled: {
-    color: MUTED,
+    color: "#888888",
   },
   dayPlaceholder: {
     flex: 1,
   },
   selectedLabel: {
-    color: GOLD_LIGHT,
+    color: "#C9A84C",
     fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 0.4,
-    marginTop: 12,
-    marginBottom: 4,
     textAlign: "center",
+    marginTop: 12,
   },
   errText: {
     color: "#e85555",
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 6,
-    letterSpacing: 0.3,
-    textAlign: "center",
   },
 });
+
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BookingWidget
 // ─────────────────────────────────────────────────────────────────────────────
 function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any) => void, onValidationError?: () => void }) {
   const { reservations } = useApp();
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
-  const [name,   setName]   = useState("");
-  const [phone,  setPhone]  = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [guests, setGuests] = useState("2");
   const [customGuestCount, setCustomGuestCount] = useState("");
   const [showGuestModal, setShowGuestModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<{ year: number; month: number; day: number } | null>(null);
-  const [selectedSlot, setSlot]         = useState<string | null>(null);
-  const [selectedTable, setSelectedTable] = useState<number | null>(null);
-  const [timeSlots,    setTimeSlots]    = useState<string[]>([]);
-  const [bookedSlots,  setBookedSlots]  = useState<string[]>([]);
-  const [errors,       setErrors]       = useState<Record<string, string>>({});
-  const [submitted,    setSubmitted]    = useState(false);
 
-  const slotAnims = useRef<Record<string, Animated.Value>>({});
+  // Set selectedDate initially to null so slots do not appear on load
+  const [selectedDate, setSelectedDate] = useState<{ year: number; month: number; day: number } | null>(null);
+
+  const [selectedSlot, setSlot] = useState<string | null>(null);
+  const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, delay: 100, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay: 100, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 600, delay: 100, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    if (selectedDate) {
+      const slots = generateTimeSlots(selectedDate.year, selectedDate.month, selectedDate.day);
+      setTimeSlots(slots);
+
+      const booked = getBookedSlotsForDate(selectedDate.year, selectedDate.month, selectedDate.day, reservations);
+      setBookedSlots(booked);
+    } else {
+      setTimeSlots([]);
+      setBookedSlots([]);
+    }
+  }, [selectedDate, reservations]);
 
   const handleDateSelect = (d: { year: number; month: number; day: number }) => {
     setSelectedDate(d);
     setSlot(null);
     setSelectedTable(null);
-    const slots = generateTimeSlots(d.year, d.month, d.day);
-    setTimeSlots(slots);
-    setBookedSlots(getBookedSlots(d.year, d.month, d.day));
-    slotAnims.current = {};
-    slots.forEach((s, i) => {
-      slotAnims.current[s] = new Animated.Value(0);
-      setTimeout(() => {
-        Animated.spring(slotAnims.current[s], {
-          toValue: 1, friction: 7, tension: 60, useNativeDriver: true,
-        }).start();
-      }, i * 35);
-    });
-    setErrors(p => ({ ...p, date: "" }));
+    setErrors(p => ({ ...p, date: "", slot: "", table: "" }));
   };
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!name.trim())  e.name  = "Name is required";
+    if (!name.trim()) e.name = "Name is required";
     if (!phone.trim() || phone.length < 10) e.phone = "Valid 10-digit phone required";
-    if (!selectedDate) e.date  = "Please pick a date";
-    if (!selectedSlot) e.slot  = "Please pick a time slot";
+    if (!selectedDate) e.date = "Please pick a date";
+    if (!selectedSlot) e.slot = "Please pick a time slot";
     if (!selectedTable) e.table = "Please select a table";
     setErrors(e);
 
-    if (!name.trim() || !phone.trim()) {
-      if (onValidationError) {
-        onValidationError();
-      }
-      return false;
+    const hasError = !name.trim() || !phone.trim() || phone.length < 10 || !selectedDate || !selectedSlot || !selectedTable;
+    if (hasError && onValidationError) {
+      onValidationError();
     }
-
-    return Object.keys(e).length === 0;
+    return !hasError;
   };
 
   const handleConfirm = () => {
@@ -838,35 +849,34 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
     const dateStr = selectedDate
       ? `${MONTH_NAMES[selectedDate.month]} ${selectedDate.day}, ${selectedDate.year}`
       : "";
+
     setTimeout(() => {
       onSuccess({ name, phone, date: dateStr, guests, slot: selectedSlot, tableNumber: selectedTable });
       setSubmitted(false);
       setName(""); setPhone(""); setGuests("2");
       setSelectedDate(null); setSlot(null); setSelectedTable(null); setTimeSlots([]);
-    }, 1200);
+    }, 800);
   };
+
+  const containerPadding = 16 * 2 + 18 * 2;
+  const buttonWidth = width - containerPadding;
+  const buttonHeight = buttonWidth / 5.65;
 
   return (
     <Animated.View style={[widget.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      {/* Art-deco corners */}
-      <View style={[widget.bracket, widget.bTL]} />
-      <View style={[widget.bracket, widget.bTR]} />
-      <View style={[widget.bracket, widget.bBL]} />
-      <View style={[widget.bracket, widget.bBR]} />
-
-      <View style={widget.topBar} />
-
       {/* Title */}
       <View style={widget.titleRow}>
-        <View style={widget.titleIconWrap}>
-          <Ionicons name="calendar" size={18} color="#1a0d0a" />
-        </View>
+        <LinearGradient
+          colors={["#E8C97A", "#C9A84C"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={widget.titleIconWrap}
+        >
+          <Ionicons name="calendar-sharp" size={24} color="#000000" />
+        </LinearGradient>
         <View style={widget.titleTextWrap}>
           <Text style={widget.title}>Book a Table</Text>
-          <View style={widget.titleUnderlineWrap}>
-            <View style={widget.underlineLeft} />
-            <View style={widget.underlineRight} />
-          </View>
+          <View style={widget.titleUnderline} />
           <Text style={widget.titleSub}>Reserve your seat</Text>
         </View>
       </View>
@@ -902,11 +912,7 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
       {/* ── Guests ── */}
       <View style={widget.sectionPad}>
         <Text style={widget.sectionLabel}>GUESTS</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={widget.guestRow}
-        >
+        <View style={widget.guestRow}>
           {GUEST_OPTIONS.map((g) => {
             const isSelected = guests === g || (g === "6+" && Number(guests) > 6);
             return (
@@ -920,15 +926,15 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
                     setCustomGuestCount("");
                   }
                 }}
-                style={[widget.guestPill, isSelected && widget.guestPillActive]}
+                style={[widget.guestChip, isSelected && widget.guestChipActive]}
               >
-                <Text style={[widget.guestPillText, isSelected && widget.guestPillTextActive]}>
-                  {g === "6+" && Number(guests) > 6 ? `${guests} Guests` : g === "6+" ? "6+" : g}
+                <Text style={[widget.guestChipText, isSelected && widget.guestChipTextActive]}>
+                  {g === "6+" && Number(guests) > 6 ? `${guests}` : g}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
         {Number(guests) > 6 && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
             <Ionicons name="information-circle-outline" size={13} color={GOLD} />
@@ -958,7 +964,7 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
       />
 
       {/* ── Full Calendar Date Picker ── */}
-      <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: `${GOLD}12`, paddingTop: 16 }]}>
+      <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
         <FullCalendar
           selected={selectedDate}
           onSelect={handleDateSelect}
@@ -967,99 +973,94 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
       </View>
 
       {/* ── Time Slots ── */}
-      <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: `${GOLD}12`, paddingTop: 16 }]}>
-        <View style={widget.slotTitleRow}>
-          <Ionicons name="time-outline" size={15} color={GOLD} />
-          <Text style={widget.slotTitle}>SELECT TIME SLOT</Text>
+      {selectedDate && (
+        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
+          <View style={widget.slotTitleRow}>
+            <Ionicons name="time-outline" size={15} color={GOLD} />
+            <Text style={widget.slotTitle}>SELECT TIME SLOT</Text>
+          </View>
+
+          {timeSlots.length === 0 ? (
+            <View style={widget.slotHintWrap}>
+              <Ionicons name="moon-outline" size={14} color={MUTED} />
+              <Text style={widget.slotHint}>No slots available for this date</Text>
+            </View>
+          ) : (
+            <>
+              {/* Lunch slots */}
+              {timeSlots.filter(s => s.includes("AM") || s.startsWith("12")).length > 0 && (
+                <>
+                  <Text style={widget.slotSubLabel}>LUNCH SESSION  ·  11 AM – 3 PM</Text>
+                  <View style={widget.slotsGrid}>
+                    {timeSlots
+                      .filter(s => s.includes("AM") || ["12:", "1:", "2:", "3:"].some(x => s.startsWith(x)))
+                      .map((slot) => {
+                        const isSel = selectedSlot === slot;
+                        const isBooked = bookedSlots.includes(slot);
+                        return (
+                          <TouchableOpacity
+                            key={slot}
+                            onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
+                            disabled={isBooked}
+                            style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
+                          >
+                            <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
+                            {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
+                            {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                </>
+              )}
+
+              {/* Dinner slots */}
+              {timeSlots.filter(s => s.includes("PM") && !["12:", "1:", "2:", "3:"].some(x => s.startsWith(x))).length > 0 && (
+                <>
+                  <Text style={[widget.slotSubLabel, { marginTop: 12 }]}>DINNER SESSION  ·  7 PM – 10:30 PM</Text>
+                  <View style={widget.slotsGrid}>
+                    {timeSlots
+                      .filter(s => s.includes("PM") && !["12:", "1:", "2:", "3:"].some(x => s.startsWith(x)))
+                      .map((slot) => {
+                        const isSel = selectedSlot === slot;
+                        const isBooked = bookedSlots.includes(slot);
+                        return (
+                          <TouchableOpacity
+                            key={slot}
+                            onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
+                            disabled={isBooked}
+                            style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
+                          >
+                            <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
+                            {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
+                            {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                </>
+              )}
+            </>
+          )}
+          {errors.slot ? <Text style={widget.errText}>{errors.slot}</Text> : null}
         </View>
-
-        {!selectedDate ? (
-          <View style={widget.slotHintWrap}>
-            <Ionicons name="calendar-outline" size={15} color={MUTED} />
-            <Text style={widget.slotHint}>Pick a date above to see available slots</Text>
-          </View>
-        ) : timeSlots.length === 0 ? (
-          <View style={widget.slotHintWrap}>
-            <Ionicons name="moon-outline" size={14} color={MUTED} />
-            <Text style={widget.slotHint}>No slots available — try another date</Text>
-          </View>
-        ) : (
-          <>
-            {/* Lunch slots */}
-            {timeSlots.filter(s => s.includes("AM") || s.startsWith("12")).length > 0 && (
-              <>
-                <Text style={widget.slotSubLabel}>LUNCH SESSION  ·  11 AM – 3 PM</Text>
-                <View style={widget.slotsGrid}>
-                  {timeSlots
-                    .filter(s => s.includes("AM") || ["12:","1:","2:","3:"].some(x => s.startsWith(x)))
-                    .map((slot) => {
-                      const anim = slotAnims.current[slot] ?? new Animated.Value(1);
-                      const isSel = selectedSlot === slot;
-                      const isBooked = bookedSlots.includes(slot);
-                      return (
-                        <Animated.View key={slot} style={{ opacity: anim, transform: [{ scale: anim }] }}>
-                          <TouchableOpacity
-                            onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
-                            disabled={isBooked}
-                            style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
-                          >
-                            <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
-                            {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
-                            {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
-                          </TouchableOpacity>
-                        </Animated.View>
-                      );
-                    })}
-                </View>
-              </>
-            )}
-
-            {/* Dinner slots */}
-            {timeSlots.filter(s => s.includes("PM") && !["12:","1:","2:","3:"].some(x => s.startsWith(x))).length > 0 && (
-              <>
-                <Text style={[widget.slotSubLabel, { marginTop: 12 }]}>DINNER SESSION  ·  7 PM – 10:30 PM</Text>
-                <View style={widget.slotsGrid}>
-                  {timeSlots
-                    .filter(s => s.includes("PM") && !["12:","1:","2:","3:"].some(x => s.startsWith(x)))
-                    .map((slot) => {
-                      const anim = slotAnims.current[slot] ?? new Animated.Value(1);
-                      const isSel = selectedSlot === slot;
-                      const isBooked = bookedSlots.includes(slot);
-                      return (
-                        <Animated.View key={slot} style={{ opacity: anim, transform: [{ scale: anim }] }}>
-                          <TouchableOpacity
-                            onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
-                            disabled={isBooked}
-                            style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
-                          >
-                            <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
-                            {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
-                            {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
-                          </TouchableOpacity>
-                        </Animated.View>
-                      );
-                    })}
-                </View>
-              </>
-            )}
-          </>
-        )}
-        {errors.slot ? <Text style={widget.errText}>{errors.slot}</Text> : null}
-      </View>
+      )}
 
       {/* ── Table Selection Grid ── */}
       {selectedDate && selectedSlot && (
-        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: `${GOLD}12`, paddingTop: 16 }]}>
+        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
           <View style={widget.slotTitleRow}>
             <Ionicons name="grid-outline" size={15} color={GOLD} />
             <Text style={widget.slotTitle}>SELECT TABLE</Text>
           </View>
           <Text style={widget.slotSubLabel}>CHOOSE AN AVAILABLE TABLE SEAT</Text>
-          
+
           <View style={tableStyle.tablesGrid}>
             {[1, 2, 3, 4, 5, 6, 7, 8].map((tNum) => {
               const dateStr = selectedDate ? `${MONTH_NAMES[selectedDate.month]} ${selectedDate.day}, ${selectedDate.year}` : "";
-              const isBooked = reservations.some(
+              const dateKey = selectedDate ? `${selectedDate.year}-${String(selectedDate.month + 1).padStart(2, "0")}-${String(selectedDate.day).padStart(2, "0")}` : "";
+              const isDummyBooked = DUMMY_RESERVATIONS[dateKey]?.includes(selectedSlot);
+              const isBooked = isDummyBooked || reservations.some(
                 (r) => r.status === "Active" && r.reservationDate === dateStr && r.reservationSlot === selectedSlot && Number(r.tableNumber) === tNum
               );
               const isSel = selectedTable === tNum;
@@ -1078,20 +1079,20 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
                     isBooked && tableStyle.tablePillBooked
                   ]}
                 >
-                  <Ionicons 
-                    name={isBooked ? "close-circle-outline" : isSel ? "checkmark-circle-outline" : "restaurant-outline"} 
-                    size={13} 
-                    color={isBooked ? "#ff8e8e" : isSel ? "#000" : GOLD} 
+                  <Ionicons
+                    name={isBooked ? "close-circle-outline" : isSel ? "checkmark-circle-outline" : "restaurant-outline"}
+                    size={13}
+                    color={isBooked ? "#ff8e8e" : isSel ? "#000" : GOLD}
                   />
                   <Text style={[
-                    tableStyle.tablePillText, 
-                    isSel && tableStyle.tablePillTextActive, 
+                    tableStyle.tablePillText,
+                    isSel && tableStyle.tablePillTextActive,
                     isBooked && tableStyle.tablePillTextBooked
                   ]}>
                     Table {tNum}
                   </Text>
                   {isBooked ? (
-                    <Text style={tableStyle.tableStatusTextBooked}>OCCUPIED</Text>
+                    <Text style={tableStyle.tableStatusTextBooked}>BOOKED</Text>
                   ) : (
                     <Text style={[tableStyle.tableStatusTextAvail, isSel && { color: "#000" }]}>VACANT</Text>
                   )}
@@ -1104,107 +1105,177 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
       )}
 
       {/* ── Confirm button ── */}
-      <View style={widget.sectionPad}>
+      <View style={{ marginTop: 8, paddingHorizontal: 18, marginBottom: 12, borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }}>
         <TouchableOpacity
-          style={[widget.confirmBtn, submitted && widget.confirmBtnSuccess]}
           onPress={handleConfirm}
           activeOpacity={0.85}
+          style={{ width: "100%", height: buttonHeight }}
         >
-          <View style={widget.confirmShine} />
-          {submitted ? (
-            <>
-              <Ionicons name="checkmark-circle" size={18} color="#1a0d0a" />
-              <Text style={widget.confirmText}>Booking Confirmed!</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="restaurant-outline" size={16} color="#1a0d0a" />
-              <Text style={widget.confirmText}>Confirm Reservation</Text>
-            </>
-          )}
+          <Image
+            source={require("../../assets/images/reserveButton.png")}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
-
-        {/* Note */}
-        <View style={widget.noteRow}>
-          <View style={widget.noteLine} />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <Ionicons name="shield-checkmark-outline" size={11} color={`${GOLD}60`} />
-            <Text style={widget.noteText}>No card required · Free cancellation</Text>
-          </View>
-          <View style={widget.noteLine} />
-        </View>
       </View>
     </Animated.View>
   );
 }
 
+const confirmSheet = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "flex-end",
+  },
+  content: {
+    backgroundColor: "#0d0d0d",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.25)",
+    paddingTop: 14,
+    paddingHorizontal: 20,
+    maxHeight: height * 0.85,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(201, 168, 76, 0.3)",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+    fontFamily: Platform.select({ ios: "Palatino", android: "serif" }),
+    textAlign: "center",
+  },
+  sub: {
+    color: "#C9A84C",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  scroll: {
+    marginBottom: 10,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  footer: {
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(201, 168, 76, 0.12)",
+    backgroundColor: "#0d0d0d",
+  },
+  confirmBtn: {
+    backgroundColor: "#C9A84C",
+    borderRadius: 12,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmBtnDisabled: {
+    backgroundColor: "rgba(201, 168, 76, 0.35)",
+  },
+  confirmBtnText: {
+    color: "#000000",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+});
+
 const widget = StyleSheet.create({
   container: {
-    backgroundColor: SURFACE,
-    borderRadius: 20,
+    backgroundColor: "rgba(10, 10, 10, 0.75)",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: `${GOLD}20`,
+    borderColor: "rgba(201, 168, 76, 0.35)",
     marginBottom: 24,
     overflow: "hidden",
     position: "relative",
+    padding: 16,
     ...Platform.select({
       ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 18 },
       android: { elevation: 8 },
     }),
   },
-  bracket:  { position: "absolute", width: 14, height: 14, zIndex: 2 },
-  bTL: { top: 10,    left: 10,  borderTopWidth: 1.5,    borderLeftWidth: 1.5,    borderColor: GOLD, borderTopLeftRadius:     3 },
-  bTR: { top: 10,    right: 10, borderTopWidth: 1.5,    borderRightWidth: 1.5,   borderColor: GOLD, borderTopRightRadius:    3 },
-  bBL: { bottom: 10, left: 10,  borderBottomWidth: 1.5, borderLeftWidth: 1.5,    borderColor: GOLD, borderBottomLeftRadius:  3 },
-  bBR: { bottom: 10, right: 10, borderBottomWidth: 1.5, borderRightWidth: 1.5,   borderColor: GOLD, borderBottomRightRadius: 3 },
-  topBar: { height: 3, backgroundColor: GOLD },
-
   titleRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 14,
   },
   titleIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: GOLD, alignItems: "center", justifyContent: "center",
-    shadowColor: GOLD, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 10,
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  titleTextWrap: { marginLeft: 12 },
+  titleTextWrap: {
+    flex: 1,
+  },
   title: {
     color: WHITE,
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 0.6,
+    fontSize: 24,
+    fontWeight: "700",
     fontFamily: Platform.select({ ios: "Palatino", android: "serif" }),
-    textShadowColor: "rgba(0,0,0,0.45)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
   },
-  titleUnderlineWrap: { flexDirection: "row", alignItems: "center", marginTop: 6, marginBottom: 6 },
-  underlineLeft: { height: 4, width: 68, backgroundColor: GOLD, borderRadius: 2, marginRight: 6, opacity: 0.98 },
-  underlineRight: { height: 4, width: 28, backgroundColor: GOLD_LIGHT, borderRadius: 2, opacity: 0.95 },
-  titleSub: { color: `${GOLD}CC`, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-
-  row: { flexDirection: "row", gap: 10, paddingHorizontal: 18, marginBottom: 16 },
-
-  sectionPad: { paddingHorizontal: 18, marginBottom: 16 },
+  titleUnderline: {
+    width: 42,
+    height: 2,
+    backgroundColor: "#C9A84C",
+    marginVertical: 4,
+  },
+  titleSub: {
+    color: "#C9A84C",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  row: { flexDirection: "row", gap: 10, paddingHorizontal: 4, marginBottom: 16 },
+  sectionPad: { paddingHorizontal: 4, marginBottom: 16 },
   sectionLabel: {
-    color: MUTED, fontSize: 8, fontWeight: "800",
-    letterSpacing: 2.2, marginBottom: 9,
+    color: "#C9A84C", fontSize: 10, fontWeight: "800",
+    letterSpacing: 1.5, marginBottom: 8,
   },
-
-  guestRow: { flexDirection: "row", gap: 7 },
-  guestPill: {
-    paddingHorizontal: 14, paddingVertical: 9,
-    backgroundColor: SURFACE2,
-    borderRadius: 12, borderWidth: 1, borderColor: `${GOLD}20`,
+  guestRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 6,
   },
-  guestPillActive:     { backgroundColor: GOLD, borderColor: GOLD },
-  guestPillText:       { color: MUTED, fontSize: 12, fontWeight: "600" },
-  guestPillTextActive: { color: "#1a0d0a", fontWeight: "800" },
-
+  guestChip: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: "rgba(14, 14, 14, 0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  guestChipActive: {
+    backgroundColor: "#C9A84C",
+    borderColor: "#C9A84C",
+  },
+  guestChipText: {
+    color: "#777",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  guestChipTextActive: {
+    color: "#000",
+    fontWeight: "800",
+  },
   slotTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
-  slotTitle:    { color: GOLD, fontSize: 9, fontWeight: "800", letterSpacing: 2.2 },
-  slotSubLabel: { color: WHITE, fontSize: 8, fontWeight: "700", letterSpacing: 1.8, marginBottom: 8 },
+  slotTitle: { color: GOLD, fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
+  slotSubLabel: { color: WHITE, fontSize: 9, fontWeight: "700", letterSpacing: 1, marginBottom: 8 },
   slotHintWrap: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: GOLD_SOFT, borderRadius: 10,
@@ -1218,38 +1289,13 @@ const widget = StyleSheet.create({
     borderWidth: 1, borderColor: `${GOLD}20`,
     paddingHorizontal: 12, paddingVertical: 9,
   },
-  slotChipActive:     { backgroundColor: GOLD, borderColor: GOLD },
-  slotChipBooked:     { backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)", opacity: 0.5 },
-  slotChipText:       { color: MUTED, fontSize: 12, fontWeight: "600" },
+  slotChipActive: { backgroundColor: GOLD, borderColor: GOLD },
+  slotChipBooked: { backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)", opacity: 0.5 },
+  slotChipText: { color: MUTED, fontSize: 12, fontWeight: "600" },
   slotChipTextActive: { color: "#1a0d0a", fontWeight: "800" },
   slotChipTextBooked: { color: "#555", textDecorationLine: "line-through" as const },
-  bookedTag:          { fontSize: 7, fontWeight: "800" as const, color: "#e85555", letterSpacing: 1, marginLeft: 4 },
-  errText: { color: "#e85555", fontSize: 9, marginTop: 6, letterSpacing: 0.3 },
-
-  confirmBtn: {
-    backgroundColor: GOLD, borderRadius: 14,
-    paddingVertical: 15,
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, overflow: "hidden", position: "relative",
-    ...Platform.select({
-      ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14 },
-      android: { elevation: 8 },
-    }),
-  },
-  confirmBtnSuccess: { backgroundColor: "#4CD97B" },
-  confirmText: { color: "#1a0d0a", fontSize: 14, fontWeight: "900", letterSpacing: 0.4 },
-  confirmShine: {
-    position: "absolute", top: 0, left: "20%",
-    width: "55%", height: "55%",
-    backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 40,
-  },
-
-  noteRow: {
-    flexDirection: "row", alignItems: "center",
-    gap: 8, marginTop: 14,
-  },
-  noteLine: { flex: 1, height: 1, backgroundColor: `${GOLD}18` },
-  noteText: { color: `${GOLD}60`, fontSize: 9, fontWeight: "700", letterSpacing: 1.2 },
+  bookedTag: { fontSize: 7, fontWeight: "800" as const, color: "#e85555", letterSpacing: 1, marginLeft: 4 },
+  errText: { color: "#e85555", fontSize: 10, marginTop: 6, letterSpacing: 0.3 },
 });
 
 // ─── Success Toast ────────────────────────────────────────────────────────────
@@ -1263,7 +1309,7 @@ function SuccessToast({ booking, onDismiss }: { booking: any; onDismiss: () => v
   return (
     <Animated.View style={[toast.wrap, {
       opacity: anim,
-      transform: [{ translateY: anim.interpolate({ inputRange: [0,1], outputRange: [-30,0] }) }],
+      transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }],
     }]}>
       <View style={toast.iconWrap}>
         <Ionicons name="checkmark-circle" size={22} color={GOLD} />
@@ -1298,7 +1344,7 @@ const toast = StyleSheet.create({
     backgroundColor: GOLD_DIM, alignItems: "center", justifyContent: "center",
   },
   heading: { color: WHITE, fontSize: 13, fontWeight: "800", marginBottom: 2 },
-  sub:     { color: MUTED, fontSize: 11, letterSpacing: 0.2 },
+  sub: { color: MUTED, fontSize: 11, letterSpacing: 0.2 },
 });
 
 function TokenDetailsModal({
@@ -1514,15 +1560,15 @@ function ReserveCard({
   onViewDetails: (order: any, index: number) => void;
   onCancel: (order: any) => void;
 }) {
-  const anim  = useRef(new Animated.Value(0)).current;
+  const anim = useRef(new Animated.Value(0)).current;
   const press = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.spring(anim, { toValue: 1, friction: 7, tension: 60, delay: index * 100, useNativeDriver: true }).start();
   }, []);
 
-  const onIn  = () => Animated.spring(press, { toValue: 0.97, useNativeDriver: true, speed: 60 }).start();
-  const onOut = () => Animated.spring(press, { toValue: 1,    useNativeDriver: true, speed: 60 }).start();
+  const onIn = () => Animated.spring(press, { toValue: 0.97, useNativeDriver: true, speed: 60 }).start();
+  const onOut = () => Animated.spring(press, { toValue: 1, useNativeDriver: true, speed: 60 }).start();
 
   const dateObj = new Date(order.createdAt ?? Date.now());
   const dateLine =
@@ -1540,7 +1586,7 @@ function ReserveCard({
     <Animated.View style={{
       opacity: anim,
       transform: [
-        { translateY: anim.interpolate({ inputRange: [0,1], outputRange: [32,0] }) },
+        { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [32, 0] }) },
         { scale: press },
       ],
       marginBottom: 14,
@@ -1631,7 +1677,7 @@ function ReserveCard({
 // ─── Empty State ──────────────────────────────────────────────────────────────
 function EmptyState() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay: 200, useNativeDriver: true }).start();
@@ -1654,8 +1700,8 @@ function EmptyState() {
           <Ionicons name="restaurant-outline" size={36} color={GOLD} />
         </View>
       </Animated.View>
-      {[0,1,2,3,4,5,6,7].map(i => (
-        <View key={i} style={[styles.emptyOrbitDot, { transform: [{ rotate: `${i*45}deg` }, { translateY: -72 }] }]} />
+      {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+        <View key={i} style={[styles.emptyOrbitDot, { transform: [{ rotate: `${i * 45}deg` }, { translateY: -72 }] }]} />
       ))}
       <Text style={styles.emptyHeading}>No Reservations Yet</Text>
       <Text style={styles.emptySub}>
@@ -1670,14 +1716,94 @@ function EmptyState() {
   );
 }
 
+// ─── Text Particles behind Reservations text ───────────────────────────────
+function TextParticles() {
+  const particles = useRef(
+    Array.from({ length: 40 }).map(() => ({
+      x: Math.random() * 260 - 130, // spread horizontally around the title
+      y: Math.random() * 80 - 40,   // spread vertically
+      size: Math.random() * 4 + 2,   // sizes between 2px and 6px
+      delay: Math.random() * 2000,
+      duration: Math.random() * 2500 + 1500,
+      anim: new Animated.Value(0),
+    }))
+  ).current;
+
+  useEffect(() => {
+    particles.forEach((p) => {
+      const runAnimation = () => {
+        p.anim.setValue(0);
+        Animated.timing(p.anim, {
+          toValue: 1,
+          duration: p.duration,
+          delay: p.delay,
+          useNativeDriver: true,
+        }).start(() => {
+          runAnimation();
+        });
+      };
+      runAnimation();
+    });
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      {particles.map((p, idx) => {
+        const opacity = p.anim.interpolate({
+          inputRange: [0, 0.4, 0.6, 1],
+          outputRange: [0, 0.8, 0.8, 0],
+        });
+        const scale = p.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.5, 1.5],
+        });
+        const translateY = p.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [p.y + 15, p.y - 25], // float upwards slightly
+        });
+        const translateX = p.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [p.x, p.x + (Math.random() * 20 - 10)], // drift sideways slightly
+        });
+
+        return (
+          <Animated.View
+            key={idx}
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              width: p.size,
+              height: p.size,
+              borderRadius: p.size / 2,
+              backgroundColor: GOLD,
+              shadowColor: GOLD,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.8,
+              shadowRadius: 4,
+              opacity,
+              transform: [
+                { translateX },
+                { translateY },
+                { scale },
+              ],
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function Reserves() {
   const { reservations, bookTable, cancelReservation } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
 
+  const router = useRouter();
   const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
-  const heroFade  = useRef(new Animated.Value(0)).current;
+  const heroFade = useRef(new Animated.Value(0)).current;
   const heroSlide = useRef(new Animated.Value(-16)).current;
   const [latestBooking, setLatestBooking] = useState<any | null>(null);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
@@ -1686,13 +1812,12 @@ export default function Reserves() {
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [pendingCancelReservation, setPendingCancelReservation] = useState<any | null>(null);
 
-  // Filter to active bookings
   const displayedReservations = reservations.filter((r) => r.status !== "Cancelled");
   const [showBookingForm, setShowBookingForm] = useState(displayedReservations.length === 0);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(heroFade,  { toValue: 1, duration: 550, useNativeDriver: true }),
+      Animated.timing(heroFade, { toValue: 1, duration: 550, useNativeDriver: true }),
       Animated.timing(heroSlide, { toValue: 0, duration: 550, useNativeDriver: true }),
     ]).start();
   }, []);
@@ -1746,115 +1871,126 @@ export default function Reserves() {
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hero */}
-        <Animated.View style={[styles.hero, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}>
-          <Text style={styles.kicker}>YOUR</Text>
-          <Text style={styles.heroTitle}>Reservations</Text>
-          <View style={styles.goldUnderline}>
-            <View style={styles.goldUnderlineLong} />
-            <View style={styles.goldUnderlineShort} />
-          </View>
-          <Text style={styles.heroSub}>Book a table and dine with us in style</Text>
-          {displayedReservations.length > 0 && (
-            <View style={styles.countChip}>
-              <View style={styles.countDot} />
-              <Text style={styles.countText}>
-                {displayedReservations.length} active reservation{displayedReservations.length > 1 ? "s" : ""}
-              </Text>
-            </View>
-          )}
-        </Animated.View>
+        <ImageBackground
+          source={require("../../assets/images/reservationBG.png")}
+          style={styles.bgImage}
+          imageStyle={styles.bgImageStyle}
+          resizeMode="cover"
+        >
+          {/* Back button */}
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={20} color="#C9A84C" />
+          </TouchableOpacity>
 
-        {/* Case 1: Booking form is shown */}
-        {showBookingForm ? (
-          <View>
+          {/* Hero */}
+          <Animated.View style={[styles.hero, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}>
+            <Text style={styles.kicker}>YOUR</Text>
+            <View style={{ position: "relative", alignSelf: "flex-start" }}>
+              <TextParticles />
+              <Text style={styles.heroTitle}>Reservations</Text>
+            </View>
+            <Text style={styles.heroSub}>Book a table and dine with us in style</Text>
             {displayedReservations.length > 0 && (
+              <View style={styles.countChip}>
+                <View style={styles.countDot} />
+                <Text style={styles.countText}>
+                  {displayedReservations.length} active reservation{displayedReservations.length > 1 ? "s" : ""}
+                </Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Case 1: Booking form is shown */}
+          {showBookingForm ? (
+            <View>
+              {displayedReservations.length > 0 && (
+                <TouchableOpacity
+                  style={styles.backToListBtn}
+                  onPress={() => setShowBookingForm(false)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="chevron-back" size={14} color={GOLD} />
+                  <Text style={styles.backToListText}>View Active Reservations</Text>
+                </TouchableOpacity>
+              )}
+              <BookingWidget
+                onSuccess={(data) => {
+                  setLatestBooking(data);
+                  bookTable({
+                    customerName: data.name,
+                    customerPhone: data.phone,
+                    reservationDate: data.date,
+                    reservationSlot: data.slot,
+                    guests: data.guests,
+                    guestCount: Number.parseInt(data.guests, 10) || 1,
+                    tableNumber: data.tableNumber,
+                  });
+                  setShowBookingForm(false);
+                }}
+                onValidationError={() => {
+                  runOnUI(() => {
+                    scrollTo(scrollRef, 0, 0, true);
+                  })();
+                }}
+              />
+            </View>
+          ) : (
+            /* Case 2: Booking form is hidden (only possible if displayedReservations.length > 0) */
+            <View>
               <TouchableOpacity
-                style={styles.backToListBtn}
-                onPress={() => setShowBookingForm(false)}
+                style={styles.bookMoreBox}
+                onPress={() => setShowBookingForm(true)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-back" size={14} color={GOLD} />
-                <Text style={styles.backToListText}>View Active Reservations</Text>
+                <LinearGradient
+                  colors={["rgba(201, 168, 76, 0.15)", "rgba(17, 17, 17, 0)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.bookMoreBoxGradient}
+                >
+                  <View style={styles.bookMoreLeft}>
+                    <Ionicons name="add-circle-outline" size={24} color={GOLD} />
+                  </View>
+                  <View style={styles.bookMoreContent}>
+                    <Text style={styles.bookMoreTitle}>Book Another Table</Text>
+                    <Text style={styles.bookMoreSub}>Dine with us again or reserve for another event</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={`${GOLD}80`} />
+                </LinearGradient>
               </TouchableOpacity>
-            )}
-            <BookingWidget
-              onSuccess={(data) => {
-                setLatestBooking(data);
-                bookTable({
-                  customerName: data.name,
-                  customerPhone: data.phone,
-                  reservationDate: data.date,
-                  reservationSlot: data.slot,
-                  guests: data.guests,
-                  guestCount: Number.parseInt(data.guests, 10) || 1,
-                  tableNumber: data.tableNumber,
-                });
-                setShowBookingForm(false);
-              }}
-              onValidationError={() => {
-                runOnUI(() => {
-                  scrollTo(scrollRef, 0, 0, true);
-                })();
-              }}
-            />
-          </View>
-        ) : (
-          /* Case 2: Booking form is hidden (only possible if displayedReservations.length > 0) */
-          <View>
-            <TouchableOpacity
-              style={styles.bookMoreBox}
-              onPress={() => setShowBookingForm(true)}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={["rgba(201, 168, 76, 0.15)", "rgba(17, 17, 17, 0)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.bookMoreBoxGradient}
-              >
-                <View style={styles.bookMoreLeft}>
-                  <Ionicons name="add-circle-outline" size={24} color={GOLD} />
-                </View>
-                <View style={styles.bookMoreContent}>
-                  <Text style={styles.bookMoreTitle}>Book Another Table</Text>
-                  <Text style={styles.bookMoreSub}>Dine with us again or reserve for another event</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={`${GOLD}80`} />
-              </LinearGradient>
-            </TouchableOpacity>
 
-            <View style={styles.sectionDivider}>
-              <View style={styles.sectionLine} />
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Ionicons name="calendar" size={11} color={GOLD} />
-                <Text style={styles.sectionLabel}>UPCOMING BOOKINGS</Text>
+              <View style={styles.sectionDivider}>
+                <View style={styles.sectionLine} />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name="calendar" size={11} color={GOLD} />
+                  <Text style={styles.sectionLabel}>UPCOMING BOOKINGS</Text>
+                </View>
+                <View style={styles.sectionLine} />
               </View>
-              <View style={styles.sectionLine} />
-            </View>
 
-            <View style={styles.cardList}>
-              {displayedReservations.map((o, i) => (
-                <ReserveCard
-                  key={o.id}
-                  order={o}
-                  index={i}
-                  onViewDetails={(order, itemIndex) => {
-                    const token = getReservationToken(order, itemIndex);
-                    const name = order.customerName ?? order.name ?? "Guest";
-                    setActiveToken(token);
-                    setActiveTokenName(name);
-                    setTokenModalVisible(true);
-                  }}
-                  onCancel={(order) => {
-                    setPendingCancelReservation(order);
-                    setCancelModalVisible(true);
-                  }}
-                />
-              ))}
+              <View style={styles.cardList}>
+                {displayedReservations.map((o, i) => (
+                  <ReserveCard
+                    key={o.id}
+                    order={o}
+                    index={i}
+                    onViewDetails={(order, itemIndex) => {
+                      const token = getReservationToken(order, itemIndex);
+                      const name = order.customerName ?? order.name ?? "Guest";
+                      setActiveToken(token);
+                      setActiveTokenName(name);
+                      setTokenModalVisible(true);
+                    }}
+                    onCancel={(order) => {
+                      setPendingCancelReservation(order);
+                      setCancelModalVisible(true);
+                    }}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </ImageBackground>
       </Reanimated.ScrollView>
     </SafeAreaView>
   );
@@ -1862,8 +1998,30 @@ export default function Reserves() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: DARK_BG },
-  scroll: { padding: 16, paddingBottom: 60 },
+  safe: { flex: 1, backgroundColor: "#000000" },
+  bgImage: {
+    width: width,
+    minHeight: height + 180,
+    padding: 16,
+    paddingBottom: 60,
+  },
+  bgImageStyle: {
+    top: -42,
+    height: height + 180,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  scroll: { flexGrow: 1 },
   backToListBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1925,10 +2083,13 @@ const styles = StyleSheet.create({
 
   hero: { marginBottom: 22, paddingTop: 4 },
   kicker: { color: GOLD, fontSize: 10, fontWeight: "800", letterSpacing: 5, opacity: 0.75 },
-  heroTitle: { color: WHITE, fontSize: 34, fontWeight: "800", letterSpacing: 0.5, marginTop: 2 },
-  goldUnderline:      { flexDirection: "row", gap: 4, marginTop: 6, marginBottom: 10 },
-  goldUnderlineLong:  { width: 48, height: 2, backgroundColor: GOLD, borderRadius: 1 },
-  goldUnderlineShort: { width: 10, height: 2, backgroundColor: `${GOLD}50`, borderRadius: 1 },
+  heroTitle: {
+    color: WHITE,
+    fontSize: 40,
+    fontWeight: "700",
+    fontFamily: Platform.select({ ios: "Palatino", android: "serif" }),
+    marginTop: 2,
+  },
   heroSub: { color: MUTED, fontSize: 13, lineHeight: 19 },
   countChip: {
     flexDirection: "row", alignItems: "center",
@@ -1936,12 +2097,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 20, borderWidth: 1, borderColor: `${GOLD}30`,
   },
-  countDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD },
+  countDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD },
   countText: { color: GOLD, fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
 
   sectionDivider: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, marginTop: 4 },
-  sectionLine:    { flex: 1, height: 1, backgroundColor: `${GOLD}18` },
-  sectionLabel:   { color: `${GOLD}80`, fontSize: 8, fontWeight: "800", letterSpacing: 2.2 },
+  sectionLine: { flex: 1, height: 1, backgroundColor: `${GOLD}18` },
+  sectionLabel: { color: `${GOLD}80`, fontSize: 8, fontWeight: "800", letterSpacing: 2.2 },
 
   card: {
     backgroundColor: SURFACE, borderRadius: 20,
@@ -1953,9 +2114,9 @@ const styles = StyleSheet.create({
     }),
   },
   bracket: { position: "absolute", width: 14, height: 14, zIndex: 1 },
-  bTL: { top: 10, left: 10,   borderTopWidth: 1.5,    borderLeftWidth: 1.5,    borderColor: GOLD, borderTopLeftRadius:     3 },
-  bTR: { top: 10, right: 10,  borderTopWidth: 1.5,    borderRightWidth: 1.5,   borderColor: GOLD, borderTopRightRadius:    3 },
-  bBL: { bottom: 10, left: 10,  borderBottomWidth: 1.5, borderLeftWidth: 1.5,  borderColor: GOLD, borderBottomLeftRadius:  3 },
+  bTL: { top: 10, left: 10, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: GOLD, borderTopLeftRadius: 3 },
+  bTR: { top: 10, right: 10, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: GOLD, borderTopRightRadius: 3 },
+  bBL: { bottom: 10, left: 10, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: GOLD, borderBottomLeftRadius: 3 },
   bBR: { bottom: 10, right: 10, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: GOLD, borderBottomRightRadius: 3 },
   cardTopBar: { height: 3, backgroundColor: GOLD },
   cardHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10, gap: 10 },
@@ -1983,13 +2144,13 @@ const styles = StyleSheet.create({
   statusText: { color: "#4CD97B", fontSize: 9, fontWeight: "800", letterSpacing: 1.5 },
   tearRow: { flexDirection: "row", alignItems: "center" },
   tearNotchL: { width: 14, height: 14, borderRadius: 7, backgroundColor: DARK_BG, borderWidth: 1, borderColor: `${GOLD}20`, marginLeft: -7 },
-  tearLine:   { flex: 1, height: 1, borderWidth: 0.5, borderColor: `${GOLD}20`, borderStyle: "dashed" },
+  tearLine: { flex: 1, height: 1, borderWidth: 0.5, borderColor: `${GOLD}20`, borderStyle: "dashed" },
   tearNotchR: { width: 14, height: 14, borderRadius: 7, backgroundColor: DARK_BG, borderWidth: 1, borderColor: `${GOLD}20`, marginRight: -7 },
-  cardBody:   { flexDirection: "row", paddingHorizontal: 16, paddingTop: 14, gap: 16 },
-  infoCol:    { flex: 1 },
-  infoLabel:  { color: MUTED, fontSize: 8, fontWeight: "800", letterSpacing: 2.5, marginBottom: 5 },
-  infoValue:  { color: WHITE, fontSize: 12, fontWeight: "600", letterSpacing: 0.2 },
-  guestRow:   { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  cardBody: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 14, gap: 16 },
+  infoCol: { flex: 1 },
+  infoLabel: { color: MUTED, fontSize: 8, fontWeight: "800", letterSpacing: 2.5, marginBottom: 5 },
+  infoValue: { color: WHITE, fontSize: 12, fontWeight: "600", letterSpacing: 0.2 },
+  guestRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   guestExtra: { color: GOLD, fontSize: 10, fontWeight: "700", marginLeft: 2 },
   guestCount: { color: GOLD, fontSize: 12, fontWeight: "700", marginLeft: 4 },
   totalValue: { color: GOLD, fontSize: 16, fontWeight: "800", letterSpacing: 0.3 },
@@ -2028,7 +2189,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   cancelBtnText: { color: "#ff9f9f", fontSize: 12, fontWeight: "700", letterSpacing: 0.3 },
-  cardList:   { marginTop: 4 },
+  cardList: { marginTop: 4 },
   addMoreBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     marginTop: 4, paddingVertical: 14,
@@ -2059,9 +2220,9 @@ const styles = StyleSheet.create({
     backgroundColor: `${GOLD}40`, marginLeft: -2.5, marginTop: -2.5,
   },
   emptyHeading: { color: WHITE, fontSize: 20, fontWeight: "800", letterSpacing: 0.5, marginBottom: 8 },
-  emptySub:     { color: MUTED, fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 28 },
+  emptySub: { color: MUTED, fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 28 },
   emptyFooterRow: { flexDirection: "row", alignItems: "center", gap: 10, width: "70%" },
-  emptyFooterLine:  { flex: 1, height: 1, backgroundColor: `${GOLD}22` },
+  emptyFooterLine: { flex: 1, height: 1, backgroundColor: `${GOLD}22` },
   emptyFooterLabel: { color: `${GOLD}55`, fontSize: 8, fontWeight: "800", letterSpacing: 2 },
 });
 

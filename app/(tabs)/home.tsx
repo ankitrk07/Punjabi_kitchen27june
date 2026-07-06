@@ -30,7 +30,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   ImageSourcePropType,
@@ -42,6 +42,7 @@ import {
   View,
   ScrollView,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import Animated, {
   Easing,
   FadeIn,
@@ -1288,113 +1289,293 @@ const dishCard = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 8. LocationSection — Professional replacement [CHANGE 3]
+// 8. LocationSection — Interactive Map + Delivery Tracker [CHANGE 3]
 // ─────────────────────────────────────────────────────────────────────────────
+const RESTAURANT_LAT = 23.3569;
+const RESTAURANT_LNG = 85.3340;
+
+function useRestaurantStatus() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const currentMinutes = hours * 60 + minutes;
+  const openMinutes = 11 * 60; // 11:00 AM
+  const closeMinutes = 23 * 60; // 11:00 PM
+  const isOpen = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+
+  let statusDetail = "";
+  if (isOpen) {
+    const remaining = closeMinutes - currentMinutes;
+    const h = Math.floor(remaining / 60);
+    const m = remaining % 60;
+    statusDetail = h > 0 ? `Closes in ${h}h ${m}m` : `Closes in ${m}m`;
+  } else {
+    statusDetail = "Opens at 11:00 AM";
+  }
+
+  return { isOpen, statusDetail };
+}
+
+function buildMapHTML(hasActiveDelivery: boolean) {
+  return `
+<!DOCTYPE html>
+<html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body, #map { width: 100%; height: 100%; }
+  .leaflet-control-attribution { display: none !important; }
+  .leaflet-control-zoom { display: none !important; }
+  
+  .restaurant-pin {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .restaurant-pin .pin-ring {
+    position: absolute; width: 44px; height: 44px; border-radius: 50%;
+    border: 2.5px solid rgba(201,168,76,0.7);
+    animation: pinPulse 2s ease-in-out infinite;
+  }
+  .restaurant-pin .pin-core {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #E8C97A, #C9A84C, #8A6D2F);
+    border: 2px solid rgba(255,255,255,0.9);
+    box-shadow: 0 2px 12px rgba(201,168,76,0.5), 0 0 20px rgba(201,168,76,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; z-index: 2;
+  }
+  @keyframes pinPulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.35); opacity: 0; }
+  }
+  
+  .restaurant-label {
+    background: rgba(12,8,6,0.88);
+    border: 1px solid rgba(201,168,76,0.45);
+    border-radius: 8px; padding: 4px 10px;
+    color: #E8C97A; font-size: 11px; font-weight: 700;
+    font-family: -apple-system, sans-serif;
+    white-space: nowrap; letter-spacing: 0.3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  
+  .rider-pin {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .rider-pin .rider-glow {
+    position: absolute; width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(66,133,244,0.25);
+    animation: riderPulse 1.5s ease-in-out infinite;
+  }
+  .rider-pin .rider-core {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #4285F4, #1a73e8);
+    border: 2.5px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; z-index: 2;
+    box-shadow: 0 2px 10px rgba(66,133,244,0.5);
+  }
+  @keyframes riderPulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.5); opacity: 0; }
+  }
+  
+  .rider-label {
+    background: rgba(26,115,232,0.92);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px; padding: 3px 8px;
+    color: #fff; font-size: 10px; font-weight: 700;
+    font-family: -apple-system, sans-serif;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+</style>
+</head><body>
+<div id="map"></div>
+<script>
+  var map = L.map('map', {
+    center: [${RESTAURANT_LAT}, ${RESTAURANT_LNG}],
+    zoom: 16,
+    zoomControl: false,
+    attributionControl: false,
+    dragging: true,
+    scrollWheelZoom: false,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(map);
+
+  // Restaurant marker
+  var pinIcon = L.divIcon({
+    className: '',
+    html: '<div class="restaurant-pin"><div class="pin-ring"></div><div class="pin-core">🍛</div></div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22]
+  });
+  var restaurantMarker = L.marker([${RESTAURANT_LAT}, ${RESTAURANT_LNG}], { icon: pinIcon }).addTo(map);
+  
+  // Restaurant label tooltip
+  restaurantMarker.bindTooltip('<div class="restaurant-label">Punjabi Kitchen</div>', {
+    permanent: true, direction: 'top', offset: [0, -26], className: ''
+  });
+
+  ${hasActiveDelivery ? `
+  // Delivery rider
+  var riderIcon = L.divIcon({
+    className: '',
+    html: '<div class="rider-pin"><div class="rider-glow"></div><div class="rider-core">🏍️</div></div>',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  });
+  
+  var riderStartLat = ${RESTAURANT_LAT} + 0.012;
+  var riderStartLng = ${RESTAURANT_LNG} - 0.008;
+  var riderMarker = L.marker([riderStartLat, riderStartLng], { icon: riderIcon }).addTo(map);
+  riderMarker.bindTooltip('<div class="rider-label">Ramesh · On the way</div>', {
+    permanent: true, direction: 'top', offset: [0, -24], className: ''
+  });
+  
+  // Route polyline
+  var routePoints = [
+    [riderStartLat, riderStartLng],
+    [riderStartLat - 0.003, riderStartLng + 0.002],
+    [riderStartLat - 0.006, riderStartLng + 0.004],
+    [riderStartLat - 0.009, riderStartLng + 0.006],
+    [${RESTAURANT_LAT}, ${RESTAURANT_LNG}]
+  ];
+  L.polyline(routePoints, {
+    color: '#4285F4', weight: 4, opacity: 0.8,
+    dashArray: '8, 8', lineCap: 'round'
+  }).addTo(map);
+  L.polyline(routePoints, {
+    color: '#4285F4', weight: 12, opacity: 0.15
+  }).addTo(map);
+  
+  // Animate rider along route
+  var step = 0;
+  var totalSteps = 200;
+  function animateRider() {
+    step = (step + 1) % totalSteps;
+    var progress = step / totalSteps;
+    var segIndex = Math.min(Math.floor(progress * (routePoints.length - 1)), routePoints.length - 2);
+    var segProgress = (progress * (routePoints.length - 1)) - segIndex;
+    var lat = routePoints[segIndex][0] + (routePoints[segIndex + 1][0] - routePoints[segIndex][0]) * segProgress;
+    var lng = routePoints[segIndex][1] + (routePoints[segIndex + 1][1] - routePoints[segIndex][1]) * segProgress;
+    riderMarker.setLatLng([lat, lng]);
+    setTimeout(animateRider, 120);
+  }
+  animateRider();
+  
+  // Fit bounds to show both markers
+  map.fitBounds([[${RESTAURANT_LAT}, ${RESTAURANT_LNG}], [riderStartLat, riderStartLng]], { padding: [40, 40] });
+  ` : ''}
+
+  // Tap to open directions
+  map.on('click', function() {
+    window.ReactNativeWebView.postMessage('openDirections');
+  });
+</script>
+</body></html>`;
+}
+
 function LocationSection() {
+  const { orders } = useApp();
+  const { isOpen, statusDetail } = useRestaurantStatus();
+
+  const activeDeliveryOrder = useMemo(
+    () => orders.find((o) => o.status === "On the Way"),
+    [orders]
+  );
+  const hasActiveDelivery = !!activeDeliveryOrder;
+
+  const mapHTML = useMemo(() => buildMapHTML(hasActiveDelivery), [hasActiveDelivery]);
+
+  const handleMapMessage = useCallback((event: any) => {
+    if (event.nativeEvent.data === "openDirections") {
+      const url = Platform.select({
+        ios: `maps://app?daddr=${RESTAURANT_LAT},${RESTAURANT_LNG}`,
+        default: `https://www.google.com/maps/dir/?api=1&destination=${RESTAURANT_LAT},${RESTAURANT_LNG}&destination_place_id=Punjabi+Kitchen+Ranchi`,
+      });
+      Linking.openURL(url);
+    }
+  }, []);
+
   return (
     <Animated.View
       entering={FadeInUp.delay(100).springify().damping(22)}
       style={locStyle.container}
     >
-      {/* Google Maps-style preview */}
-      <View style={locStyle.mapPreview}>
-        <LinearGradient
-          colors={[
-            "#0e1726",
-            "#132238",
-            "#1d2f49",
-            "#17243a",
-            "#0f1a2b",
-          ]}
-          locations={[0, 0.2, 0.5, 0.8, 1]}
-          style={StyleSheet.absoluteFillObject}
+      {/* Interactive Map */}
+      <View style={locStyle.mapWrap}>
+        <WebView
+          source={{ html: mapHTML }}
+          style={locStyle.webview}
+          scrollEnabled={false}
+          onMessage={handleMapMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          originWhitelist={["*"]}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          overScrollMode="never"
+          nestedScrollEnabled={false}
+          cacheEnabled
         />
 
-        <View style={locStyle.terrainBlobA} />
-        <View style={locStyle.terrainBlobB} />
-        <View style={locStyle.terrainBlobC} />
+        {/* Overlay gradient at bottom for smooth blend */}
+        <LinearGradient
+          colors={["transparent", "rgba(14,10,8,0.6)"]}
+          style={locStyle.mapBottomFade}
+          pointerEvents="none"
+        />
 
-        <View style={locStyle.roadMain} />
-        <View style={locStyle.roadMainAlt} />
-        <View style={locStyle.roadCross} />
-        <View style={locStyle.roadCurveA} />
-        <View style={locStyle.roadCurveB} />
-
-        <View style={locStyle.routeLine} />
-        <View style={locStyle.routeGlow} />
-
-        <View style={locStyle.poiA} />
-        <View style={locStyle.poiB} />
-        <View style={locStyle.poiC} />
-        <View style={locStyle.poiD} />
-
-        <View style={locStyle.streetNameTop}>
-          <Text style={locStyle.streetText}>Purulia Rd</Text>
-        </View>
-        <View style={locStyle.streetNameLeft}>
-          <Text style={locStyle.streetText}>Kashyap Eye Hospital</Text>
-        </View>
-        <View style={locStyle.streetNameBottom}>
-          <Text style={locStyle.streetText}>Ajit Enclave</Text>
-        </View>
-
-        <View style={locStyle.searchBar}>
-          <Ionicons name="search" size={14} color="rgba(255,255,255,0.7)" />
-          <Text style={locStyle.searchText} numberOfLines={1}>
-            Punjabi Kitchen, Ranchi
-          </Text>
-          <View style={locStyle.searchBubble} />
-        </View>
-
-        <View style={locStyle.zoomControls}>
-          <TouchableOpacity style={locStyle.zoomBtn} activeOpacity={0.85}>
-            <Text style={locStyle.zoomSign}>+</Text>
-          </TouchableOpacity>
-          <View style={locStyle.zoomDivider} />
-          <TouchableOpacity style={locStyle.zoomBtn} activeOpacity={0.85}>
-            <Text style={locStyle.zoomSign}>−</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={locStyle.compass}>
-          <View style={locStyle.compassInner}>
-            <Text style={locStyle.compassText}>N</Text>
+        {/* Live badge */}
+        {hasActiveDelivery && (
+          <View style={locStyle.liveBadge}>
+            <View style={locStyle.liveDot} />
+            <Text style={locStyle.liveText}>LIVE TRACKING</Text>
           </View>
-        </View>
+        )}
 
-        <LinearGradient
-          colors={["rgba(0,0,0,0.08)", "rgba(0,0,0,0.24)", "rgba(0,0,0,0.44)"]}
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        <View style={locStyle.trafficChip}>
-          <Ionicons name="car-sport-outline" size={12} color={GOLD_LIGHT} />
-          <Text style={locStyle.trafficText}>Live area map</Text>
-        </View>
-
-        {/* Center pin */}
-        <View style={locStyle.pinWrap}>
-          <View style={locStyle.pinRing} />
-          <View style={locStyle.pinDot} />
-          <View style={locStyle.pinShadow} />
-        </View>
-        {/* Map label */}
-        <View style={locStyle.mapLabel}>
-          <Ionicons name="map-outline" size={12} color={GOLD} />
-          <Text style={locStyle.mapLabelText}>Ranchi, Jharkhand</Text>
+        {/* Map corner label */}
+        <View style={locStyle.mapCornerLabel}>
+          <Ionicons name="map-outline" size={11} color={GOLD} />
+          <Text style={locStyle.mapCornerText}>Tap map for directions</Text>
         </View>
       </View>
 
-      {/* Info card */}
+      {/* Premium Info Card */}
       <View style={locStyle.card}>
         {/* Restaurant name row */}
         <View style={locStyle.nameRow}>
-          <View style={locStyle.iconPill}>
-            <Ionicons name="restaurant-outline" size={16} color={GOLD} />
-          </View>
-          <View>
+          <LinearGradient
+            colors={["rgba(201,168,76,0.18)", "rgba(201,168,76,0.06)"]}
+            style={locStyle.iconPill}
+          >
+            <Ionicons name="restaurant-outline" size={17} color={GOLD} />
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
             <Text style={locStyle.restName}>Punjabi Kitchen</Text>
             <Text style={locStyle.restType}>Multi Cuisine Family Restaurant</Text>
+          </View>
+          {/* Status badge */}
+          <View style={[locStyle.statusBadge, !isOpen && locStyle.statusBadgeClosed]}>
+            <View style={[locStyle.statusDot, !isOpen && locStyle.statusDotClosed]} />
+            <Text style={[locStyle.statusText, !isOpen && locStyle.statusTextClosed]}>
+              {isOpen ? "Open" : "Closed"}
+            </Text>
           </View>
         </View>
 
@@ -1422,11 +1603,7 @@ function LocationSection() {
           <View style={{ flex: 1 }}>
             <Text style={locStyle.infoLabel}>Hours</Text>
             <Text style={locStyle.infoValue}>Daily · 11:00 AM – 11:00 PM</Text>
-          </View>
-          {/* Open badge */}
-          <View style={locStyle.openBadge}>
-            <View style={locStyle.openDot} />
-            <Text style={locStyle.openText}>Open</Text>
+            <Text style={locStyle.infoSub}>{statusDetail}</Text>
           </View>
         </View>
 
@@ -1435,7 +1612,7 @@ function LocationSection() {
           <View style={locStyle.infoIcon}>
             <Ionicons name="call-outline" size={15} color={GOLD} />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={locStyle.infoLabel}>Phone</Text>
             <Text style={locStyle.infoValue}>+91 96932 10321</Text>
           </View>
@@ -1445,11 +1622,25 @@ function LocationSection() {
 
         {/* CTA buttons */}
         <View style={locStyle.ctaRow}>
-          <TouchableOpacity style={locStyle.ctaPrimary} activeOpacity={0.85} onPress={() => Linking.openURL("https://maps.google.com/?q=Punjabi+Kitchen+Purulia+Road+Ranchi")}>
+          <TouchableOpacity
+            style={locStyle.ctaPrimary}
+            activeOpacity={0.85}
+            onPress={() => {
+              const url = Platform.select({
+                ios: `maps://app?daddr=${RESTAURANT_LAT},${RESTAURANT_LNG}`,
+                default: `https://www.google.com/maps/dir/?api=1&destination=${RESTAURANT_LAT},${RESTAURANT_LNG}`,
+              });
+              Linking.openURL(url);
+            }}
+          >
             <Ionicons name="navigate-outline" size={15} color="#1a0d0a" />
             <Text style={locStyle.ctaPrimaryText}>Get Directions</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={locStyle.ctaSecondary} activeOpacity={0.85} onPress={() => Linking.openURL("tel:+919693210321")}>
+          <TouchableOpacity
+            style={locStyle.ctaSecondary}
+            activeOpacity={0.85}
+            onPress={() => Linking.openURL("tel:+919693210321")}
+          >
             <Ionicons name="call-outline" size={15} color={GOLD} />
             <Text style={locStyle.ctaSecondaryText}>Call Us</Text>
           </TouchableOpacity>
@@ -1461,388 +1652,220 @@ function LocationSection() {
 
 const locStyle = StyleSheet.create({
   container: { marginHorizontal: 16, marginBottom: 8 },
-  mapPreview: {
-    height: 170,
-    borderRadius: 16,
+
+  // Map wrapper
+  mapWrap: {
+    height: 220,
+    borderRadius: 20,
     overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: "rgba(201,168,76,0.3)",
-    marginBottom: -4,
+    position: "relative",
   },
-  terrainBlobA: {
-    position: "absolute",
-    left: -10,
-    top: 18,
-    width: 150,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(70,122,74,0.18)",
+  webview: {
+    flex: 1,
+    backgroundColor: "#0d1117",
   },
-  terrainBlobB: {
+  mapBottomFade: {
     position: "absolute",
-    right: -12,
-    top: 10,
-    width: 165,
-    height: 138,
-    borderRadius: 70,
-    backgroundColor: "rgba(60,110,120,0.16)",
-  },
-  terrainBlobC: {
-    position: "absolute",
-    left: 48,
-    bottom: 10,
-    width: 200,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "rgba(94,83,54,0.16)",
-  },
-  roadMain: {
-    position: "absolute",
-    left: -20,
-    top: 76,
-    width: "115%",
-    height: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(240,245,255,0.76)",
-    transform: [{ rotate: "-10deg" }],
-  },
-  roadMainAlt: {
-    position: "absolute",
-    right: -10,
-    bottom: 54,
-    width: "88%",
-    height: 10,
-    borderRadius: 10,
-    backgroundColor: "rgba(240,245,255,0.6)",
-    transform: [{ rotate: "12deg" }],
-  },
-  roadCross: {
-    position: "absolute",
-    left: 118,
-    top: 0,
     bottom: 0,
-    width: 10,
-    backgroundColor: "rgba(240,245,255,0.48)",
-    transform: [{ rotate: "18deg" }],
+    left: 0,
+    right: 0,
+    height: 40,
   },
-  roadCurveA: {
+  liveBadge: {
     position: "absolute",
-    left: 36,
-    top: 52,
-    width: 86,
-    height: 68,
-    borderTopWidth: 10,
-    borderLeftWidth: 10,
-    borderColor: "rgba(240,245,255,0.55)",
-    borderTopLeftRadius: 48,
-    transform: [{ rotate: "-6deg" }],
-  },
-  roadCurveB: {
-    position: "absolute",
-    right: 30,
-    bottom: 28,
-    width: 110,
-    height: 74,
-    borderRightWidth: 10,
-    borderBottomWidth: 10,
-    borderColor: "rgba(240,245,255,0.52)",
-    borderBottomRightRadius: 48,
-    transform: [{ rotate: "9deg" }],
-  },
-  routeLine: {
-    position: "absolute",
-    left: 78,
-    top: 44,
-    width: 124,
-    height: 6,
-    borderRadius: 4,
-    backgroundColor: "rgba(66,133,244,0.95)",
-    transform: [{ rotate: "-14deg" }],
-  },
-  routeGlow: {
-    position: "absolute",
-    left: 72,
-    top: 40,
-    width: 136,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "rgba(66,133,244,0.22)",
-    transform: [{ rotate: "-14deg" }],
-  },
-  poiA: {
-    position: "absolute",
-    left: 26,
-    top: 28,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "rgba(255,255,255,0.82)",
-  },
-  poiB: {
-    position: "absolute",
-    right: 22,
-    top: 42,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.72)",
-  },
-  poiC: {
-    position: "absolute",
-    left: 178,
-    bottom: 20,
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: "rgba(255,255,255,0.7)",
-  },
-  poiD: {
-    position: "absolute",
-    right: 92,
-    bottom: 72,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "rgba(255,255,255,0.65)",
-  },
-  streetNameTop: {
-    position: "absolute",
-    top: 18,
-    left: 22,
-    backgroundColor: "rgba(15,23,42,0.62)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 100,
-  },
-  streetNameLeft: {
-    position: "absolute",
-    left: 12,
-    bottom: 42,
-    backgroundColor: "rgba(15,23,42,0.62)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 100,
-  },
-  streetNameBottom: {
-    position: "absolute",
-    right: 28,
-    bottom: 16,
-    backgroundColor: "rgba(15,23,42,0.62)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 100,
-  },
-  streetText: {
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 0.2,
-  },
-  searchBar: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    right: 66,
-    height: 32,
-    borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.96)",
+    top: 12,
+    right: 12,
     flexDirection: "row",
     alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(66,133,244,0.88)",
     paddingHorizontal: 10,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    paddingVertical: 5,
+    borderRadius: 100,
+    shadowColor: "#4285F4",
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 5,
   },
-  searchText: {
-    flex: 1,
-    color: "#233143",
-    fontSize: 11,
-    fontWeight: "600",
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#fff",
   },
-  searchBubble: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#4285F4",
-  },
-  zoomControls: {
-    position: "absolute",
-    right: 10,
-    bottom: 12,
-    width: 34,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.94)",
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  zoomBtn: {
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  zoomDivider: {
-    height: 0.5,
-    backgroundColor: "rgba(0,0,0,0.12)",
-  },
-  zoomSign: {
-    color: "#1f2d3d",
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: -1,
-  },
-  compass: {
-    position: "absolute",
-    left: 12,
-    bottom: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  compassInner: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#1f2d3d",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  compassText: {
+  liveText: {
     color: "#fff",
     fontSize: 9,
-    fontWeight: "700",
+    fontWeight: "900",
+    letterSpacing: 1,
   },
-  trafficChip: {
+  mapCornerLabel: {
     position: "absolute",
-    top: 10,
-    right: 56,
+    bottom: 10,
+    left: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(0,0,0,0.62)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 100,
     borderWidth: 0.5,
-    borderColor: "rgba(201,168,76,0.28)",
+    borderColor: "rgba(201,168,76,0.3)",
   },
-  trafficText: {
+  mapCornerText: {
     color: GOLD_LIGHT,
     fontSize: 10,
     fontWeight: "500",
   },
-  pinWrap: { alignItems: "center", justifyContent: "center" },
-  pinRing: {
-    width: 38, height: 38, borderRadius: 19,
-    borderWidth: 1.5, borderColor: "rgba(66,133,244,0.8)",
-    position: "absolute",
-  },
-  pinDot: {
-    width: 12, height: 12, borderRadius: 6,
-    backgroundColor: "#EA4335",
-  },
-  pinShadow: {
-    width: 20, height: 4, borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.18)",
-    marginTop: 6,
-  },
-  mapLabel: {
-    position: "absolute", bottom: 10, left: 12,
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 100,
-    borderWidth: 0.5, borderColor: "rgba(201,168,76,0.3)",
-  },
-  mapLabelText: { color: GOLD_LIGHT, fontSize: 10, fontWeight: "500" },
 
+  // Info card
   card: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderRadius: 20,
     borderWidth: 0.5,
     borderColor: "rgba(201,168,76,0.25)",
-    marginTop: 8,
+    marginTop: 10,
     padding: 18,
-    paddingTop: 24,
+    paddingTop: 20,
   },
   nameRow: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
   },
   iconPill: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: GOLD_SOFT,
-    borderWidth: 0.5, borderColor: "rgba(201,168,76,0.35)",
-    alignItems: "center", justifyContent: "center",
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    borderWidth: 0.5,
+    borderColor: "rgba(201,168,76,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   restName: {
-    color: "#fff", fontSize: 16, fontWeight: "700", letterSpacing: 0.1,
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.1,
   },
   restType: {
-    color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 2,
-  },
-  dividerLine: {
-    height: 0.5, backgroundColor: "rgba(201,168,76,0.15)", marginVertical: 12,
-  },
-  infoRow: {
-    flexDirection: "row", alignItems: "flex-start",
-    gap: 12, marginBottom: 12,
-  },
-  infoIcon: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: "rgba(201,168,76,0.08)",
-    alignItems: "center", justifyContent: "center",
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 11,
     marginTop: 2,
   },
-  infoLabel: {
-    color: "rgba(255,255,255,0.35)", fontSize: 10,
-    fontWeight: "600", letterSpacing: 0.8,
-    textTransform: "uppercase", marginBottom: 3,
-  },
-  infoValue: {
-    color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 19,
-  },
-  openBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 0.5, borderColor: "rgba(34,197,94,0.3)",
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 0.5,
+    borderColor: "rgba(34,197,94,0.3)",
   },
-  openDot: {
-    width: 5, height: 5, borderRadius: 3,
+  statusBadgeClosed: {
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor: "rgba(239,68,68,0.3)",
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#22c55e",
   },
-  openText: { color: "#22c55e", fontSize: 11, fontWeight: "600" },
-
-  ctaRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  statusDotClosed: {
+    backgroundColor: "#ef4444",
+  },
+  statusText: {
+    color: "#22c55e",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statusTextClosed: {
+    color: "#ef4444",
+  },
+  dividerLine: {
+    height: 0.5,
+    backgroundColor: "rgba(201,168,76,0.15)",
+    marginVertical: 12,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 12,
+  },
+  infoIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "rgba(201,168,76,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  infoLabel: {
+    color: "rgba(255,255,255,0.35)",
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 3,
+  },
+  infoValue: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  infoSub: {
+    color: GOLD_DIM,
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 3,
+    fontStyle: "italic",
+  },
+  ctaRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
   ctaPrimary: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 6,
-    backgroundColor: GOLD, borderRadius: 12,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: GOLD,
+    borderRadius: 12,
     paddingVertical: 12,
   },
   ctaPrimaryText: {
-    color: "#1a0d0a", fontWeight: "700", fontSize: 13,
+    color: "#1a0d0a",
+    fontWeight: "700",
+    fontSize: 13,
   },
   ctaSecondary: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 6,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
     backgroundColor: GOLD_SOFT,
-    borderRadius: 12, paddingVertical: 12,
-    borderWidth: 0.5, borderColor: "rgba(201,168,76,0.4)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 0.5,
+    borderColor: "rgba(201,168,76,0.4)",
   },
   ctaSecondaryText: {
-    color: GOLD_LIGHT, fontWeight: "600", fontSize: 13,
+    color: GOLD_LIGHT,
+    fontWeight: "600",
+    fontSize: 13,
   },
 });
 

@@ -3,6 +3,7 @@ import DietaryFilter, { DishTypeFilter } from "@/src/components/menu/DietaryFilt
 import MenuEmptyState from "@/src/components/menu/MenuEmptyState";
 import MenuSearchBar from "@/src/components/menu/MenuSearchBar";
 import MenuSection from "@/src/components/menu/MenuSection";
+import MenuDishCard from "@/src/components/menu/MenuDishCard";
 import TopBar from "@/src/components/TopBar";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
@@ -285,90 +286,13 @@ export default function MenuScreen() {
       { cancelable: true }
     );
   };
-
-  interface FlyingItem {
-    id: string;
-    startX: number;
-    startY: number;
-    startWidth: number;
-    startHeight: number;
-    image: string;
-  }
-
-  const [flyingItems, setFlyingItems] = useState<FlyingItem[]>([]);
-  const cartButtonRef = useRef<any>(null);
-  const [cartCoords, setCartCoords] = useState({ x: SCREEN_WIDTH - 37, y: 55 });
-
-  const cardRefs = useRef<Record<string, any>>({});
-
-  useEffect(() => {
-    // Measure cart button coordinates relative to the window
-    const timer = setTimeout(() => {
-      cartButtonRef.current?.measureInWindow((x: number, y: number, w: number, h: number) => {
-        if (w > 0 && h > 0) {
-          setCartCoords({ x: x + w / 2, y: y + h / 2 });
-        }
-      });
-    }, 600);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleAddToCart = (dish: any) => {
+  const handleAddToCart = useCallback((dish: any) => {
     addToCart(dish);
-    const card = cardRefs.current[dish.id];
-    if (card && card.measureInWindow) {
-      card.measureInWindow((x: number, y: number, w: number, h: number) => {
-        if (w > 0 && h > 0) {
-          setFlyingItems((prev) => [
-            ...prev,
-            {
-              id: `${dish.id}-${Date.now()}-${Math.random()}`,
-              startX: x,
-              startY: y,
-              startWidth: w,
-              startHeight: h,
-              image: dish.image,
-            },
-          ]);
-        }
-      });
-    }
-  };
+  }, [addToCart]);
 
-  const handleAnimationComplete = (id: string) => {
-    setFlyingItems((prev) => prev.filter((item) => item.id !== id));
-
-    // Trigger cart bump animation
-    cartBumpAnim.setValue(0);
-    RNAnimated.sequence([
-      RNAnimated.timing(cartBumpAnim, { toValue: 1.2, duration: 150, useNativeDriver: true }),
-      RNAnimated.timing(cartBumpAnim, { toValue: 1.0, duration: 150, useNativeDriver: true }),
-    ]).start();
-  };
-
-
-
-  const openDish = (dish: (typeof DISHES)[number]) => {
-    const card = cardRefs.current[dish.id];
-    if (card?.measureInWindow) {
-      card.measureInWindow((x: number, y: number, w: number, h: number) => {
-        router.push({
-          pathname: "/dish/[id]",
-          params: {
-            id: dish.id,
-            fromX: String(x),
-            fromY: String(y),
-            fromW: String(w),
-            fromH: String(h),
-          },
-        } as any);
-      });
-      return;
-    }
-
+  const openDish = useCallback((dish: (typeof DISHES)[number]) => {
     router.push({ pathname: "/dish/[id]", params: { id: dish.id } } as any);
-  };
-
+  }, [router]);
   const isCategoryDescendant = (childCatId: string, parentCatId: string): boolean => {
     if (childCatId === parentCatId) return true;
     const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
@@ -462,6 +386,7 @@ export default function MenuScreen() {
 
 
 
+
   const flatListData = useMemo(() => {
     const list: any[] = [];
     list.push({ id: "header", type: "header" });
@@ -472,11 +397,42 @@ export default function MenuScreen() {
       list.push({ id: "empty", type: "empty" });
     } else {
       categorySections.forEach((section) => {
-        list.push({ id: `section-${section.id}`, type: "section", data: section });
+        // 1. Push Section Header
+        list.push({
+          id: `section-header-${section.id}`,
+          type: "sectionHeader",
+          name: section.name,
+          icon: section.icon,
+        });
+
+        // 2. Push Dishes depending on layout mode
+        if (viewMode === "grid") {
+          // Pair dishes in rows of 2 for grid virtualization
+          for (let i = 0; i < section.dishes.length; i += 2) {
+            const pair = [section.dishes[i]];
+            if (i + 1 < section.dishes.length) {
+              pair.push(section.dishes[i + 1]);
+            }
+            list.push({
+              id: `grid-row-${section.id}-${i}`,
+              type: "gridRow",
+              dishes: pair,
+            });
+          }
+        } else {
+          // Cinematic mode (1 column)
+          section.dishes.forEach((dish) => {
+            list.push({
+              id: `dish-cinematic-${dish.id}`,
+              type: "dishCinematic",
+              data: dish,
+            });
+          });
+        }
       });
     }
     return list;
-  }, [categorySections]);
+  }, [categorySections, viewMode]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     switch (item.type) {
@@ -633,17 +589,51 @@ export default function MenuScreen() {
             message="Try clearing your price range or category search."
           />
         );
-      case "section":
+      case "sectionHeader":
         return (
-          <View style={styles.sectionsWrap}>
-            <MenuSection
-              section={item.data}
-              favorites={favoritesIds}
+          <View style={styles.sectionHeader}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={styles.titleBar} />
+              <View>
+                <Text style={styles.sectionTitle}>{item.name}</Text>
+              </View>
+            </View>
+            <View style={styles.pill}>
+              <Ionicons name={item.icon as any} size={12} color={colors.gold} />
+              <Text style={styles.pillText}>{item.name}</Text>
+            </View>
+          </View>
+        );
+      case "gridRow":
+        return (
+          <View style={styles.gridRow}>
+            {item.dishes.map((dish: any) => (
+              <View key={dish.id} style={styles.gridItem}>
+                <MenuDishCard
+                  dish={dish}
+                  isFavorite={favoritesIds.includes(dish.id)}
+                  onToggleFavorite={toggleFavorite}
+                  onAddToCart={handleAddToCart}
+                  onOpen={openDish}
+                  viewMode="grid"
+                />
+              </View>
+            ))}
+            {item.dishes.length === 1 && (
+              <View style={styles.gridItem} />
+            )}
+          </View>
+        );
+      case "dishCinematic":
+        return (
+          <View style={styles.cinematicItem}>
+            <MenuDishCard
+              dish={item.data}
+              isFavorite={favoritesIds.includes(item.data.id)}
               onToggleFavorite={toggleFavorite}
               onAddToCart={handleAddToCart}
               onOpen={openDish}
-              onCardRef={(dishId, node) => { cardRefs.current[dishId] = node; }}
-              viewMode={viewMode}
+              viewMode="cinematic"
             />
           </View>
         );
@@ -661,7 +651,6 @@ export default function MenuScreen() {
     showExtendedFilters,
     priceRange,
     sortBy,
-    viewMode,
     favoritesIds,
     toggleFavorite,
     handleAddToCart,
@@ -672,7 +661,6 @@ export default function MenuScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <TopBar
         variant="minimal"
-        cartRef={cartButtonRef}
         menuScrollY={scrollY}
         search={search}
         setSearch={setSearch}
@@ -688,10 +676,11 @@ export default function MenuScreen() {
         keyboardShouldPersistTaps="handled"
         onScroll={onScroll}
         scrollEventThrottle={16}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        removeClippedSubviews={Platform.OS === "android"}
+        initialNumToRender={6}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -703,20 +692,7 @@ export default function MenuScreen() {
         }
       />
 
-      {flyingItems.map((item) => (
-        <FlyingDish
-          key={item.id}
-          startX={item.startX}
-          startY={item.startY}
-          startWidth={item.startWidth}
-          startHeight={item.startHeight}
-          image={item.image}
-          targetX={cartCoords.x}
-          targetY={cartCoords.y}
-          viewMode={viewMode}
-          onAnimationComplete={() => handleAnimationComplete(item.id)}
-        />
-      ))}
+
 
       {/* Category Structure Index Modal */}
       {showCategoryModal && (
@@ -1131,6 +1107,58 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   sectionsWrap: { paddingTop: 16, gap: 16 },
+  gridRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    marginHorizontal: -6,
+    marginBottom: 12,
+  },
+  gridItem: {
+    flex: 1,
+    paddingHorizontal: 6,
+  },
+  cinematicItem: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 22,
+    marginBottom: 14,
+  },
+  titleBar: {
+    width: 4,
+    height: 28,
+    borderRadius: 2,
+    backgroundColor: colors.gold,
+  },
+  sectionTitle: {
+    color: "#FFF",
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: 0.3,
+  },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(212,175,55,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.25)",
+  },
+  pillText: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "capitalize",
+  },
   categoriesRow: {
     flexDirection: "row",
     gap: 8,

@@ -7,7 +7,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Dimensions,
   Image,
+  ImageBackground,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,7 +24,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-
+const { width } = Dimensions.get("window");
 
 // ─── Premium Design Tokens ──────────────────────────────────────────────────
 const GOLD = "#C9A84C";
@@ -352,7 +354,7 @@ const SubItem = React.memo(function SubItem({
           <View style={[styles.itemIcon, { backgroundColor: `${sectionColor}10` }]}>
             <Ionicons name={item.icon as any} size={level === 0 ? 18 : 14} color={sectionColor} />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.itemLabel, level > 0 && styles.subItemLabel]}>{item.label}</Text>
             {item.sub && <Text style={styles.itemSub}>{item.sub}</Text>}
           </View>
@@ -400,7 +402,9 @@ const SettingsSection = React.memo(function SettingsSection({ section, onPress }
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHeader} onPress={toggleExpand} activeOpacity={0.7}>
         <View style={styles.sectionLeft}>
-          <Ionicons name={section.icon as any} size={20} color={GOLD} />
+          <View style={styles.sectionIconCircle}>
+            <Ionicons name={section.icon as any} size={18} color={GOLD} />
+          </View>
           <Text style={styles.sectionTitle}>{section.title}</Text>
         </View>
         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={MUTED} />
@@ -424,14 +428,28 @@ const SettingsSection = React.memo(function SettingsSection({ section, onPress }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Premium Header Component
+// Premium Header Component — Full-bleed PBG.png hero
 // ─────────────────────────────────────────────────────────────────────────────
-const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit, onChangePhoto, isGold }: { user: any; onEdit: () => void; onChangePhoto: () => void; isGold: boolean }) {
+const PremiumHeader = React.memo(function PremiumHeader({
+  user,
+  onEdit,
+  onChangePhoto,
+  isGold,
+  onNotifications,
+  onSettings,
+}: {
+  user: any;
+  onEdit: () => void;
+  onChangePhoto: () => void;
+  isGold: boolean;
+  onNotifications: () => void;
+  onSettings: () => void;
+}) {
   const fadeAnim = useSharedValue(0);
-  const slideAnim = useSharedValue(20);
+  const slideAnim = useSharedValue(30);
 
   useEffect(() => {
-    fadeAnim.value = withTiming(1, { duration: 400 });
+    fadeAnim.value = withTiming(1, { duration: 500 });
     slideAnim.value = withSpring(0, { damping: 18, stiffness: 120 });
   }, []);
 
@@ -444,70 +462,148 @@ const PremiumHeader = React.memo(function PremiumHeader({ user, onEdit, onChange
   const avatarUri = user?.avatar || defaultAvatar;
 
   return (
-    <Reanimated.View style={[styles.headerContainer, animatedStyle]}>
-      <LinearGradient
-        colors={["rgba(212, 175, 55, 0.1)", "rgba(20, 20, 20, 0)"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
+    <Reanimated.View style={animatedStyle}>
+      <ImageBackground
+        source={require("../../assets/images/PBG.png")}
+        style={styles.heroBg}
+        resizeMode="cover"
+      >
+        {/* Dark gradient overlay for readability */}
+        <LinearGradient
+          colors={["rgba(8,8,8,0.15)", "rgba(8,8,8,0.6)", "rgba(8,8,8,0.95)"]}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
 
-      <View style={styles.profileRow}>
-        <TouchableOpacity style={styles.avatarSection} onPress={onChangePhoto} activeOpacity={0.9}>
-          <LinearGradient colors={[GOLD, `${GOLD}30`]} style={styles.avatarRing}>
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          </LinearGradient>
-          <View style={styles.editBadge}>
-            <Ionicons name="camera-reverse" size={12} color="#000" />
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.userInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.userName}>{user?.name || "Sudip"}</Text>
-            <Ionicons name="checkmark-circle" size={16} color={GREEN} style={styles.verifiedIcon} />
-          </View>
-          <Text style={styles.userEmail}>{user?.email || "sudip@dineout.com"}</Text>
-
-          {isGold && (
+        {/* Top bar: Gold Badge + Bell + Gear */}
+        <View style={styles.heroTopBar}>
+          {isGold ? (
             <LinearGradient
               colors={[GOLD_LIGHT, GOLD]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.goldBadge}
+              style={styles.goldMemberBadge}
             >
-              <Ionicons name="diamond" size={10} color="#000" />
-              <Text style={styles.goldText}>Gold Member</Text>
+              <Ionicons name="diamond" size={12} color="#000" />
+              <Text style={styles.goldMemberText}>GOLD MEMBER</Text>
             </LinearGradient>
+          ) : (
+            <View style={styles.classicMemberBadge}>
+              <Ionicons name="diamond-outline" size={12} color={GOLD} />
+              <Text style={styles.classicMemberText}>MEMBER</Text>
+            </View>
           )}
+          <View style={styles.heroTopRight}>
+            <TouchableOpacity style={styles.heroTopIcon} onPress={onNotifications} activeOpacity={0.7}>
+              <Ionicons name="notifications-outline" size={20} color={GOLD} />
+              {MOCK_DATA.unreadNotifications > 0 && (
+                <View style={styles.notifDot} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.heroTopIcon} onPress={onSettings} activeOpacity={0.7}>
+              <Ionicons name="settings-outline" size={20} color={GOLD} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.statsGrid}>
-        <View style={styles.statBlock}>
-          <Text style={styles.statNumber}>{MOCK_DATA.pastOrders}</Text>
-          <Text style={styles.statLabel}>Orders Placed</Text>
+        {/* Avatar — Centered */}
+        <View style={styles.heroAvatarWrap}>
+          <TouchableOpacity onPress={onChangePhoto} activeOpacity={0.9}>
+            <LinearGradient colors={[GOLD, GOLD_LIGHT, GOLD]} style={styles.heroAvatarRing}>
+              <Image source={{ uri: avatarUri }} style={styles.heroAvatar} />
+            </LinearGradient>
+            <View style={styles.heroCameraBadge}>
+              <Ionicons name="camera" size={13} color="#FFF" />
+            </View>
+          </TouchableOpacity>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statBlock}>
-          <Text style={styles.statNumber}>₹12.4K</Text>
-          <Text style={styles.statLabel}>Total Saved</Text>
+
+        {/* Name + Email */}
+        <View style={styles.heroInfo}>
+          <View style={styles.heroNameRow}>
+            <Text style={styles.heroName}>{user?.name || "Sudip"}</Text>
+            <Ionicons name="checkmark-circle" size={18} color={GREEN} style={{ marginLeft: 6 }} />
+          </View>
+          <Text style={styles.heroEmail}>{user?.email || "sudip@dineout.com"}</Text>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statBlock}>
-          <Text style={styles.statNumber}>{MOCK_DATA.loyaltyPoints}</Text>
-          <Text style={styles.statLabel}>Points Balance</Text>
-        </View>
-      </View>
+      </ImageBackground>
     </Reanimated.View>
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stats Card
+// ─────────────────────────────────────────────────────────────────────────────
+const StatsCard = React.memo(function StatsCard() {
+  const scaleAnim = useSharedValue(0.95);
+  useEffect(() => {
+    scaleAnim.value = withSpring(1, { damping: 14, stiffness: 100 });
+  }, []);
+  const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scaleAnim.value }] }));
+
+  const stats = [
+    { icon: "bag-handle-outline" as const, value: `${MOCK_DATA.pastOrders}`, label: "Orders Placed", sub: "All Time" },
+    { icon: "diamond-outline" as const, value: "₹12.4K", label: "Total Saved", sub: "Across Orders" },
+    { icon: "star-outline" as const, value: `${MOCK_DATA.loyaltyPoints}`, label: "Points Balance", sub: "Redeem & Save" },
+  ];
+
+  return (
+    <Reanimated.View style={[styles.statsCard, scaleStyle]}>
+      {stats.map((stat, idx) => (
+        <React.Fragment key={idx}>
+          {idx > 0 && <View style={styles.statDivider} />}
+          <View style={styles.statBlock}>
+            <View style={styles.statIconCircle}>
+              <Ionicons name={stat.icon} size={20} color={GOLD} />
+            </View>
+            <Text style={styles.statNumber}>{stat.value}</Text>
+            <Text style={styles.statLabel}>{stat.label}</Text>
+            <Text style={styles.statSub}>{stat.sub}</Text>
+          </View>
+        </React.Fragment>
+      ))}
+    </Reanimated.View>
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick Action Buttons
+// ─────────────────────────────────────────────────────────────────────────────
+function QuickActions() {
+  const router = useRouter();
+  const actions = [
+    { icon: "refresh-circle" as const, label: "Reorder", sub: "Buy Again", color: ORANGE, route: "/profile/favorites/favorite-orders" },
+    { icon: "navigate-circle" as const, label: "Track", sub: "Order Status", color: GREEN, route: "/orders/track" },
+    { icon: "pricetag" as const, label: "Offers", sub: "Best Deals", color: GOLD, route: "/profile/offers" },
+    { icon: "headset" as const, label: "Support", sub: "We're Here", color: BLUE, route: "/profile/support/help" },
+  ];
+
+  return (
+    <View style={styles.quickActions}>
+      {actions.map((action, idx) => (
+        <TouchableOpacity
+          key={idx}
+          style={styles.actionBtn}
+          activeOpacity={0.7}
+          onPress={() => router.push(action.route as any)}
+        >
+          <View style={styles.actionIconCircle}>
+            <Ionicons name={action.icon as any} size={26} color={GOLD} />
+          </View>
+          <Text style={styles.actionLabel}>{action.label}</Text>
+          <Text style={styles.actionSub}>{action.sub}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Membership Progress Card
 // ─────────────────────────────────────────────────────────────────────────────
 const MembershipCard = React.memo(function MembershipCard() {
   const { user } = useApp();
+  const router = useRouter();
   const scaleAnim = useSharedValue(0.95);
 
   const points = user?.loyaltyPoints ?? 350;
@@ -525,59 +621,39 @@ const MembershipCard = React.memo(function MembershipCard() {
 
   return (
     <Reanimated.View style={[styles.membershipWrapper, scaleStyle]}>
-      <LinearGradient colors={[`${GOLD}20`, `${GOLD}05`]} style={styles.membershipCard}>
-        <View style={styles.membershipLeft}>
-          <Text style={styles.membershipTitle}>Membership Progress ({tier})</Text>
-          <Text style={styles.membershipSubtitle}>{points} points earned</Text>
-          <View style={styles.progressWrapper}>
-            <View style={styles.progressBar}>
-              <LinearGradient colors={[GOLD, GOLD_LIGHT]} style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-            </View>
-            <Text style={styles.progressText}>
-              {pointsToGold > 0 ? `${pointsToGold} points to Gold Member` : "You are a Gold Member!"}
-            </Text>
+      <View style={styles.membershipCard}>
+        {/* Diamond Icon */}
+        <View style={styles.membershipDiamondWrap}>
+          <Ionicons name="diamond" size={28} color={GOLD} />
+        </View>
+
+        {/* Content */}
+        <View style={styles.membershipContent}>
+          <View style={styles.membershipTopRow}>
+            <Text style={styles.membershipTitle}>You're enjoying premium benefits!</Text>
+            <TouchableOpacity
+              style={styles.viewBenefitsBtn}
+              onPress={() => router.push("/profile/membership/benefits" as any)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewBenefitsText}>View Benefits</Text>
+              <Ionicons name="chevron-forward" size={12} color={GOLD} />
+            </TouchableOpacity>
           </View>
+          <View style={styles.membershipProgressBar}>
+            <LinearGradient colors={[GOLD, GOLD_LIGHT]} style={[styles.membershipProgressFill, { width: `${progressPercent}%` }]} />
+          </View>
+          <Text style={styles.membershipProgressText}>
+            {pointsToGold > 0
+              ? `Spend ₹${(pointsToGold * 11.7).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} more to reach Platinum`
+              : "You've reached Platinum!"}
+          </Text>
         </View>
-        <View style={styles.membershipIcon}>
-          <Ionicons name="trophy" size={40} color={GOLD} />
-        </View>
-      </LinearGradient>
+      </View>
     </Reanimated.View>
   );
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Quick Action Buttons
-// ─────────────────────────────────────────────────────────────────────────────
-function QuickActions() {
-  const router = useRouter();
-  const actions = [
-    { icon: "refresh-circle", label: "Reorder", color: ORANGE, route: "/profile/favorites/favorite-orders" },
-    { icon: "navigate-circle", label: "Track", color: GREEN, route: "/orders/track" },
-    { icon: "pricetag", label: "Offers", color: GOLD, route: "/profile/offers" },
-    { icon: "headset", label: "Support", color: BLUE, route: "/profile/support/help" },
-  ];
-
-  return (
-    <View style={styles.quickActions}>
-      {actions.map((action, idx) => (
-        <TouchableOpacity
-          key={idx}
-          style={styles.actionBtn}
-          activeOpacity={0.7}
-          onPress={() => router.push(action.route as any)}
-        >
-          <LinearGradient colors={[`${action.color}20`, `${action.color}05`]} style={styles.actionIcon}>
-            <Ionicons name={action.icon as any} size={24} color={action.color} />
-          </LinearGradient>
-          <Text style={styles.actionLabel}>{action.label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 // Dynamic Navigation Registry
 // ─────────────────────────────────────────────────────────────────────────────
@@ -711,72 +787,67 @@ export default function Profile() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      {/* Ambient Glow Effects */}
-      <View style={styles.glow1} />
-      <View style={styles.glow2} />
-      <View style={styles.glow3} />
-
-      {/* Floating Animated Header */}
+    <View style={styles.safe}>
+      {/* Floating Animated Header (on scroll) */}
       <Reanimated.View style={[styles.floatingHeader, headerStyle]}>
-        <LinearGradient colors={[`${DARK_BG}E6`, SURFACE_2]} style={[styles.floatingHeaderContent, { paddingTop: insets.top + 12 }]}>
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={22} color={GOLD} />
-          </TouchableOpacity>
+        <LinearGradient colors={[`${DARK_BG}F0`, SURFACE_2]} style={[styles.floatingHeaderContent, { paddingTop: insets.top + 8 }]}>
           <Text style={styles.floatingTitle}>Profile</Text>
-          <View style={{ width: 22 }} />
         </LinearGradient>
       </Reanimated.View>
-
-      {/* Sticky Settings Gear (Always Visible) */}
-      <TouchableOpacity
-        style={[styles.stickySettings, { top: insets.top + 12 }]}
-        onPress={() => router.push("/profile/settings")}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="settings-outline" size={22} color={GOLD} />
-      </TouchableOpacity>
 
       <Reanimated.ScrollView
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View style={styles.content}>
-          <PremiumHeader
-            user={user}
-            onEdit={() => handleItemPress("edit-profile")}
-            onChangePhoto={handlePickImage}
-            isGold={isGold}
-          />
-          {!isGold && <MembershipCard />}
-          <QuickActions />
+        {/* Hero Section with PBG.png */}
+        <PremiumHeader
+          user={user}
+          onEdit={() => handleItemPress("edit-profile")}
+          onChangePhoto={handlePickImage}
+          isGold={isGold}
+          onNotifications={() => router.push("/profile/notifications/order-updates" as any)}
+          onSettings={() => router.push("/profile/settings")}
+        />
 
-          <View style={styles.sectionsContainer}>
-            {SECTIONS.map((section) => (
-              <SettingsSection key={section.id} section={section} onPress={handleItemPress} />
-            ))}
-          </View>
+        {/* Stats Card */}
+        <StatsCard />
 
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.7}>
-            <LinearGradient colors={[`${RED}15`, `${RED}05`]} style={styles.signOutGradient}>
-              <Ionicons name="log-out-outline" size={20} color={RED} />
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+        {/* Quick Actions */}
+        <QuickActions />
 
-          <TouchableOpacity style={styles.deleteBtn} activeOpacity={0.7}>
-            <Text style={styles.deleteText}>Delete Account</Text>
-          </TouchableOpacity>
+        {/* Membership Card */}
+        {!isGold && <MembershipCard />}
 
-          <View style={styles.footer}>
-            <View style={styles.footerLine} />
-            <Text style={styles.footerText}>v2.5.0</Text>
-            <View style={styles.footerLine} />
-          </View>
+        {/* Sections List */}
+        <View style={styles.sectionsContainer}>
+          {SECTIONS.map((section) => (
+            <SettingsSection key={section.id} section={section} onPress={handleItemPress} />
+          ))}
+        </View>
+
+        {/* Sign Out */}
+        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.7}>
+          <LinearGradient colors={[`${RED}15`, `${RED}05`]} style={styles.signOutGradient}>
+            <Ionicons name="log-out-outline" size={20} color={RED} />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Delete Account */}
+        <TouchableOpacity style={styles.deleteBtn} activeOpacity={0.7}>
+          <Text style={styles.deleteText}>Delete Account</Text>
+        </TouchableOpacity>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={styles.footerLine} />
+          <Text style={styles.footerText}>v2.5.0</Text>
+          <View style={styles.footerLine} />
         </View>
       </Reanimated.ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -784,111 +855,425 @@ export default function Profile() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: DARK_BG },
 
-  glow1: { position: "absolute", top: -100, right: -80, width: 250, height: 250, borderRadius: 125, backgroundColor: `${GOLD}08` },
-  glow2: { position: "absolute", bottom: -50, left: -100, width: 220, height: 220, borderRadius: 110, backgroundColor: `${GOLD}05` },
-  glow3: { position: "absolute", top: "40%", right: -50, width: 150, height: 150, borderRadius: 75, backgroundColor: `${PURPLE}04` },
-
+  // Floating header (appears on scroll)
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 1000 },
   floatingHeaderContent: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 20, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: `${GOLD}15`,
   },
-  floatingTitle: { color: WHITE, fontSize: 18, fontWeight: "600" },
-  stickySettings: {
+  floatingTitle: { color: WHITE, fontSize: 18, fontWeight: "700", letterSpacing: 0.3 },
+
+  // ── Hero Section ──────────────────────────────────────────────────────────
+  heroBg: {
+    width: "100%",
+    paddingTop: 50,
+    paddingBottom: 28,
+  },
+  heroTopBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    marginBottom: 18,
+  },
+  goldMemberBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  goldMemberText: {
+    color: "#000",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  classicMemberBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: `${GOLD}20`,
+    borderWidth: 1,
+    borderColor: `${GOLD}40`,
+  },
+  classicMemberText: {
+    color: GOLD,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+  heroTopRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  heroTopIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(30,30,30,0.75)",
+    borderWidth: 1,
+    borderColor: `${GOLD}30`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notifDot: {
     position: "absolute",
-    right: 20,
-    zIndex: 1100,
-    width: 22,
-    height: 22,
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: RED,
+    borderWidth: 1.5,
+    borderColor: DARK_BG,
+  },
+
+  // Avatar
+  heroAvatarWrap: {
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  heroAvatarRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroAvatar: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: SURFACE,
+  },
+  heroCameraBadge: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(50,50,50,0.9)",
+    borderWidth: 2,
+    borderColor: DARK_BG,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  content: { paddingTop: 20, paddingBottom: 40 },
+  // Name/Email
+  heroInfo: {
+    alignItems: "center",
+  },
+  heroNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  heroName: {
+    color: WHITE,
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  heroEmail: {
+    color: MUTED,
+    fontSize: 13,
+    letterSpacing: 0.2,
+  },
 
-  headerContainer: {
-    marginHorizontal: 20, marginBottom: 24, padding: 20,
-    backgroundColor: SURFACE_2, borderRadius: 24, borderWidth: 1,
-    borderColor: "rgba(212, 175, 55, 0.15)", position: "relative", overflow: "hidden",
+  // ── Stats Card ────────────────────────────────────────────────────────────
+  statsCard: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginTop: -4,
+    marginBottom: 20,
+    backgroundColor: SURFACE_2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${GOLD}18`,
+    paddingVertical: 20,
+    paddingHorizontal: 8,
   },
-  profileRow: { flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 16 },
-  avatarSection: { position: "relative" },
-  avatarRing: { width: 72, height: 72, borderRadius: 20, padding: 2 },
-  avatar: { width: 68, height: 68, borderRadius: 18, backgroundColor: SURFACE },
-  editBadge: {
-    position: "absolute", bottom: -4, right: -4, width: 24, height: 24,
-    borderRadius: 12, backgroundColor: GOLD, alignItems: "center",
-    justifyContent: "center", borderWidth: 2, borderColor: SURFACE_2,
+  statBlock: {
+    flex: 1,
+    alignItems: "center",
   },
-  userInfo: { flex: 1, alignItems: "flex-start", justifyContent: "center" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
-  userName: { color: WHITE, fontSize: 18, fontWeight: "800", letterSpacing: 0.2 },
-  verifiedIcon: { marginTop: 1 },
-  userEmail: { color: MUTED, fontSize: 12, marginBottom: 6 },
-  goldBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+  statIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: `${GOLD}50`,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+    backgroundColor: `${GOLD}08`,
   },
-  goldText: { color: "#000000", fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
-  verifiedBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: `${GREEN}15`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
+  statNumber: {
+    color: WHITE,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
-  verifiedText: { color: GREEN, fontSize: 10, fontWeight: "600" },
+  statLabel: {
+    color: "#AAAAAA",
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 3,
+    letterSpacing: 0.2,
+  },
+  statSub: {
+    color: GOLD,
+    fontSize: 9,
+    fontWeight: "600",
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
+  statDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: `${GOLD}18`,
+    alignSelf: "center",
+  },
 
-  statsGrid: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-around",
-    paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(212, 175, 55, 0.15)",
+  // ── Quick Actions ─────────────────────────────────────────────────────────
+  quickActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginHorizontal: 16,
+    marginBottom: 20,
+    backgroundColor: SURFACE_2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${GOLD}18`,
+    paddingVertical: 20,
+    paddingHorizontal: 4,
   },
-  statBlock: { alignItems: "center", flex: 1 },
-  statNumber: { color: WHITE, fontSize: 16, fontWeight: "800" },
-  statLabel: { color: MUTED, fontSize: 10, fontWeight: "600", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.5 },
-  statDivider: { width: 1, height: 24, backgroundColor: "rgba(212, 175, 55, 0.15)" },
+  actionBtn: {
+    alignItems: "center",
+    flex: 1,
+  },
+  actionIconCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1.5,
+    borderColor: `${GOLD}50`,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${GOLD}08`,
+    marginBottom: 8,
+  },
+  actionLabel: {
+    color: WHITE,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  actionSub: {
+    color: GOLD,
+    fontSize: 9,
+    fontWeight: "600",
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
 
-  membershipWrapper: { marginHorizontal: 20, marginBottom: 24 },
+  // ── Membership Card ───────────────────────────────────────────────────────
+  membershipWrapper: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+  },
   membershipCard: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    padding: 16, borderRadius: 16, borderWidth: 1, borderColor: `${GOLD}25`,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SURFACE_2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${GOLD}18`,
+    padding: 18,
+    gap: 14,
   },
-  membershipLeft: { flex: 1 },
-  membershipTitle: { color: WHITE, fontSize: 14, fontWeight: "600", marginBottom: 4 },
-  membershipSubtitle: { color: MUTED, fontSize: 12, marginBottom: 12 },
-  progressWrapper: { gap: 6 },
-  progressBar: { height: 4, backgroundColor: `${GOLD}20`, borderRadius: 2, overflow: "hidden" },
-  progressFill: { height: "100%", borderRadius: 2 },
-  progressText: { color: MUTED, fontSize: 10 },
-  membershipIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: `${GOLD}10`, alignItems: "center", justifyContent: "center" },
+  membershipDiamondWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: `${GOLD}12`,
+    borderWidth: 1,
+    borderColor: `${GOLD}30`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  membershipContent: {
+    flex: 1,
+  },
+  membershipTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  membershipTitle: {
+    color: WHITE,
+    fontSize: 13,
+    fontWeight: "700",
+    flex: 1,
+  },
+  viewBenefitsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    borderWidth: 1,
+    borderColor: `${GOLD}50`,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  viewBenefitsText: {
+    color: GOLD,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  membershipProgressBar: {
+    height: 5,
+    backgroundColor: `${GOLD}20`,
+    borderRadius: 3,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
+  membershipProgressFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  membershipProgressText: {
+    color: MUTED,
+    fontSize: 11,
+  },
 
-  quickActions: { flexDirection: "row", justifyContent: "space-around", marginHorizontal: 20, marginBottom: 28 },
-  actionBtn: { alignItems: "center", gap: 8 },
-  actionIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: `${GOLD}20` },
-  actionLabel: { color: MUTED, fontSize: 12, fontWeight: "500" },
-
-  sectionsContainer: { marginHorizontal: 20, gap: 12, marginBottom: 24 },
-  section: { backgroundColor: SURFACE_2, borderRadius: 16, borderWidth: 1, borderColor: `${GOLD}15`, overflow: "hidden" },
-  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14 },
-  sectionLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  sectionTitle: { color: WHITE, fontSize: 14, fontWeight: "600" },
-  sectionItems: { borderTopWidth: 1, borderTopColor: `${GOLD}10` },
-  sectionItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: `${GOLD}10` },
+  // ── Sections ──────────────────────────────────────────────────────────────
+  sectionsContainer: {
+    marginHorizontal: 16,
+    gap: 2,
+    marginBottom: 24,
+    backgroundColor: SURFACE_2,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${GOLD}12`,
+    overflow: "hidden",
+  },
+  section: {
+    borderBottomWidth: 1,
+    borderBottomColor: `${GOLD}08`,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  sectionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  sectionIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${GOLD}10`,
+    borderWidth: 1,
+    borderColor: `${GOLD}20`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionTitle: {
+    color: WHITE,
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+  sectionItems: {
+    borderTopWidth: 1,
+    borderTopColor: `${GOLD}08`,
+    backgroundColor: `${SURFACE}80`,
+  },
+  sectionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: `${GOLD}06`,
+  },
   subItem: { paddingLeft: 40 },
-  itemLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  itemIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  itemLabel: { color: WHITE, fontSize: 14, fontWeight: "500" },
+  itemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  itemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  itemLabel: {
+    color: WHITE,
+    fontSize: 14,
+    fontWeight: "500",
+  },
   subItemLabel: { fontSize: 13, fontWeight: "400" },
   itemSub: { color: MUTED, fontSize: 11, marginTop: 2 },
-  itemRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  itemValue: { color: GOLD, fontSize: 12, fontWeight: "500" },
-  subItemsContainer: { backgroundColor: `${SURFACE_3}50` },
+  itemRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  itemValue: {
+    color: GOLD,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  subItemsContainer: {
+    backgroundColor: `${SURFACE_3}50`,
+  },
 
-  signOutBtn: { marginHorizontal: 20, marginBottom: 12 },
-  signOutGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: `${RED}25` },
+  // ── Sign Out / Delete / Footer ────────────────────────────────────────────
+  signOutBtn: { marginHorizontal: 16, marginBottom: 12 },
+  signOutGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 15,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: `${RED}25`,
+  },
   signOutText: { color: RED, fontSize: 15, fontWeight: "600" },
   deleteBtn: { alignItems: "center", marginBottom: 20 },
   deleteText: { color: `${RED}50`, fontSize: 13, textDecorationLine: "underline" },
 
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginHorizontal: 20, gap: 12 },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 20,
+    gap: 12,
+  },
   footerLine: { flex: 1, height: 1, backgroundColor: `${GOLD}15` },
   footerText: { color: MUTED_2, fontSize: 11 },
 });

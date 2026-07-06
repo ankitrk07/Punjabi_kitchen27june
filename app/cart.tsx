@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Animated, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import thankYouJson from "../assets/thank-you.json";
+import runningCartJson from "../assets/running-cart.json";
 
 
 export default function Cart() {
@@ -18,19 +19,21 @@ export default function Cart() {
   const { cart, updateQty, removeFromCart, placeOrder, user } = useApp();
   const fade = useRef(new Animated.Value(0)).current;
   const lottieRef = useRef<LottieView>(null);
+  const runningCartRef = useRef<LottieView>(null);
   const tempOrderRef = useRef<any>(null);
   const [success, setSuccess] = useState(false);
+  const [showRunningCart, setShowRunningCart] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
   const [selectedMode, setSelectedMode] = useState<"Dine In" | "Takeaway" | "Delivery">("Dine In");
 
   useEffect(() => {
-    if (success) {
+    if (success && !showRunningCart) {
       const timer = setTimeout(() => {
         lottieRef.current?.play();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [success]);
+  }, [success, showRunningCart]);
 
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
@@ -51,6 +54,7 @@ export default function Cart() {
     if (cart.length === 0) return;
     const order = placeOrder(mode);
     tempOrderRef.current = order;
+    setShowRunningCart(true);
     setSuccess(true);
   };
 
@@ -260,17 +264,37 @@ export default function Cart() {
 
       <Modal transparent visible={success} animationType="fade" statusBarTranslucent>
         <View style={styles.successOverlay}>
-          <LottieView
-            ref={lottieRef}
-            source={thankYouJson}
-            autoPlay
-            loop={false}
-            onAnimationFinish={() => {
-              setSuccess(false);
-              setReceiptOrder(tempOrderRef.current);
-            }}
-            style={{ width: 280, height: 280 }}
-          />
+          {showRunningCart ? (
+            <View style={{ alignItems: "center" }}>
+              <Text style={styles.orderPlacedTitle}>Order Placed!</Text>
+              <Text style={styles.orderPlacedSub}>Sit back while we get things ready</Text>
+              <LottieView
+                ref={runningCartRef}
+                source={runningCartJson}
+                autoPlay
+                loop={false}
+                speed={1.0}
+                onAnimationFinish={() => setShowRunningCart(false)}
+                style={{ width: 240, height: 240, marginTop: 4 }}
+              />
+              <View style={styles.orderPlacedPill}>
+                <Ionicons name="checkmark-circle" size={16} color="#D4AF37" />
+                <Text style={styles.orderPlacedPillText}>Your order is being processed</Text>
+              </View>
+            </View>
+          ) : (
+            <LottieView
+              ref={lottieRef}
+              source={thankYouJson}
+              autoPlay
+              loop={false}
+              onAnimationFinish={() => {
+                setSuccess(false);
+                setReceiptOrder(tempOrderRef.current);
+              }}
+              style={{ width: 280, height: 280 }}
+            />
+          )}
         </View>
       </Modal>
 
@@ -363,7 +387,11 @@ const styles = StyleSheet.create({
   checkoutBtn: { shadowColor: "#C9A84C", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6 },
   checkoutBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 28 },
   checkoutText: { color: "#000", fontSize: 14, fontWeight: "900", letterSpacing: 0.8 },
-  successOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.85)", alignItems: "center", justifyContent: "center" },
+  successOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.88)", alignItems: "center", justifyContent: "center" },
+  orderPlacedTitle: { color: "#D4AF37", fontSize: 28, fontWeight: "900", letterSpacing: 1.2, textAlign: "center", textTransform: "uppercase", marginBottom: 6 },
+  orderPlacedSub: { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "400", fontStyle: "italic", letterSpacing: 0.4, textAlign: "center", marginBottom: 8 },
+  orderPlacedPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(212,175,55,0.1)", borderWidth: 1, borderColor: "rgba(212,175,55,0.25)", borderRadius: 100, paddingHorizontal: 16, paddingVertical: 8, marginTop: 12 },
+  orderPlacedPillText: { color: "rgba(255,255,255,0.65)", fontSize: 12, fontWeight: "600", letterSpacing: 0.3 },
   successCard: { backgroundColor: colors.surface, padding: 30, borderRadius: 20, alignItems: "center", borderWidth: 1, borderColor: colors.gold, gap: 8 },
   successTitle: { color: "#FFF", fontSize: 20, fontWeight: "700", marginTop: 10 },
   successSub: { color: colors.textSecondary, fontSize: 13 },

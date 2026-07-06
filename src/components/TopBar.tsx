@@ -32,26 +32,95 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
 
   const [playCartAnim, setPlayCartAnim] = React.useState(false);
   const prevCartCountRef = React.useRef(cartCount);
-
-  React.useEffect(() => {
-    if (cartCount > prevCartCountRef.current) {
-      setPlayCartAnim(true);
-    }
-    prevCartCountRef.current = cartCount;
-  }, [cartCount]);
-
   const minimalNewCartRef = React.useRef<LottieView>(null);
   const fullNewCartRef = React.useRef<LottieView>(null);
+  const cartFadeAnim = React.useRef(new RNAnimated.Value(0)).current;
+  const iconOpacity = React.useRef(new RNAnimated.Value(1)).current;
+
+  const startTimerRef = React.useRef<any>(null);
+  const crossFadeTimerRef = React.useRef<any>(null);
+  const fallbackTimerRef = React.useRef<any>(null);  const isAnimatingRef = React.useRef(false);
+
+  const triggerCartAnimation = React.useCallback(() => {
+    isAnimatingRef.current = true;
+
+    // 1. Immediately hide the static icon, reset Lottie opacity to zero
+    iconOpacity.setValue(0);
+    cartFadeAnim.setValue(0);
+    setPlayCartAnim(true);
+
+    // 2. Clear any active animation timers
+    if (startTimerRef.current) clearTimeout(startTimerRef.current);
+    if (crossFadeTimerRef.current) clearTimeout(crossFadeTimerRef.current);
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+
+    // 3. Start play head explicitly from frame 0 concurrently with no delay
+    minimalNewCartRef.current?.reset();
+    fullNewCartRef.current?.reset();
+    minimalNewCartRef.current?.play();
+    fullNewCartRef.current?.play();
+
+    // Start fade-in concurrently
+    RNAnimated.timing(cartFadeAnim, {
+      toValue: 1,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+
+    // 4. Cross-fade at the end: starts at 0ms + 7200ms - 600ms = 6600ms
+    crossFadeTimerRef.current = setTimeout(() => {
+      RNAnimated.parallel([
+        RNAnimated.timing(cartFadeAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(iconOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setPlayCartAnim(false);
+        isAnimatingRef.current = false;
+      });
+    }, 6600);
+
+    // 5. Fallback cleanup
+    fallbackTimerRef.current = setTimeout(() => {
+      setPlayCartAnim(false);
+      isAnimatingRef.current = false;
+    }, 7300);
+  }, [cartFadeAnim, iconOpacity]);
+
+  // Synchronous cart check in render phase as a fallback
+  if (cartCount > prevCartCountRef.current) {
+    prevCartCountRef.current = cartCount;
+    if (!isAnimatingRef.current) {
+      triggerCartAnimation();
+    }
+  }
+
+  // Listen to cartBumpAnim synchronous triggers for absolute instant starts
+  React.useEffect(() => {
+    const listenerId = cartBumpAnim.addListener(({ value }) => {
+      // Trigger when bump starts (value becomes greater than 0.05)
+      if (value > 0.05 && !isAnimatingRef.current) {
+        triggerCartAnimation();
+      }
+    });
+    return () => {
+      cartBumpAnim.removeListener(listenerId);
+    };
+  }, [cartBumpAnim, triggerCartAnimation]);
 
   React.useEffect(() => {
-    if (playCartAnim) {
-      const timer = setTimeout(() => {
-        setPlayCartAnim(false);
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [playCartAnim]);
-
+    return () => {
+      if (startTimerRef.current) clearTimeout(startTimerRef.current);
+      if (crossFadeTimerRef.current) clearTimeout(crossFadeTimerRef.current);
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    };
+  }, []);
   const progress = Math.min((scrollY ?? 0) / 84, 1);
   const hideLocations = progress > 0.28;
   const showCartPocket = progress > 0.08;
@@ -107,11 +176,8 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
   );
 
   const cartAnimStyle = useAnimatedStyle(() => {
-    if (!menuScrollY || showInlineSearch) return { transform: [{ translateX: 0 }] };
-    const translateX = interpolate(menuScrollY.value, [60, 110], [104, 0], "clamp");
-    return {
-      transform: [{ translateX }],
-    };
+    // Cart stays in place — no movement on scroll
+    return { transform: [{ translateX: 0 }] };
   });
 
   const searchIconStyle = useAnimatedStyle(() => {
@@ -160,7 +226,25 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
           )}
 
           <View style={{ flexDirection: "row", alignItems: "center", position: "relative" }}>
-            <Animated.View style={cartAnimStyle}>
+            {/* Search & Explore fade in to the LEFT of cart */}
+            {!showInlineSearch && !isOrdersTab && (
+              <Animated.View style={[searchIconStyle, { marginRight: 8 }]}>
+                <TouchableOpacity onPress={() => setShowInlineSearch(true)} activeOpacity={0.85} style={styles.headerSearchBtn}>
+                  <Ionicons name="search-outline" size={20} color="#D4AF37" />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
+            {!showInlineSearch && !isOrdersTab && onExplorePress && (
+              <Animated.View style={[exploreIconStyle, { marginRight: 8 }]}>
+                <TouchableOpacity onPress={onExplorePress} activeOpacity={0.85} style={styles.headerSearchBtn}>
+                  <Ionicons name="book-outline" size={20} color="#D4AF37" />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
+            {/* Cart icon — always stays in its rightmost position */}
+            <View>
               <View style={{ position: "relative", alignItems: "center", justifyContent: "center" }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   {showProfile && (
@@ -192,15 +276,19 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
 
                   <RNAnimated.View ref={cartRef} style={[styles.heartBtn, { zIndex: 2 }]}>
                     <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
-                      {playCartAnim ? (
+                      {/* Static icon always visible underneath, but animated opacity */}
+                      <RNAnimated.View style={{ opacity: iconOpacity }}>
+                        <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+                      </RNAnimated.View>
+                      {/* Lottie overlaid on top, fades out to reveal icon */}
+                      <RNAnimated.View style={{ position: "absolute", opacity: cartFadeAnim, pointerEvents: "none" }}>
                         <LottieView
                           ref={minimalNewCartRef}
                           source={require("../../assets/new-cart.json")}
-                          autoPlay
+                          autoPlay={false}
                           loop={false}
-                          speed={1.2}
-                          onAnimationFinish={() => setPlayCartAnim(false)}
-                          style={{ width: 36, height: 36 }}
+                          speed={0.85}
+                          style={{ width: 28, height: 28 }}
                           colorFilters={[
                             { keypath: "**.Fond 1", color: "#000000" },
                             { keypath: "**.Contour 1", color: "#D4AF37" },
@@ -209,9 +297,7 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
                             { keypath: "CADRE Silhouettes.**", color: "#D4AF37" }
                           ]}
                         />
-                      ) : (
-                        <Ionicons name="cart-outline" size={22} color="#D4AF37" />
-                      )}
+                      </RNAnimated.View>
                       {cartCount > 0 && (
                         <View style={styles.cartBadge}>
                           <Text style={styles.cartBadgeText}>{cartCount}</Text>
@@ -221,23 +307,7 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
                   </RNAnimated.View>
                 </View>
               </View>
-            </Animated.View>
-
-            {!showInlineSearch && !isOrdersTab && (
-              <Animated.View style={[searchIconStyle, { marginLeft: 12 }]}>
-                <TouchableOpacity onPress={() => setShowInlineSearch(true)} activeOpacity={0.85} style={styles.headerSearchBtn}>
-                  <Ionicons name="search-outline" size={20} color="#D4AF37" />
-                </TouchableOpacity>
-              </Animated.View>
-            )}
-
-            {!showInlineSearch && !isOrdersTab && onExplorePress && (
-              <Animated.View style={[exploreIconStyle, { marginLeft: 8 }]}>
-                <TouchableOpacity onPress={onExplorePress} activeOpacity={0.85} style={styles.headerSearchBtn}>
-                  <Ionicons name="book-outline" size={20} color="#D4AF37" />
-                </TouchableOpacity>
-              </Animated.View>
-            )}
+            </View>
           </View>
         </View>
       </View>
@@ -322,14 +392,19 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
           <RNAnimated.View ref={cartRef} style={[cartStyle, { zIndex: 2 }]}>
             <View style={[styles.heartBtn, { zIndex: 2 }]}>
               <TouchableOpacity onPress={onCartPress} activeOpacity={0.85} style={styles.heartBtnInner}>
-                {playCartAnim ? (
+                {/* Static icon always visible underneath, but animated opacity */}
+                <RNAnimated.View style={{ opacity: iconOpacity }}>
+                  <Ionicons name="cart-outline" size={22} color="#D4AF37" />
+                </RNAnimated.View>
+                {/* Lottie overlaid on top, fades out to reveal icon */}
+                <RNAnimated.View style={{ position: "absolute", opacity: cartFadeAnim, pointerEvents: "none" }}>
                   <LottieView
                     ref={fullNewCartRef}
                     source={require("../../assets/new-cart.json")}
-                    autoPlay
+                    autoPlay={false}
                     loop={false}
-                    onAnimationFinish={() => setPlayCartAnim(false)}
-                    style={{ width: 30, height: 30 }}
+                    speed={0.85}
+                    style={{ width: 24, height: 24 }}
                     colorFilters={[
                       { keypath: "ROUE Silhouettes", color: "#D4AF37" },
                       { keypath: "BAC Silhouettes", color: "#D4AF37" },
@@ -340,9 +415,7 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
                       { keypath: "**", color: "#D4AF37" }
                     ]}
                   />
-                ) : (
-                  <Ionicons name="cart-outline" size={22} color="#D4AF37" />
-                )}
+                </RNAnimated.View>
                 {cartCount > 0 && (
                   <View style={styles.cartBadge}>
                     <Text style={styles.cartBadgeText}>{cartCount}</Text>
