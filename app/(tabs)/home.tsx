@@ -1268,8 +1268,6 @@ const moodStyle = StyleSheet.create({
   cardContainer: {
     width: 104,
     position: "absolute",
-    left: "50%",
-    marginLeft: -52,
     top: 20,
     alignItems: "center",
     justifyContent: "center",
