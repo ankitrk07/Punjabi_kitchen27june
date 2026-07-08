@@ -9,6 +9,9 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
 import { getDishImageSource } from "@/src/utils/dishImages";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, runOnJS } from "react-native-reanimated";
+
+const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 type Props = { chefSpecials: typeof DISHES };
 
@@ -16,6 +19,8 @@ export function DealOfDaySection() {
   const router = useRouter();
   const [deals, setDeals] = useState<any[]>([DEAL_OF_DAY]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [visibleIndex, setVisibleIndex] = useState(0);
+  const transitionProgress = useSharedValue(1);
 
   useEffect(() => {
     apiClient
@@ -38,94 +43,117 @@ export function DealOfDaySection() {
     return () => clearInterval(interval);
   }, [deals.length]);
 
-  const activeDeal = deals[activeIndex] || DEAL_OF_DAY;
+  // Coordinated slide-fade transition when activeIndex changes
+  useEffect(() => {
+    if (activeIndex === visibleIndex) return;
+
+    transitionProgress.value = withTiming(0, { duration: 250 }, (finished) => {
+      if (finished) {
+        runOnJS(setVisibleIndex)(activeIndex);
+      }
+    });
+  }, [activeIndex]);
+
+  useEffect(() => {
+    transitionProgress.value = withTiming(1, { duration: 300 });
+  }, [visibleIndex]);
+
+  const activeDeal = deals[visibleIndex] || DEAL_OF_DAY;
   const discountPercent = activeDeal.originalPrice && activeDeal.price
     ? Math.round(((activeDeal.originalPrice - activeDeal.price) / activeDeal.originalPrice) * 100)
     : 25;
 
+  const imageAnimStyle = useAnimatedStyle(() => {
+    return {
+      opacity: transitionProgress.value,
+      transform: [
+        { scale: 0.88 + 0.12 * transitionProgress.value },
+        { rotate: "12deg" } // Counter-rotate the image to keep it upright inside the -12deg rotated oval frame
+      ]
+    };
+  });
+
+  const textAnimStyle = useAnimatedStyle(() => {
+    return {
+      opacity: transitionProgress.value,
+      transform: [
+        { translateY: 10 * (1 - transitionProgress.value) }
+      ]
+    };
+  });
+
   return (
     <View style={styles.dealSection}>
       <LinearGradient
-        colors={["#111111", "#070707", "#050505"]}
+        colors={["#131313", "#090909", "#060606"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.dealContainer}
       >
+        {/* Deal Header Row */}
         <View style={styles.dealTopRow}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text style={styles.dealHeading}>
               Deal of the Day
             </Text>
-
-            <Text style={styles.sparkle}>
-              ✨
-            </Text>
+            <Text style={styles.sparkle}>✨</Text>
           </View>
 
           <TouchableOpacity
             style={styles.moreDealsBtn}
             onPress={() => router.push("/profile/offers")}
           >
-            <Text style={styles.moreDealsText}>
-              More Deals
-            </Text>
-
+            <Text style={styles.moreDealsText}>More Deals</Text>
             <Ionicons
               name="chevron-forward"
               size={18}
-              color="rgba(255,255,255,0.7)"
+              color="rgba(255,255,255,0.55)"
             />
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity activeOpacity={0.9}>
-          <Image
-            source={getDishImageSource(activeDeal.id, activeDeal.image)}
-            style={styles.newDealImg}
-          />
-
-          <LinearGradient
-            colors={[
-              "rgba(0,0,0,0.85)",
-              "rgba(0,0,0,0.48)",
-              "rgba(0,0,0,0.92)",
-            ]}
-            style={styles.newDealOverlay}
-          >
+        {/* Content Row split layout */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.dealContentRow}
+          onPress={() => router.push("/(tabs)/menu")}
+        >
+          {/* Left details side */}
+          <Animated.View style={[styles.dealLeftCol, textAnimStyle]}>
             <View style={styles.chefPick}>
-              <Text style={styles.chefPickText}>
-                ★ CHEF'S PICK
-              </Text>
+              <Text style={styles.chefPickText}>★ CHEF'S PICK</Text>
             </View>
 
-            <View>
-              <Text style={styles.newDealTitle}>
-                {activeDeal.dishName}
-              </Text>
+            <Text style={styles.newDealTitle} numberOfLines={2}>
+              {activeDeal.dishName}
+            </Text>
 
-              <Text style={styles.newDealDesc}>
-                {activeDeal.desc}
-              </Text>
-            </View>
+            <Text style={styles.newDealDesc} numberOfLines={3}>
+              {activeDeal.desc}
+            </Text>
 
             <View style={styles.newBottomRow}>
               <View style={styles.newPriceRow}>
-                <Text style={styles.newPrice}>
-                  ₹{activeDeal.price}
-                </Text>
-
-                <Text style={styles.oldPriceNew}>
-                  ₹{activeDeal.originalPrice}
-                </Text>
+                <Text style={styles.newPrice}>₹{activeDeal.price}</Text>
+                <Text style={styles.oldPriceNew}>₹{activeDeal.originalPrice}</Text>
               </View>
 
               <View style={styles.discountPill}>
-                <Text style={styles.discountPillText}>
-                  {discountPercent}% OFF
-                </Text>
+                <Text style={styles.discountPillText}>{discountPercent}% OFF</Text>
               </View>
             </View>
-          </LinearGradient>
+          </Animated.View>
+
+          {/* Right Diagonal Oval image side */}
+          <View style={styles.dealRightCol}>
+            <View style={styles.diagonalOvalFrame}>
+              <AnimatedImage
+                source={getDishImageSource(activeDeal.id, activeDeal.image)}
+                style={[styles.newDealImg, imageAnimStyle]}
+                contentFit="cover"
+              />
+            </View>
+          </View>
         </TouchableOpacity>
       </LinearGradient>
     </View>
@@ -261,58 +289,80 @@ moreDealsText: {
 },
 
 newDealImg: {
-  width: "100%",
-  height: 230,
-  borderRadius: 22,
+  width: "140%",
+  height: "140%",
+  marginLeft: "-20%",
+  marginTop: "-20%",
 },
 
-newDealOverlay: {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  borderRadius: 20,
-  padding: 18,
+dealContentRow: {
+  flexDirection: "row",
   justifyContent: "space-between",
+  alignItems: "center",
+  marginTop: 6,
+  paddingBottom: 4,
+},
+
+dealLeftCol: {
+  flex: 1.25,
+  paddingRight: 10,
+  justifyContent: "center",
+},
+
+dealRightCol: {
+  flex: 0.85,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+diagonalOvalFrame: {
+  width: 125,
+  height: 165,
+  borderRadius: 65,
+  borderWidth: 1.5,
+  borderColor: "#C9A45C",
+  overflow: "hidden",
+  transform: [{ rotate: "-12deg" }],
+  backgroundColor: "#181818",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.35,
+  shadowRadius: 10,
+  elevation: 6,
 },
 
 chefPick: {
   alignSelf: "flex-start",
   backgroundColor: "rgba(201,164,92,0.14)",
-  paddingHorizontal: 12,
-  paddingVertical: 6,
+  paddingHorizontal: 10,
+  paddingVertical: 5,
   borderRadius: 8,
   borderWidth: 1,
   borderColor: "rgba(201,164,92,0.22)",
+  marginBottom: 8,
 },
 
 chefPickText: {
   color: "#C9A45C",
-  fontSize: 10,
+  fontSize: 9,
   fontWeight: "600",
   letterSpacing: 0.5,
 },
 
 newDealTitle: {
   color: "#F5F3EE",
-  fontSize: 26,
+  fontSize: 22,
   fontWeight: "600",
   letterSpacing: 0.2,
-  textShadowColor: "rgba(0, 0, 0, 0.85)",
-  textShadowOffset: { width: 0, height: 1.5 },
-  textShadowRadius: 4,
+  lineHeight: 28,
 },
 
 newDealDesc: {
-  color: "rgba(255, 255, 255, 0.88)",
+  color: "rgba(255, 255, 255, 0.72)",
   fontSize: 12,
-  lineHeight: 19,
+  lineHeight: 18,
   marginTop: 6,
-  maxWidth: "82%",
-  textShadowColor: "rgba(0, 0, 0, 0.85)",
-  textShadowOffset: { width: 0, height: 1 },
-  textShadowRadius: 3,
+  marginBottom: 12,
 },
 
 newBottomRow: {
@@ -323,19 +373,19 @@ newBottomRow: {
 
 newPriceRow: {
   flexDirection: "row",
-  alignItems: "center",
+  alignItems: "baseline",
 },
 
 newPrice: {
   color: "#C9A45C",
-  fontSize: 32,
+  fontSize: 26,
   fontWeight: "700",
 },
 
 oldPriceNew: {
   color: "rgba(255,255,255,0.28)",
-  fontSize: 15,
-  marginLeft: 8,
+  fontSize: 14,
+  marginLeft: 6,
   textDecorationLine: "line-through",
 },
 
