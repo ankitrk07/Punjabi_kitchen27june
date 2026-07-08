@@ -86,8 +86,8 @@ export function DealOfDaySection() {
 
           <LinearGradient
             colors={[
-              "rgba(0,0,0,0.72)",
-              "rgba(0,0,0,0.18)",
+              "rgba(0,0,0,0.85)",
+              "rgba(0,0,0,0.48)",
               "rgba(0,0,0,0.92)",
             ]}
             style={styles.newDealOverlay}
@@ -297,16 +297,22 @@ chefPickText: {
 newDealTitle: {
   color: "#F5F3EE",
   fontSize: 26,
-  fontWeight: "500",
+  fontWeight: "600",
   letterSpacing: 0.2,
+  textShadowColor: "rgba(0, 0, 0, 0.85)",
+  textShadowOffset: { width: 0, height: 1.5 },
+  textShadowRadius: 4,
 },
 
 newDealDesc: {
-  color: "rgba(255,255,255,0.62)",
+  color: "rgba(255, 255, 255, 0.88)",
   fontSize: 12,
   lineHeight: 19,
   marginTop: 6,
-  maxWidth: "78%",
+  maxWidth: "82%",
+  textShadowColor: "rgba(0, 0, 0, 0.85)",
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 3,
 },
 
 newBottomRow: {
