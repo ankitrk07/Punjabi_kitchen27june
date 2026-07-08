@@ -9,7 +9,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
 import { getDishImageSource } from "@/src/utils/dishImages";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, runOnJS } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, runOnJS, interpolate, withSpring, Easing } from "react-native-reanimated";
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -21,6 +21,10 @@ export function DealOfDaySection() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleIndex, setVisibleIndex] = useState(0);
   const transitionProgress = useSharedValue(1);
+
+  // States to keep track of organic random rotations for the stack
+  const [activeRotation, setActiveRotation] = useState(-10);
+  const [prevRotation, setPrevRotation] = useState(8);
 
   useEffect(() => {
     apiClient
@@ -43,44 +47,69 @@ export function DealOfDaySection() {
     return () => clearInterval(interval);
   }, [deals.length]);
 
-  // Coordinated slide-fade transition when activeIndex changes
+  // When activeIndex changes, transition previous card and generate a truly random landing angle
   useEffect(() => {
     if (activeIndex === visibleIndex) return;
 
-    transitionProgress.value = withTiming(0, { duration: 250 }, (finished) => {
-      if (finished) {
-        runOnJS(setVisibleIndex)(activeIndex);
-      }
+    // The previous top card becomes the background card, staying exactly at its landed rotation
+    setPrevRotation(activeRotation);
+    
+    // Generate a steep, stylish random landing angle between 16 and 32 degrees (positive or negative)
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const randomAngle = direction * (16 + Math.random() * 16);
+    setActiveRotation(randomAngle);
+
+    transitionProgress.value = 0;
+    setVisibleIndex(activeIndex);
+    transitionProgress.value = withTiming(1, {
+      duration: 350,
+      easing: Easing.out(Easing.quad),
     });
   }, [activeIndex]);
 
-  useEffect(() => {
-    transitionProgress.value = withTiming(1, { duration: 300 });
-  }, [visibleIndex]);
-
   const activeDeal = deals[visibleIndex] || DEAL_OF_DAY;
+  
+  // Resolve previous deal for the underlying card stack
+  const prevIndex = (visibleIndex - 1 + deals.length) % deals.length;
+  const prevDeal = deals[prevIndex] || DEAL_OF_DAY;
+
   const discountPercent = activeDeal.originalPrice && activeDeal.price
     ? Math.round(((activeDeal.originalPrice - activeDeal.price) / activeDeal.originalPrice) * 100)
     : 25;
 
+  // The active card is "thrown" from top-right and lands at its random activeRotation
   const imageAnimStyle = useAnimatedStyle(() => {
+    const t = transitionProgress.value;
+    const translateX = interpolate(t, [0, 1], [140, 0]);
+    const translateY = interpolate(t, [0, 1], [-180, 0]);
+    const rotateVal = interpolate(t, [0, 1], [40, activeRotation]);
+    const scaleVal = interpolate(t, [0, 1], [1.32, 1.0]);
+    const opacityVal = interpolate(t, [0, 0.25, 1], [0, 0.45, 1]);
+
     return {
-      opacity: transitionProgress.value,
+      opacity: opacityVal,
       transform: [
-        { scale: 0.88 + 0.12 * transitionProgress.value },
-        { rotate: "12deg" } // Counter-rotate the image to keep it upright inside the -12deg rotated oval frame
+        { translateX },
+        { translateY },
+        { rotate: `${rotateVal}deg` },
+        { scale: scaleVal }
       ]
     };
   });
 
-  const textAnimStyle = useAnimatedStyle(() => {
+  // Counter-rotate the inner image to keep it upright inside the tilted frame
+  const innerImgAnimStyle = useAnimatedStyle(() => {
+    const t = transitionProgress.value;
+    const rotateVal = interpolate(t, [0, 1], [40, activeRotation]);
     return {
-      opacity: transitionProgress.value,
       transform: [
-        { translateY: 10 * (1 - transitionProgress.value) }
+        { rotate: `${-rotateVal}deg` },
+        { scale: 1.18 }
       ]
     };
   });
+
+
 
   return (
     <View style={styles.dealSection}>
@@ -118,41 +147,64 @@ export function DealOfDaySection() {
           style={styles.dealContentRow}
           onPress={() => router.push("/(tabs)/menu")}
         >
-          {/* Left details side */}
-          <Animated.View style={[styles.dealLeftCol, textAnimStyle]}>
-            <View style={styles.chefPick}>
-              <Text style={styles.chefPickText}>★ CHEF'S PICK</Text>
+          {/* Left details side (structured layout) */}
+          <View style={styles.dealLeftCol}>
+            <View style={styles.chefPickRow}>
+              <View style={styles.chefPick}>
+                <Text style={styles.chefPickText}>★ CHEF'S PICK</Text>
+              </View>
+              <View style={styles.dealTagPill}>
+                <Text style={styles.dealTagText}>🔥 TODAY ONLY</Text>
+              </View>
             </View>
 
             <Text style={styles.newDealTitle} numberOfLines={2}>
               {activeDeal.dishName}
             </Text>
 
-            <Text style={styles.newDealDesc} numberOfLines={3}>
+            <Text style={styles.newDealDesc} numberOfLines={2}>
               {activeDeal.desc}
             </Text>
 
+            {/* Menu partition line */}
+            <View style={styles.dashedLine} />
+
             <View style={styles.newBottomRow}>
               <View style={styles.newPriceRow}>
+                <Text style={styles.priceLabel}>Price: </Text>
                 <Text style={styles.newPrice}>₹{activeDeal.price}</Text>
                 <Text style={styles.oldPriceNew}>₹{activeDeal.originalPrice}</Text>
               </View>
+            </View>
 
+            {/* Place the % OFF discount pill at the very bottom as its own block */}
+            <View style={{ alignSelf: "flex-start", marginTop: 8 }}>
               <View style={styles.discountPill}>
                 <Text style={styles.discountPillText}>{discountPercent}% OFF</Text>
               </View>
             </View>
-          </Animated.View>
+          </View>
 
-          {/* Right Diagonal Oval image side */}
+          {/* Right image side with tilted throwing stack */}
           <View style={styles.dealRightCol}>
-            <View style={styles.diagonalOvalFrame}>
-              <AnimatedImage
-                source={getDishImageSource(activeDeal.id, activeDeal.image)}
-                style={[styles.newDealImg, imageAnimStyle]}
+            {/* Bottom Stacked Card (Previous Item, tilted and shifted to peeking position) */}
+            <View style={[styles.bottomStackedFrame, { transform: [{ rotate: `${prevRotation}deg` }, { translateX: 14 }, { translateY: 8 }] }]}>
+              <Image
+                source={getDishImageSource(prevDeal.id, prevDeal.image)}
+                style={[styles.prevDealImg, { transform: [{ rotate: `${-prevRotation}deg` }, { scale: 1.18 }] }]}
                 contentFit="cover"
               />
+              <View style={styles.greyOverlay} />
             </View>
+
+            {/* Top Active Card (Current Item, thrown and lands at its random angle) */}
+            <Animated.View style={[styles.diagonalOvalFrame, imageAnimStyle]}>
+              <AnimatedImage
+                source={getDishImageSource(activeDeal.id, activeDeal.image)}
+                style={[styles.newDealImg, innerImgAnimStyle]}
+                contentFit="cover"
+              />
+            </Animated.View>
           </View>
         </TouchableOpacity>
       </LinearGradient>
@@ -248,14 +300,17 @@ const styles = StyleSheet.create({
   dealSection: {
   marginTop: 26,
   paddingHorizontal: 14,
+  height: 300,
 },
 
 dealContainer: {
+  height: 282,
   borderRadius: 26,
-  padding: 12,
+  padding: 14,
   borderWidth: 1,
   borderColor: "rgba(255,255,255,0.06)",
   backgroundColor: "#080808",
+  overflow: "hidden",
 },
 
 dealTopRow: {
@@ -300,13 +355,14 @@ dealContentRow: {
   justifyContent: "space-between",
   alignItems: "center",
   marginTop: 6,
-  paddingBottom: 4,
+  height: 212,
 },
 
 dealLeftCol: {
   flex: 1.25,
   paddingRight: 10,
-  justifyContent: "center",
+  height: 212,
+  justifyContent: "space-between",
 },
 
 dealRightCol: {
@@ -316,13 +372,12 @@ dealRightCol: {
 },
 
 diagonalOvalFrame: {
-  width: 125,
-  height: 165,
-  borderRadius: 65,
+  width: 140,
+  height: 180,
+  borderRadius: 70,
   borderWidth: 1.5,
   borderColor: "#C9A45C",
   overflow: "hidden",
-  transform: [{ rotate: "-12deg" }],
   backgroundColor: "#181818",
   shadowColor: "#000",
   shadowOffset: { width: 0, height: 6 },
@@ -331,15 +386,21 @@ diagonalOvalFrame: {
   elevation: 6,
 },
 
+chefPickRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 8,
+  marginBottom: 8,
+},
+
 chefPick: {
   alignSelf: "flex-start",
   backgroundColor: "rgba(201,164,92,0.14)",
-  paddingHorizontal: 10,
-  paddingVertical: 5,
-  borderRadius: 8,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 6,
   borderWidth: 1,
   borderColor: "rgba(201,164,92,0.22)",
-  marginBottom: 8,
 },
 
 chefPickText: {
@@ -349,20 +410,43 @@ chefPickText: {
   letterSpacing: 0.5,
 },
 
+dealTagPill: {
+  backgroundColor: "rgba(255,75,75,0.09)",
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 6,
+  borderWidth: 1,
+  borderColor: "rgba(255,75,75,0.18)",
+},
+
+dealTagText: {
+  color: "#FF5E5E",
+  fontSize: 9,
+  fontWeight: "600",
+  letterSpacing: 0.3,
+},
+
 newDealTitle: {
   color: "#F5F3EE",
-  fontSize: 22,
+  fontSize: 21,
   fontWeight: "600",
   letterSpacing: 0.2,
-  lineHeight: 28,
+  lineHeight: 26,
 },
 
 newDealDesc: {
-  color: "rgba(255, 255, 255, 0.72)",
+  color: "rgba(255, 255, 255, 0.55)",
   fontSize: 12,
   lineHeight: 18,
   marginTop: 6,
-  marginBottom: 12,
+},
+
+dashedLine: {
+  borderStyle: "dashed",
+  borderWidth: 0.6,
+  borderColor: "rgba(201,168,76,0.18)",
+  marginVertical: 10,
+  width: "100%",
 },
 
 newBottomRow: {
@@ -376,32 +460,63 @@ newPriceRow: {
   alignItems: "baseline",
 },
 
+priceLabel: {
+  color: "rgba(255,255,255,0.4)",
+  fontSize: 12,
+  marginRight: 4,
+},
+
 newPrice: {
   color: "#C9A45C",
-  fontSize: 26,
+  fontSize: 24,
   fontWeight: "700",
 },
 
 oldPriceNew: {
   color: "rgba(255,255,255,0.28)",
-  fontSize: 14,
+  fontSize: 13,
   marginLeft: 6,
   textDecorationLine: "line-through",
 },
 
+bottomStackedFrame: {
+  position: "absolute",
+  width: 135,
+  height: 175,
+  borderRadius: 67,
+  borderWidth: 1,
+  borderColor: "rgba(201,164,92,0.18)",
+  overflow: "hidden",
+  opacity: 0.72,
+  backgroundColor: "#101010",
+},
+
+greyOverlay: {
+  ...StyleSheet.absoluteFillObject,
+  backgroundColor: "rgba(18, 18, 18, 0.78)",
+},
+
+prevDealImg: {
+  width: "140%",
+  height: "140%",
+  marginLeft: "-20%",
+  marginTop: "-20%",
+},
+
 discountPill: {
   backgroundColor: "rgba(201,164,92,0.12)",
-  paddingHorizontal: 14,
-  paddingVertical: 8,
-  borderRadius: 14,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 6,
   borderWidth: 1,
   borderColor: "rgba(201,164,92,0.25)",
 },
 
 discountPillText: {
   color: "#C9A45C",
-  fontSize: 12,
+  fontSize: 9,
   fontWeight: "600",
+  letterSpacing: 0.3,
 },
   chefCard: { width: 170, height: 220, marginLeft: 12, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: colors.borderGold },
   chefImg: { width: "100%", height: "100%" },
