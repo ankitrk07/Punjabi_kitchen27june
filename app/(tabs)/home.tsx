@@ -53,6 +53,7 @@ import Animated, {
   interpolate,
   type SharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   useFrameCallback,
   useSharedValue,
   withDelay,
@@ -1107,38 +1108,72 @@ const modeCard = StyleSheet.create({
 // 5. AnimatedMoodStrip
 //    Placed below HomeModes, gold left-bar REMOVED
 // ─────────────────────────────────────────────────────────────────────────────
-function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
-  const router = useRouter();
+function MoodChip({
+  item,
+  index,
+  animatedActiveIndex,
+  onPress,
+}: {
+  item: typeof MOODS[0];
+  index: number;
+  animatedActiveIndex: SharedValue<number>;
+  onPress: () => void;
+}) {
   const scale = useSharedValue(0.6);
-  const opacity = useSharedValue(0);
+  const opacityVal = useSharedValue(0);
 
   useEffect(() => {
-    scale.value = withDelay(100 + index * 60, withSpring(1, SPRING_CONFIG));
-    opacity.value = withDelay(100 + index * 60, withTiming(1, { duration: 300 }));
+    scale.value = withSpring(1, SPRING_CONFIG);
+    opacityVal.value = withTiming(1, { duration: 300 });
   }, []);
 
   const pressScale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.value * scale.value }],
-    opacity: opacity.value,
-  }));
+
+  const animStyle = useAnimatedStyle(() => {
+    let d = index - animatedActiveIndex.value;
+    if (d < -MOODS.length / 2) d += MOODS.length;
+    if (d > MOODS.length / 2) d -= MOODS.length;
+
+    const isCenter = Math.abs(d) === 0;
+
+    // Shift sideways: center is 0, adjacent is -110 or 110
+    const translateX = withSpring(d * 110, { damping: 16, stiffness: 120 });
+    // Drops down when shifted left or right
+    const translateY = withSpring(isCenter ? -8 : 16, { damping: 16, stiffness: 120 });
+    // Pops up if center (1.25), drops down if side (0.85)
+    const cardScale = withSpring(isCenter ? 1.25 * pressScale.value : 0.85, { damping: 16, stiffness: 120 });
+    // Hide items further away than 1.1 units to maintain a clean 3-card stack
+    const opacity = withSpring(
+      isCenter ? 1.0 : (Math.abs(d) <= 1.1 ? 0.72 : 0.0),
+      { damping: 16, stiffness: 120 }
+    );
+
+    return {
+      transform: [
+        { translateX },
+        { translateY },
+        { scale: cardScale * scale.value }
+      ],
+      opacity,
+    };
+  });
 
   return (
-    <Animated.View style={[moodStyle.cardContainer, pressStyle]}>
+    <Animated.View
+      style={[
+        moodStyle.cardContainer,
+        animStyle
+      ]}
+    >
       <TouchableOpacity
         activeOpacity={0.85}
-        onPressIn={() => { pressScale.value = withSpring(0.91, { damping: 15, stiffness: 400 }); }}
-        onPressOut={() => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
-        onPress={() => {
-          router.push({
-            pathname: "/(tabs)/menu",
-            params: { initialCategory: item.cat },
-          });
-        }}
+        onPressIn={() => { pressScale.value = 0.92; }}
+        onPressOut={() => { pressScale.value = 1; }}
+        onPress={onPress}
         style={moodStyle.chipTouch}
       >
         <LinearGradient
-          colors={["rgba(201,168,76,0.3)", "rgba(201,168,76,0.05)"]}
+          colors={["rgba(201,168,76,0.32)", "rgba(201,168,76,0.06)"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={moodStyle.imageCircle}
@@ -1156,6 +1191,34 @@ function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
 }
 
 function AnimatedMoodStrip() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const animatedActiveIndex = useSharedValue(0);
+  const router = useRouter();
+
+  useEffect(() => {
+    animatedActiveIndex.value = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % MOODS.length);
+    }, 4200); // cycle every 4.2 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCardPress = (index: number) => {
+    const diff = (index - activeIndex + MOODS.length) % MOODS.length;
+    
+    if (diff === 0) {
+      router.push({
+        pathname: "/(tabs)/menu",
+        params: { initialCategory: MOODS[index].cat },
+      });
+    } else if (diff === 1 || diff === MOODS.length - 1) {
+      setActiveIndex(index);
+    }
+  };
+
   return (
     <Animated.View
       entering={FadeInDown.delay(300).springify().damping(20)}
@@ -1168,11 +1231,17 @@ function AnimatedMoodStrip() {
         What are you craving?
       </Animated.Text>
 
-      <Marquee speed={32} itemWidth={104} itemCount={MOODS.length}>
+      <View style={moodStyle.carouselFrame}>
         {MOODS.map((m, i) => (
-          <MoodChip key={m.cat} item={m} index={i} />
+          <MoodChip
+            key={m.cat}
+            item={m}
+            index={i}
+            animatedActiveIndex={animatedActiveIndex}
+            onPress={() => handleCardPress(i)}
+          />
         ))}
-      </Marquee>
+      </View>
     </Animated.View>
   );
 }
@@ -1185,10 +1254,23 @@ const moodStyle = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.1,
     marginHorizontal: 20,
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  carouselFrame: {
+    height: 155,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+    marginVertical: 4,
   },
   cardContainer: {
     width: 104,
+    position: "absolute",
+    left: "50%",
+    marginLeft: -52,
+    top: 20,
     alignItems: "center",
     justifyContent: "center",
   },
