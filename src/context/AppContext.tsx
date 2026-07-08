@@ -46,6 +46,10 @@ export type Reservation = {
   guestCount: number;
   status: "Active" | "Cancelled";
   tableNumber: number;
+  occasion?: string;
+  specialRequests?: string | null;
+  seatingType?: string | null;
+  occasionDate?: string | null;
   createdAt?: string;
   userEmail?: string;
 };
@@ -193,6 +197,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 3. Load reservations (Admin loads all, user loads filtered)
       const apiRes = await apiClient.getReservations(isUserAdmin ? undefined : u.email).catch(() => []);
       setReservations(apiRes);
+      void storage.setItem("pk_reservations", apiRes);
 
       // 4. Load catering requests (Admin loads all, user loads filtered)
       const apiCatering = await apiClient.getCateringRequests(isUserAdmin ? undefined : u.email).catch(() => []);
@@ -217,6 +222,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFavorites([]);
 
       // 1. Initial load from local storage
+      const savedRes = await storage.getItem<Reservation[] | null>("pk_reservations", null);
+      if (savedRes && savedRes.length > 0) {
+        setReservations(savedRes);
+      }
+
       const u = await storage.getItem<User | null>("pk_user", null);
       if (u) {
         setUser(u);
@@ -533,11 +543,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         guestCount: data.guestCount,
         tableNumber: data.tableNumber || 1,
         userEmail: user?.email ?? undefined,
+        occasion: data.occasion,
+        specialRequests: data.specialRequests,
+        seatingType: data.seatingType,
       };
 
       try {
         const created = await apiClient.createReservation(reservationData);
-        setReservations((prev) => [created, ...prev]);
+        setReservations((prev) => {
+          const next = [created, ...prev];
+          void storage.setItem("pk_reservations", next);
+          return next;
+        });
       } catch (e) {
         console.log("Failed to book table on backend:", e);
         const fallback = {
@@ -546,11 +563,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: "Active" as const,
           tableNumber: data.tableNumber || 1,
         };
-        setReservations((prev) => [fallback, ...prev]);
+        setReservations((prev) => {
+          const next = [fallback, ...prev];
+          void storage.setItem("pk_reservations", next);
+          return next;
+        });
       }
     },
     cancelReservation: async (id: string) => {
-      setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, status: "Cancelled" as const } : r)));
+      setReservations((prev) => {
+        const next = prev.map((r) => (r.id === id ? { ...r, status: "Cancelled" as const } : r));
+        void storage.setItem("pk_reservations", next);
+        return next;
+      });
       try {
         await apiClient.cancelReservation(id);
       } catch (e) {

@@ -81,6 +81,10 @@ model Reservation {
   guestCount      Int      @default(1)
   status          String   @default("Active") // "Active" | "Cancelled"
   tableNumber     Int      @default(1)
+  occasion        String?
+  specialRequests String?
+  seatingType     String?
+  occasionDate    String?
   userEmail       String?
   user            User?    @relation(fields: [userEmail], references: [email], onDelete: Cascade)
 }

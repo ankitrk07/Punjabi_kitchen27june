@@ -27,15 +27,58 @@ const OFFERS = [
   { id: "o4", title: "₹100 OFF", code: "FIRST100", desc: "First order on the app", color: "#F3C846" },
 ];
 
-// Static Deal of the Day
-const DEAL_OF_DAY = {
-  title: "Deal of the Day",
-  dishName: "Royal Punjabi Thali",
-  price: 299,
-  originalPrice: 480,
-  image: "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=800&q=80",
-  desc: "Dal Makhani, Paneer, Naan, Jeera Rice, Salad, Gulab Jamun & Lassi",
-};
+// Static Deal of the Day states
+let manualDeal: any = null;
+let cachedRandomDeal: any = null;
+let randomDealExpiry: number = 0; // timestamp
+
+const staticFallbackDeals = [
+  {
+    id: "Dal_Makhani",
+    title: "Deal of the Day",
+    dishName: "Dal Makhani",
+    price: 180,
+    originalPrice: 240,
+    image: "/uploads/Menu 15/Dal/Dal Makhani.jpeg",
+    desc: "Creamy slow-cooked whole black lentils and kidney beans, a Punjabi classic."
+  },
+  {
+    id: "Paneer_Tikka_Butter_Masala",
+    title: "Deal of the Day",
+    dishName: "Paneer Tikka Butter Masala",
+    price: 232,
+    originalPrice: 310,
+    image: "/uploads/20260701_000047.jpeg",
+    desc: "Grilled cottage cheese cubes in rich, buttery, spiced tomato-cashew gravy."
+  },
+  {
+    id: "Butter_Naan",
+    title: "Deal of the Day",
+    dishName: "Butter Naan",
+    price: 45,
+    originalPrice: 60,
+    image: "/uploads/Menu 15/Breads/Butter Naan.jpeg",
+    desc: "Leavened oven-baked flatbread brushed with rich melted butter."
+  },
+  {
+    id: "Double_Leg_Biryani",
+    title: "Deal of the Day",
+    dishName: "Double Leg Chicken Biryani",
+    price: 225,
+    originalPrice: 300,
+    image: "/uploads/Menu 15/Rice/Double Leg Chicken Biryani.jpg",
+    desc: "Aromatic layered basmati rice served with two juicy tandoori chicken legs."
+  },
+  {
+    id: "Hot_Gulab_Jamun_(2_Pcs)",
+    title: "Deal of the Day",
+    dishName: "Hot Gulab Jamun (2 Pcs)",
+    price: 63,
+    originalPrice: 84,
+    image: "/uploads/Menu 15/Desserts/Hot Gulab Jamun (2 Pcs).jpeg",
+    desc: "Warm golden-brown cottage cheese dumplings dipped in sugary cardamom syrup."
+  }
+];
 
 /* ─── API Routes ─── */
 
@@ -135,8 +178,110 @@ app.get("/api/offers", (req, res) => {
 });
 
 // 5. Deal of the Day
-app.get("/api/deal-of-day", (req, res) => {
-  res.json(DEAL_OF_DAY);
+app.get("/api/deal-of-day", async (req, res) => {
+  try {
+    if (manualDeal) {
+      return res.json({ isAuto: false, deals: [manualDeal] });
+    }
+
+    const count = await prisma.dish.count();
+    if (count > 0) {
+      const dishes = await prisma.dish.findMany();
+      if (dishes.length > 0) {
+        // Select up to 5 random dishes to show in the slideshow
+        const shuffled = [...dishes].sort(() => 0.5 - Math.random());
+        const selectedDishes = shuffled.slice(0, Math.min(5, shuffled.length));
+
+        const dealsList = selectedDishes.map((randomDish) => {
+          const originalPrice = randomDish.price;
+          const price = Math.round(originalPrice * 0.75); // 25% discount
+          return {
+            id: randomDish.id,
+            title: "Deal of the Day",
+            dishName: randomDish.name,
+            price,
+            originalPrice,
+            image: randomDish.image,
+            desc: randomDish.description || "Limited time deal of the day! Get 25% OFF."
+          };
+        });
+
+        return res.json({ isAuto: true, deals: dealsList });
+      }
+    }
+
+    res.json({ isAuto: true, deals: staticFallbackDeals });
+  } catch (error) {
+    console.error("Failed to fetch deal of the day:", error);
+    res.json({ isAuto: true, deals: staticFallbackDeals });
+  }
+});
+
+// Admin endpoint to override or reset Deal of the Day
+app.post("/api/admin/deal-of-day", (req, res) => {
+  try {
+    const { title, dishName, price, originalPrice, image, desc, isAuto } = req.body;
+    if (isAuto) {
+      manualDeal = null;
+      cachedRandomDeal = null; // force regeneration
+      randomDealExpiry = 0;
+      return res.json({ success: true, mode: "auto" });
+    }
+
+    manualDeal = {
+      title: title || "Deal of the Day",
+      dishName,
+      price: Number(price),
+      originalPrice: Number(originalPrice),
+      image,
+      desc
+    };
+    res.json({ success: true, mode: "manual", deal: manualDeal });
+  } catch (error: any) {
+    console.error("Failed to set manual deal:", error);
+    res.status(500).json({ error: error.message || "Failed to update deal" });
+  }
+});
+
+app.get("/api/admin/deal-of-day-status", async (req, res) => {
+  try {
+    const now = Date.now();
+    if (!manualDeal && (!cachedRandomDeal || now > randomDealExpiry)) {
+      const count = await prisma.dish.count();
+      if (count > 0) {
+        const randomIndex = Math.floor(Math.random() * count);
+        const randomDish = await prisma.dish.findFirst({
+          skip: randomIndex,
+        });
+        if (randomDish) {
+          const originalPrice = randomDish.price;
+          const price = Math.round(originalPrice * 0.75); // 25% discount
+          cachedRandomDeal = {
+            title: "Deal of the Day",
+            dishName: randomDish.name,
+            price,
+            originalPrice,
+            image: randomDish.image,
+            desc: randomDish.description || "Limited time deal of the day! Get 25% OFF."
+          };
+          randomDealExpiry = now + 60 * 60 * 1000;
+        }
+      }
+    }
+
+    res.json({
+      isAuto: !manualDeal,
+      manualDeal,
+      currentDeal: manualDeal || cachedRandomDeal || staticFallbackDeals[0]
+    });
+  } catch (error) {
+    console.error("Status endpoint error:", error);
+    res.json({
+      isAuto: !manualDeal,
+      manualDeal,
+      currentDeal: manualDeal || staticFallbackDeals[0]
+    });
+  }
 });
 
 // Helper to map DB Order model to Frontend Order type
@@ -464,10 +609,24 @@ app.get("/api/reservations", async (req, res) => {
 
 // Book a table
 app.post("/api/reservations", async (req, res) => {
-  const { customerName, customerPhone, reservationDate, reservationSlot, guests, guestCount, userEmail, tableNumber } = req.body;
+  const {
+    customerName,
+    customerPhone,
+    reservationDate,
+    reservationSlot,
+    guests,
+    guestCount,
+    userEmail,
+    tableNumber,
+    occasion,
+    specialRequests,
+    seatingType,
+  } = req.body;
+
   if (!customerName || !customerPhone || !reservationDate || !reservationSlot || !guests) {
     return res.status(400).json({ error: "Missing reservation fields" });
   }
+
   try {
     if (tableNumber) {
       const existing = await prisma.reservation.findFirst({
@@ -483,6 +642,9 @@ app.post("/api/reservations", async (req, res) => {
       }
     }
 
+    // If occasion is Anniversary, capture the reservationDate as occasionDate to detect it next year
+    const occasionDate = occasion === "Anniversary" ? reservationDate : null;
+
     const reservation = await prisma.reservation.create({
       data: {
         customerName,
@@ -493,6 +655,10 @@ app.post("/api/reservations", async (req, res) => {
         guestCount: Number(guestCount) || 1,
         tableNumber: tableNumber ? Number(tableNumber) : 1,
         userEmail: userEmail || null,
+        occasion: occasion || null,
+        specialRequests: specialRequests || null,
+        seatingType: seatingType || null,
+        occasionDate: occasionDate || null,
       },
     });
     res.json(reservation);

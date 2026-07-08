@@ -19,6 +19,8 @@ import {
   ReviewsSection,
 } from "@/src/components/home/HomeSection";
 import TopBar from "@/src/components/TopBar";
+import { CountdownCard } from "@/src/components/home/CountdownCard";
+import { AnniversaryBanner } from "@/src/components/home/AnniversaryBanner";
 import GoldDustLayer from "@/src/components/ui/GoldDustLayer";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
@@ -221,12 +223,12 @@ const PROMO_OFFERS: PromoOffer[] = [
 ];
 
 const MOODS = [
-  { label: "🍛 Curries", cat: "curry" },
-  { label: "🍞 Breads", cat: "breads" },
-  { label: "🥩 Tandoor", cat: "tandoor" },
-  { label: "🥤 Beverages", cat: "beverages" },
-  { label: "🧁 Desserts", cat: "desserts" },
-  { label: "🍜 Chinese", cat: "chinese" },
+  { label: "Curries", cat: "curry", icon: require("../../assets/images/curries.png") },
+  { label: "Breads", cat: "breads", icon: require("../../assets/images/breads.png") },
+  { label: "Tandoor", cat: "tandoor", icon: require("../../assets/images/tandoor.png") },
+  { label: "Beverages", cat: "beverages", icon: require("../../assets/images/beverages.png") },
+  { label: "Desserts", cat: "desserts", icon: require("../../assets/images/desserts.png") },
+  { label: "Chinese", cat: "chinese", icon: require("../../assets/images/chinese.png") },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1105,6 +1107,7 @@ const modeCard = StyleSheet.create({
 //    Placed below HomeModes, gold left-bar REMOVED
 // ─────────────────────────────────────────────────────────────────────────────
 function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
+  const router = useRouter();
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
 
@@ -1125,8 +1128,19 @@ function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
         activeOpacity={0.8}
         onPressIn={() => { pressScale.value = withSpring(0.91, { damping: 15, stiffness: 400 }); }}
         onPressOut={() => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
-        style={moodStyle.chip}
+        onPress={() => {
+          router.push({
+            pathname: "/(tabs)/menu",
+            params: { initialCategory: item.cat },
+          });
+        }}
+        style={[moodStyle.chip, { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 10, paddingRight: 16 }]}
       >
+        <Image
+          source={item.icon}
+          style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+          contentFit="cover"
+        />
         <Text style={moodStyle.chipText}>{item.label}</Text>
       </TouchableOpacity>
     </Animated.View>
@@ -1933,8 +1947,9 @@ const divStyle = StyleSheet.create({
 // HOME SCREEN — final composition with ALL changes integrated
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const { orders } = useApp();
+  const { orders, reservations } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
+  const router = useRouter();
 
   // Shared scroll Y drives FAB visibility + hero parallax + top bar hide
   const scrollY = useSharedValue(0);
@@ -1999,8 +2014,30 @@ export default function Home() {
           {/* 2. Greeting — "Hello" + user name, no PK logo */}
           <AnimatedGreeting />
 
-          {/* 3. Hero banner — food image bg + Punjabi Kitchen copy */}
+           {/* 3. Hero banner — food image bg + Punjabi Kitchen copy */}
           <AnimatedHeroBanner ordersLength={orders.length} scrollY={scrollY} />
+
+          {/* Anniversary Banner alert */}
+          <AnniversaryBanner
+            reservations={reservations}
+            onPrefill={(pastRes) => {
+              router.push({
+                pathname: "/(tabs)/reserves",
+                params: {
+                  prefillGuests: pastRes.guests,
+                  prefillTable: String(pastRes.tableNumber),
+                  prefillSeating: pastRes.seatingType || "Indoor",
+                  prefillOccasion: pastRes.occasion || "Anniversary",
+                },
+              });
+            }}
+          />
+
+          {/* Active Reservation Countdown with dynamic color gradients & weather forecast */}
+          <CountdownCard
+            reservations={reservations}
+            onPressCard={() => router.push("/(tabs)/reserves")}
+          />
 
           {/* Mode selector - placed where HomeHero used to be */}
           <SectionHeader

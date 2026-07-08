@@ -12,7 +12,7 @@ import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import Animated, { useSharedValue, FadeInDown, FadeOutUp, withSpring } from "react-native-reanimated";
@@ -186,12 +186,20 @@ export default function MenuScreen() {
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
   const { onScroll: onModalScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
   const router = useRouter();
+  const params = useLocalSearchParams<any>();
 
   // Filter states
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  // Sync category selection with route params
+  useEffect(() => {
+    if (params && params.initialCategory) {
+      setSelectedCategory(params.initialCategory);
+    }
+  }, [params.initialCategory]);
 
   // Reset tab bar visibility when the category modal is closed
   useEffect(() => {

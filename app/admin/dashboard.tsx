@@ -7,7 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Dimensions, Image, Modal, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Dimensions, Image, Modal, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -36,7 +36,7 @@ export default function AdminDashboard() {
     refreshAllData,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "menu" | "orders" | "bookings" | "support" | "broadcast">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "menu" | "deal" | "orders" | "bookings" | "support" | "broadcast">("overview");
 
   // Overview state
   const [metrics, setMetrics] = useState<any>(null);
@@ -102,6 +102,17 @@ export default function AdminDashboard() {
 
   const [activeActionNode, setActiveActionNode] = useState<{ type: "category" | "dish"; id: string; name: string; data?: any } | null>(null);
 
+  // Deal of the day states
+  const [dealStatus, setDealStatus] = useState<any>(null);
+  const [isAutoDeal, setIsAutoDeal] = useState(true);
+  const [dealTitle, setDealTitle] = useState("Deal of the Day");
+  const [dealDishName, setDealDishName] = useState("");
+  const [dealPrice, setDealPrice] = useState("");
+  const [dealOriginalPrice, setDealOriginalPrice] = useState("");
+  const [dealImage, setDealImage] = useState("");
+  const [dealDesc, setDealDesc] = useState("");
+  const [savingDeal, setSavingDeal] = useState(false);
+
   // Ticket reply states
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [ticketReply, setTicketReply] = useState("");
@@ -110,6 +121,71 @@ export default function AdminDashboard() {
   const [notifTitle, setNotifTitle] = useState("");
   const [notifMsg, setNotifMsg] = useState("");
   const [notifType, setNotifType] = useState<"Announcement" | "Offer">("Announcement");
+
+  const loadDealStatus = async () => {
+    try {
+      const data = await apiClient.getDealOfDayStatus();
+      setDealStatus(data);
+      setIsAutoDeal(data.isAuto);
+      if (data.manualDeal) {
+        setDealTitle(data.manualDeal.title || "Deal of the Day");
+        setDealDishName(data.manualDeal.dishName || "");
+        setDealPrice(String(data.manualDeal.price || ""));
+        setDealOriginalPrice(String(data.manualDeal.originalPrice || ""));
+        setDealImage(data.manualDeal.image || "");
+        setDealDesc(data.manualDeal.desc || "");
+      } else if (data.currentDeal) {
+        setDealTitle(data.currentDeal.title || "Deal of the Day");
+        setDealDishName(data.currentDeal.dishName || "");
+        setDealPrice(String(data.currentDeal.price || ""));
+        setDealOriginalPrice(String(data.currentDeal.originalPrice || ""));
+        setDealImage(data.currentDeal.image || "");
+        setDealDesc(data.currentDeal.desc || "");
+      } else {
+        setDealTitle("Deal of the Day");
+        setDealDishName("");
+        setDealPrice("");
+        setDealOriginalPrice("");
+        setDealImage("");
+        setDealDesc("");
+      }
+    } catch (e) {
+      console.log("Failed to load deal of the day status:", e);
+    }
+  };
+
+  const handleSaveDeal = async () => {
+    if (!isAutoDeal) {
+      if (!dealDishName || !dealPrice || !dealOriginalPrice) {
+        Alert.alert("Error", "Please fill in Dish Name, Deal Price, and Original Price.");
+        return;
+      }
+    }
+
+    setSavingDeal(true);
+    try {
+      const payload = isAutoDeal
+        ? { isAuto: true }
+        : {
+            isAuto: false,
+            title: dealTitle,
+            dishName: dealDishName,
+            price: Number(dealPrice),
+            originalPrice: Number(dealOriginalPrice),
+            image: dealImage,
+            desc: dealDesc,
+          };
+
+      await apiClient.updateDealOfDay(payload);
+      Alert.alert("Success", "Deal of the Day updated successfully.");
+      await loadDealStatus();
+    } catch (e) {
+      Alert.alert("Error", "Failed to update Deal of the Day.");
+      console.log("Update deal error:", e);
+    } finally {
+      setSavingDeal(false);
+    }
+  };
 
   const loadAdminMetrics = async () => {
     setLoadingMetrics(true);
@@ -126,8 +202,12 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    loadAdminMetrics();
-    refreshAllData();
+    if (activeTab === "deal") {
+      loadDealStatus();
+    } else {
+      loadAdminMetrics();
+      refreshAllData();
+    }
   }, [activeTab]);
 
   const handleSignOut = async () => {
@@ -396,6 +476,7 @@ export default function AdminDashboard() {
           {[
             { id: "overview", label: "Overview", icon: "analytics-outline" },
             { id: "menu", label: "Menu CRUD", icon: "restaurant-outline" },
+            { id: "deal", label: "Deal of Day", icon: "gift-outline" },
             { id: "orders", label: "Orders", icon: "cart-outline" },
             { id: "bookings", label: "Bookings", icon: "calendar-outline" },
             { id: "support", label: "Queries", icon: "help-buoy-outline" },
@@ -858,6 +939,210 @@ export default function AdminDashboard() {
                 <Text style={s.broadcastSubmitBtnText}>Broadcast Live Notification</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {/* 7. DEAL OF THE DAY MANAGER */}
+        {activeTab === "deal" && (
+          <View>
+            <Text style={s.sectionHeader}>Deal of the Day Settings</Text>
+
+            {/* Toggle mode */}
+            <View style={s.formCard}>
+              <View style={[s.switchRow, { marginBottom: 12 }]}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={[s.formTitle, { marginBottom: 2 }]}>Automatic Random Rotation</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                    When enabled, the backend rotates random dishes from the menu every hour at 25% discount.
+                  </Text>
+                </View>
+                <Switch
+                  trackColor={{ false: "#333", true: colors.gold }}
+                  thumbColor={isAutoDeal ? colors.gold : "#999"}
+                  value={isAutoDeal}
+                  onValueChange={setIsAutoDeal}
+                />
+              </View>
+
+              {!isAutoDeal && (
+                <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 }}>
+                  <Text style={[s.formTitle, { marginBottom: 12 }]}>Manual Custom Override</Text>
+
+                  <Text style={s.dropdownLabel}>Deal Title</Text>
+                  <TextInput
+                    style={s.input}
+                    placeholder="Deal Title (e.g. Deal of the Day)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={dealTitle}
+                    onChangeText={setDealTitle}
+                  />
+
+                  <Text style={s.dropdownLabel}>Dish Name</Text>
+                  <TextInput
+                    style={s.input}
+                    placeholder="Dish / Thali Name (e.g. Royal Thali)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={dealDishName}
+                    onChangeText={setDealDishName}
+                  />
+
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.dropdownLabel}>Deal Price (INR)</Text>
+                      <TextInput
+                        style={s.input}
+                        placeholder="Deal Price"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="numeric"
+                        value={dealPrice}
+                        onChangeText={setDealPrice}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.dropdownLabel}>Original Price (INR)</Text>
+                      <TextInput
+                        style={s.input}
+                        placeholder="Original Price"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="numeric"
+                        value={dealOriginalPrice}
+                        onChangeText={setDealOriginalPrice}
+                      />
+                    </View>
+                  </View>
+
+                  <Text style={s.dropdownLabel}>Description</Text>
+                  <TextInput
+                    style={[s.input, { height: 60, textAlignVertical: "top" }]}
+                    placeholder="Deal descriptions (e.g. Dal, Roti, Kheer...)"
+                    placeholderTextColor={colors.textSecondary}
+                    multiline
+                    value={dealDesc}
+                    onChangeText={setDealDesc}
+                  />
+
+                  <Text style={s.dropdownLabel}>Image URL</Text>
+                  <View style={{ flexDirection: "row", gap: 10, alignItems: "center", marginBottom: 12 }}>
+                    <TextInput
+                      style={[s.input, { flex: 1, marginBottom: 0 }]}
+                      placeholder="Image URL link"
+                      placeholderTextColor={colors.textSecondary}
+                      value={dealImage}
+                      onChangeText={setDealImage}
+                    />
+                    <TouchableOpacity
+                      style={[s.addNewBtn, { backgroundColor: colors.gold, paddingVertical: 14, height: 48, justifyContent: "center" }]}
+                      onPress={async () => {
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== "granted") {
+                          Alert.alert("Permission Required", "Allow access to upload photos.");
+                          return;
+                        }
+                        const res = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                          allowsEditing: true,
+                          quality: 0.7,
+                          base64: true,
+                        });
+                        if (!res.canceled && res.assets?.[0]) {
+                          const asset = res.assets[0];
+                          if (!asset.base64) {
+                            Alert.alert("Error", "Could not read image base64 data.");
+                            return;
+                          }
+                          setUploadingImage(true);
+                          try {
+                            const originalName = asset.uri.split("/").pop() || "upload.jpg";
+                            const response = await apiClient.uploadImage(originalName, asset.base64);
+                            if (response && response.imageUrl) {
+                              setDealImage(response.imageUrl);
+                            } else {
+                              Alert.alert("Error", "Failed to get image URL from server.");
+                            }
+                          } catch (err) {
+                            Alert.alert("Error", "Failed to upload image.");
+                          } finally {
+                            setUploadingImage(false);
+                          }
+                        }
+                      }}
+                      disabled={uploadingImage}
+                    >
+                      {uploadingImage ? (
+                        <ActivityIndicator size="small" color="#000" />
+                      ) : (
+                        <>
+                          <Ionicons name="image" size={16} color="#000" />
+                          <Text style={s.addNewText}>Upload</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {!!dealImage && (
+                    <View style={{ position: "relative", marginBottom: 12, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
+                      <Image source={{ uri: resolveImageUrl(dealImage) }} style={{ width: "100%", height: 140 }} />
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[s.saveBtn, { backgroundColor: colors.gold, marginTop: 12 }]}
+                onPress={handleSaveDeal}
+                disabled={savingDeal}
+              >
+                {savingDeal ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Text style={s.saveBtnText}>Update Deal of the Day</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Live status preview card */}
+            {dealStatus && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={s.dropdownLabel}>Live Active Deal Preview</Text>
+                <View style={[s.formCard, { borderColor: "rgba(212,175,55,0.4)" }]}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <Text style={{ color: colors.gold, fontWeight: "800", fontSize: 13 }}>
+                      {dealStatus.currentDeal.title}
+                    </Text>
+                    <View style={{ backgroundColor: "rgba(16,185,129,0.12)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ color: colors.success, fontSize: 10, fontWeight: "800" }}>
+                        {dealStatus.isAuto ? "AUTO ROTATION" : "CUSTOM OVERRIDE"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    {!!dealStatus.currentDeal.image && (
+                      <Image
+                        source={{ uri: resolveImageUrl(dealStatus.currentDeal.image) }}
+                        style={{ width: 80, height: 80, borderRadius: 10, backgroundColor: "#111" }}
+                      />
+                    )}
+                    <View style={{ flex: 1, justifyContent: "center" }}>
+                      <Text style={{ color: colors.textPrimary, fontWeight: "700", fontSize: 14 }}>
+                        {dealStatus.currentDeal.dishName}
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        <Text style={{ color: colors.goldBright, fontWeight: "800", fontSize: 13 }}>
+                          ₹{dealStatus.currentDeal.price}
+                        </Text>
+                        <Text style={{ color: colors.textSecondary, textDecorationLine: "line-through", fontSize: 11 }}>
+                          ₹{dealStatus.currentDeal.originalPrice}
+                        </Text>
+                      </View>
+                      <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }} numberOfLines={2}>
+                        {dealStatus.currentDeal.desc}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
         )}
 

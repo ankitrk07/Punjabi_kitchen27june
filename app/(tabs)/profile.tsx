@@ -566,24 +566,8 @@ const PremiumHeader = React.memo(function PremiumHeader({
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Top bar: Gold Badge + Bell + Gear */}
-        <View style={styles.heroTopBar}>
-          {isGold ? (
-            <LinearGradient
-              colors={[GOLD_LIGHT, GOLD]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.goldMemberBadge}
-            >
-              <Ionicons name="diamond" size={12} color="#000" />
-              <Text style={styles.goldMemberText}>GOLD MEMBER</Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.classicMemberBadge}>
-              <Ionicons name="diamond-outline" size={12} color={GOLD} />
-              <Text style={styles.classicMemberText}>MEMBER</Text>
-            </View>
-          )}
+        {/* Top bar: Bell + Gear */}
+        <View style={[styles.heroTopBar, { justifyContent: "flex-end" }]}>
           <View style={styles.heroTopRight}>
             <TouchableOpacity style={styles.heroTopIcon} onPress={onNotifications} activeOpacity={0.7}>
               <Ionicons name="notifications-outline" size={20} color={GOLD} />
@@ -626,7 +610,7 @@ const PremiumHeader = React.memo(function PremiumHeader({
 // ─────────────────────────────────────────────────────────────────────────────
 // Stats Card
 // ─────────────────────────────────────────────────────────────────────────────
-const StatsCard = React.memo(function StatsCard() {
+const StatsCard = React.memo(function StatsCard({ isGold }: { isGold: boolean }) {
   const scaleAnim = useSharedValue(0.95);
   useEffect(() => {
     scaleAnim.value = withSpring(1, { damping: 14, stiffness: 100 });
@@ -640,7 +624,32 @@ const StatsCard = React.memo(function StatsCard() {
   ];
 
   return (
-    <Reanimated.View style={scaleStyle}>
+    <Reanimated.View style={[scaleStyle, { position: "relative", zIndex: 50, overflow: "visible" }]}>
+      {/* Membership Badge positioned absolutely on the top border */}
+      <View style={{
+        position: "absolute",
+        top: -10, // center on the top border
+        alignSelf: "center",
+        zIndex: 100,
+      }}>
+        {isGold ? (
+          <LinearGradient
+            colors={[GOLD_LIGHT, GOLD]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.goldMemberBadge}
+          >
+            <Ionicons name="diamond" size={9.5} color="#000" />
+            <Text style={styles.goldMemberText}>GOLD MEMBER</Text>
+          </LinearGradient>
+        ) : (
+          <View style={styles.classicMemberBadge}>
+            <Ionicons name="diamond-outline" size={9.5} color={GOLD} />
+            <Text style={styles.classicMemberText}>MEMBER</Text>
+          </View>
+        )}
+      </View>
+
       <ImageBackground
         source={require("../../assets/images/profileStatsBG.png")}
         style={styles.statsCard}
@@ -911,7 +920,7 @@ export default function Profile() {
         />
 
         {/* Stats Card */}
-        <StatsCard />
+        <StatsCard isGold={isGold} />
 
 
 
@@ -978,33 +987,33 @@ const styles = StyleSheet.create({
   goldMemberBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 12,
   },
   goldMemberText: {
     color: "#000",
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   classicMemberBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 12,
     backgroundColor: `${GOLD}20`,
     borderWidth: 1,
     borderColor: `${GOLD}40`,
   },
   classicMemberText: {
     color: GOLD,
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "800",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   heroTopRight: {
     flexDirection: "row",
@@ -1097,7 +1106,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: `${GOLD}18`,
-    paddingVertical: 14,
+    paddingTop: 24, // pushed down to avoid conflict with the top membership badge
+    paddingBottom: 14,
     paddingHorizontal: 8,
     position: "relative",
     overflow: "hidden",

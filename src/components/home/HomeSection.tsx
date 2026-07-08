@@ -8,16 +8,40 @@ import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
+import { getDishImageSource } from "@/src/utils/dishImages";
 
 type Props = { chefSpecials: typeof DISHES };
 
 export function DealOfDaySection() {
   const router = useRouter();
-  const [deal, setDeal] = useState<any>(DEAL_OF_DAY);
+  const [deals, setDeals] = useState<any[]>([DEAL_OF_DAY]);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    apiClient.getDealOfDay().then(setDeal).catch((e) => console.log("Failed to fetch deal of day:", e));
+    apiClient
+      .getDealOfDay()
+      .then((res: any) => {
+        if (res && res.deals && res.deals.length > 0) {
+          setDeals(res.deals);
+        } else if (res && res.dishName) {
+          setDeals([res]);
+        }
+      })
+      .catch((e) => console.log("Failed to fetch deal of day:", e));
   }, []);
+
+  useEffect(() => {
+    if (deals.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % deals.length);
+    }, 4500); // cycle every 4.5 seconds
+    return () => clearInterval(interval);
+  }, [deals.length]);
+
+  const activeDeal = deals[activeIndex] || DEAL_OF_DAY;
+  const discountPercent = activeDeal.originalPrice && activeDeal.price
+    ? Math.round(((activeDeal.originalPrice - activeDeal.price) / activeDeal.originalPrice) * 100)
+    : 25;
 
   return (
     <View style={styles.dealSection}>
@@ -56,16 +80,16 @@ export function DealOfDaySection() {
 
         <TouchableOpacity activeOpacity={0.9}>
           <Image
-            source={{ uri: resolveImageUrl(deal.image) }}
+            source={getDishImageSource(activeDeal.id, activeDeal.image)}
             style={styles.newDealImg}
           />
 
           <LinearGradient
             colors={[
-  "rgba(0,0,0,0.72)",
-  "rgba(0,0,0,0.18)",
-  "rgba(0,0,0,0.92)",
-]}
+              "rgba(0,0,0,0.72)",
+              "rgba(0,0,0,0.18)",
+              "rgba(0,0,0,0.92)",
+            ]}
             style={styles.newDealOverlay}
           >
             <View style={styles.chefPick}>
@@ -76,28 +100,28 @@ export function DealOfDaySection() {
 
             <View>
               <Text style={styles.newDealTitle}>
-                {deal.dishName}
+                {activeDeal.dishName}
               </Text>
 
               <Text style={styles.newDealDesc}>
-                {deal.desc}
+                {activeDeal.desc}
               </Text>
             </View>
 
             <View style={styles.newBottomRow}>
               <View style={styles.newPriceRow}>
                 <Text style={styles.newPrice}>
-                  ₹{deal.price}
+                  ₹{activeDeal.price}
                 </Text>
 
                 <Text style={styles.oldPriceNew}>
-                  ₹{deal.originalPrice}
+                  ₹{activeDeal.originalPrice}
                 </Text>
               </View>
 
               <View style={styles.discountPill}>
                 <Text style={styles.discountPillText}>
-                  38% OFF
+                  {discountPercent}% OFF
                 </Text>
               </View>
             </View>

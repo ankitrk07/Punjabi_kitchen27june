@@ -14,7 +14,7 @@ export const resolveImageUrl = (imageUrl: string): string => {
   // Strip "/api" from API_BASE_URL (e.g. "http://192.168.1.10:3000/api" -> "http://192.168.1.10:3000")
   const serverBase = API_BASE_URL.replace(/\/api$/, "");
   const cleanPath = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
-  return `${serverBase}${cleanPath}`;
+  return `${serverBase}${encodeURI(cleanPath)}`;
 };
 
 export type ReviewData = {
@@ -169,6 +169,9 @@ export const apiClient = {
     guestCount: number;
     userEmail?: string;
     tableNumber?: number;
+    occasion?: string;
+    specialRequests?: string | null;
+    seatingType?: string | null;
   }) =>
     apiCall<any>("/reservations", {
       method: "POST",
@@ -201,6 +204,12 @@ export const apiClient = {
   // Admin Metrics & Users
   getAdminMetrics: () => apiCall<any>("/admin/metrics"),
   getAdminUsers: () => apiCall<any[]>("/admin/users"),
+  getDealOfDayStatus: () => apiCall<any>("/admin/deal-of-day-status"),
+  updateDealOfDay: (deal: any) =>
+    apiCall<any>("/admin/deal-of-day", {
+      method: "POST",
+      body: JSON.stringify(deal),
+    }),
 
   // Catering
   getCateringRequests: (email?: string) =>
