@@ -22,6 +22,7 @@ import TopBar from "@/src/components/TopBar";
 import { CountdownCard } from "@/src/components/home/CountdownCard";
 import { AnniversaryBanner } from "@/src/components/home/AnniversaryBanner";
 import GoldDustLayer from "@/src/components/ui/GoldDustLayer";
+import Marquee from "@/src/components/Marquee";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
 import { Dish, DISHES } from "@/src/data/menu";
@@ -1123,9 +1124,9 @@ function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
   }));
 
   return (
-    <Animated.View style={pressStyle}>
+    <Animated.View style={[moodStyle.cardContainer, pressStyle]}>
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPressIn={() => { pressScale.value = withSpring(0.91, { damping: 15, stiffness: 400 }); }}
         onPressOut={() => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
         onPress={() => {
@@ -1134,14 +1135,21 @@ function MoodChip({ item, index }: { item: typeof MOODS[0]; index: number }) {
             params: { initialCategory: item.cat },
           });
         }}
-        style={[moodStyle.chip, { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 10, paddingRight: 16 }]}
+        style={moodStyle.chipTouch}
       >
-        <Image
-          source={item.icon}
-          style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-          contentFit="cover"
-        />
-        <Text style={moodStyle.chipText}>{item.label}</Text>
+        <LinearGradient
+          colors={["rgba(201,168,76,0.3)", "rgba(201,168,76,0.05)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={moodStyle.imageCircle}
+        >
+          <Image
+            source={item.icon}
+            style={moodStyle.largeIcon}
+            contentFit="contain"
+          />
+        </LinearGradient>
+        <Text style={moodStyle.cardText}>{item.label}</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1160,43 +1168,60 @@ function AnimatedMoodStrip() {
         What are you craving?
       </Animated.Text>
 
-      <Animated.ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={moodStyle.row}
-        entering={FadeIn.delay(340)}
-      >
+      <Marquee speed={32} itemWidth={104} itemCount={MOODS.length}>
         {MOODS.map((m, i) => (
           <MoodChip key={m.cat} item={m} index={i} />
         ))}
-      </Animated.ScrollView>
+      </Marquee>
     </Animated.View>
   );
 }
 
 const moodStyle = StyleSheet.create({
-  section: { marginTop: 22, marginBottom: 4 },
+  section: { marginTop: 22, marginBottom: 8 },
   title: {
     color: "#fff",
     fontSize: 17,
     fontWeight: "700",
     letterSpacing: 0.1,
     marginHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  row: { paddingHorizontal: 20, gap: 10, flexDirection: "row" },
-  chip: {
-    backgroundColor: GOLD_SOFT,
-    borderRadius: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderWidth: 0.5,
-    borderColor: "rgba(201,168,76,0.3)",
+  cardContainer: {
+    width: 104,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  chipText: {
-    color: GOLD_LIGHT,
-    fontSize: 13,
-    fontWeight: "500",
+  chipTouch: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    paddingVertical: 4,
+  },
+  imageCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 1.2,
+    borderColor: "rgba(201,168,76,0.32)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  largeIcon: {
+    width: 54,
+    height: 54,
+  },
+  cardText: {
+    color: "#E8C97A",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
     letterSpacing: 0.2,
   },
 });
