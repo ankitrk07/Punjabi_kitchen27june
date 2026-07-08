@@ -44,9 +44,9 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
   const triggerCartAnimation = React.useCallback(() => {
     isAnimatingRef.current = true;
 
-    // 1. Immediately hide the static icon, reset Lottie opacity to zero
+    // 1. Immediately hide the static icon, show Lottie instantly
     iconOpacity.setValue(0);
-    cartFadeAnim.setValue(0);
+    cartFadeAnim.setValue(1);
     setPlayCartAnim(true);
 
     // 2. Clear any active animation timers
@@ -59,13 +59,6 @@ export default function TopBar({ variant = "full", scrollY, menuScrollY, search,
     fullNewCartRef.current?.reset();
     minimalNewCartRef.current?.play();
     fullNewCartRef.current?.play();
-
-    // Start fade-in concurrently
-    RNAnimated.timing(cartFadeAnim, {
-      toValue: 1,
-      duration: 100,
-      useNativeDriver: true,
-    }).start();
 
     // 4. Cross-fade at the end: starts at 0ms + 7200ms - 600ms = 6600ms
     crossFadeTimerRef.current = setTimeout(() => {

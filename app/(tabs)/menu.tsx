@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
-import Animated, { useSharedValue, FadeInDown, FadeOutUp } from "react-native-reanimated";
+import Animated, { useSharedValue, FadeInDown, FadeOutUp, withSpring } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -184,7 +184,19 @@ export default function MenuScreen() {
   const scrollY = useSharedValue(0);
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset, scrollY);
+  const { onScroll: onModalScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
   const router = useRouter();
+
+  // Reset tab bar visibility when the category modal is closed
+  useEffect(() => {
+    if (!showCategoryModal) {
+      animatedTranslateY.value = withSpring(0, {
+        damping: 40,
+        stiffness: 200,
+        mass: 1.6,
+      });
+    }
+  }, [showCategoryModal]);
 
   const filters = useMemo(() => {
     const list = apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES;
@@ -726,9 +738,11 @@ export default function MenuScreen() {
             </View>
 
             {/* Scrollable list of categories */}
-            <ScrollView
+            <Animated.ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.modalScrollContent}
+              onScroll={onModalScroll}
+              scrollEventThrottle={16}
             >
               {categoryTree.map((root) => {
                 const subCats = getSubCategories(root.id);
@@ -784,7 +798,7 @@ export default function MenuScreen() {
                   </View>
                 );
               })}
-            </ScrollView>
+            </Animated.ScrollView>
           </Animated.View>
         </View>
       )}

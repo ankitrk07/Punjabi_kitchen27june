@@ -30,7 +30,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   ImageSourcePropType,
@@ -39,10 +39,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  ScrollView,
+  View
 } from "react-native";
-import { WebView } from "react-native-webview";
 import Animated, {
   Easing,
   FadeIn,
@@ -52,6 +50,7 @@ import Animated, {
   interpolate,
   type SharedValue,
   useAnimatedStyle,
+  useFrameCallback,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -59,9 +58,9 @@ import Animated, {
   withSpring,
   withTiming,
   ZoomIn,
-  useFrameCallback,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { WebView } from "react-native-webview";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -246,9 +245,9 @@ function AnimatedPromoTicker() {
     const timeDelta = frameInfo.timeSincePreviousFrame || 16.67;
     // 0.025 pixels per millisecond (around 25px per second) - extremely slow and readable
     const speed = 0.025;
-    
+
     translateX.value = translateX.value - speed * timeDelta;
-    
+
     // Smooth loop reset
     if (translateX.value <= -TOTAL_W) {
       translateX.value += TOTAL_W;
@@ -339,7 +338,7 @@ function OfferDetailModal() {
           colors={["rgba(26,20,16,1)", "rgba(16,12,8,1)"]}
           style={StyleSheet.absoluteFill}
         />
-        
+
         {/* Header */}
         <View style={ticker.modalHeader}>
           <View style={ticker.modalHeaderTitleWrap}>
@@ -355,7 +354,7 @@ function OfferDetailModal() {
         </View>
 
         {/* Scrollable list of all active deals */}
-        <Animated.ScrollView 
+        <Animated.ScrollView
           onScroll={onScroll}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
@@ -372,7 +371,7 @@ function OfferDetailModal() {
                     contentFit="contain"
                   />
                 </View>
-                
+
                 {/* Text details */}
                 <View style={ticker.offerInfoCol}>
                   <Text style={[ticker.offerHeadline, { color: offer.accent }]}>
@@ -414,9 +413,9 @@ const ticker = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 52,
+    height: 35,
     backgroundColor: "rgba(12, 8, 6, 0.98)",
-    borderTopWidth: 1.5,
+    borderTopWidth: 0.5,
     borderTopColor: "rgba(201,168,76,0.45)",
     overflow: "hidden",
     justifyContent: "center",
@@ -446,12 +445,12 @@ const ticker = StyleSheet.create({
     gap: 12,
   },
   marqueeIcon: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
   },
   marqueeText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.5,
     maxWidth: 360, // Safe bounds preventing overlapping
@@ -621,7 +620,24 @@ function AnimatedGreeting() {
       entering={FadeInDown.delay(100).springify().damping(20)}
       style={greeting.row}
     >
-      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+      <View style={{
+        flexDirection: "row",
+        alignItems: "baseline",
+        gap: 6,
+        backgroundColor: "#0A0A0A", // Match the screen background color to mask the border
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderTopWidth: 0,
+        borderBottomWidth: 1.5,
+        borderColor: "rgba(201, 168, 76, 0.4)", // Thin golden border
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.95,
+        shadowRadius: 5,
+        elevation: 8, // Android shadow support
+      }}>
         <Text style={greeting.welcomeLabel}>Hello there 👋,</Text>
         <Text style={greeting.nameText}>{userName}</Text>
       </View>
@@ -633,24 +649,38 @@ const greeting = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 44,
+    paddingTop: 20,
+    paddingBottom: 0,
+    marginBottom: -25,
+    position: "relative",
+    zIndex: 10,
+    elevation: 10,
   },
   welcomeLabel: {
-    color: "rgba(255, 255, 255, 0.55)",
-    fontSize: 14,
-    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.75)",
+    fontSize: 13,
+    fontFamily: Platform.select({
+      ios: "Georgia-Italic",
+      android: "serif",
+    }),
+    fontStyle: "italic",
+    textShadowColor: "rgba(255, 255, 255, 0.35)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
   },
   nameText: {
     color: GOLD,
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: Platform.select({
       ios: "Snell Roundhand",
       android: "cursive",
     }),
     fontWeight: "bold",
     letterSpacing: 0.5,
+    textShadowColor: "rgba(232, 201, 122, 0.2)", // Gold glow
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
 });
 
@@ -702,9 +732,9 @@ function AnimatedHeroBanner({
         resizeMode="cover"
       />
       <LinearGradient
-        colors={["rgba(8,8,8,0.55)", "rgba(8,8,8,0.72)", "rgba(8,8,8,0.88)"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        colors={["rgba(10,10,10,0.50)", "rgba(10,10,10,0.18)", "rgba(10,10,10,0.80)"]}
+        start={{ x: 0, y: 0 }} // Top-left
+        end={{ x: 1, y: 1 }}   // Bottom-right
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -780,17 +810,15 @@ const heroBanner = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginTop: 12,
-    marginBottom: 4,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderBottomLeftRadius: 60,
-    borderBottomRightRadius: 60,
+    marginBottom: 0,
+    borderRadius: 28,
     overflow: "hidden",
-    padding: 28,
-    paddingBottom: 88,
+    paddingHorizontal: 22,
+    paddingTop: 40,
+    paddingBottom: 50,
     borderWidth: 0.5,
     borderColor: "rgba(201,168,76,0.3)",
-    minHeight: 240,
+    minHeight: 220,
     justifyContent: "center",
   },
   arcWrap: {
@@ -807,14 +835,14 @@ const heroBanner = StyleSheet.create({
     letterSpacing: 2.5,
     fontWeight: "600",
     textTransform: "uppercase",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   headline: {
     color: "#fff",
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: "300",
-    lineHeight: 40,
-    marginBottom: 10,
+    lineHeight: 38,
+    marginBottom: 8,
     letterSpacing: -0.5,
   },
   headlineGold: {
@@ -826,19 +854,28 @@ const heroBanner = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     fontSize: 12.5,
     fontWeight: "400",
-    marginBottom: 22,
+    marginBottom: 18,
     letterSpacing: 0.2,
   },
-  statsRow: { flexDirection: "row" },
+  statsRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(0, 0, 0, 0.45)", // Semi-transparent black capsule
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderWidth: 0.5,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
   statItem: {
     flex: 1,
     alignItems: "center",
     borderRightWidth: 0.5,
     borderRightColor: "rgba(255,255,255,0.12)",
     paddingVertical: 6,
+    bottom: 0,
   },
   statVal: { color: GOLD_LIGHT, fontWeight: "700", fontSize: 15, marginBottom: 2 },
-  statSub: { color: "rgba(255,255,255,0.4)", fontSize: 10, letterSpacing: 0.3 },
+  statSub: { color: "rgba(255,255,255,0.65)", fontSize: 10, letterSpacing: 0.3 },
   inlineOrdersBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1955,7 +1992,7 @@ export default function Home() {
           style={styles.scroll}
         >
           {/* Add top padding to prevent content under absolute TopBar */}
-          <View style={{ height: Platform.OS === 'ios' ? 100 : 80 }} />
+          <View style={{ height: Platform.OS === 'ios' ? 70 : 56 }} />
 
 
 

@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -16,13 +16,16 @@ import {
   View,
 } from "react-native";
 import Reanimated, {
+  Easing,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -428,6 +431,94 @@ const SettingsSection = React.memo(function SettingsSection({ section, onPress }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Avatar Glow Particles Component
+// ─────────────────────────────────────────────────────────────────────────────
+function SingleParticle({ index, total }: { index: number; total: number }) {
+  const progress = useSharedValue(0);
+
+  // Generate unique random parameters for this particle once on mount
+  const params = useRef({
+    angle: Math.random() * 2 * Math.PI,
+    maxDistance: 45 + Math.random() * 45,
+    duration: 2000 + Math.random() * 2000,
+    delay: Math.random() * 3000,
+    size: 3 + Math.random() * 4, // random diameter between 3 and 7 pixels
+    spawnX: (Math.random() - 0.5) * 30, // random offset near the avatar center
+    spawnY: (Math.random() - 0.5) * 30,
+  }).current;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      progress.value = withRepeat(
+        withTiming(1, { duration: params.duration, easing: Easing.linear }),
+        -1,
+        false
+      );
+    }, params.delay);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const distance = progress.value * params.maxDistance;
+
+    const translateX = params.spawnX + Math.cos(params.angle) * distance;
+    const translateY = params.spawnY + Math.sin(params.angle) * distance;
+
+    const scale = interpolate(progress.value, [0, 0.2, 0.8, 1], [0.1, 1.2, 0.8, 0.0]);
+    const opacity = interpolate(progress.value, [0, 0.1, 0.8, 1], [0, 0.8, 0.6, 0]);
+
+    return {
+      transform: [
+        { translateX },
+        { translateY },
+        { scale },
+      ],
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          width: params.size,
+          height: params.size,
+          borderRadius: params.size / 2,
+          backgroundColor: "#C9A84C",
+          shadowColor: "#C9A84C",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: params.size / 2,
+          alignSelf: "center",
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+}
+
+function AvatarGlowParticles() {
+  const total = 45;
+  return (
+    <View style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: -1,
+    }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <SingleParticle key={i} index={i} total={total} />
+      ))}
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Premium Header Component — Full-bleed PBG.png hero
 // ─────────────────────────────────────────────────────────────────────────────
 const PremiumHeader = React.memo(function PremiumHeader({
@@ -466,11 +557,11 @@ const PremiumHeader = React.memo(function PremiumHeader({
       <ImageBackground
         source={require("../../assets/images/PBG.png")}
         style={styles.heroBg}
-        resizeMode="cover"
+        resizeMode="contain"
+        imageStyle={{ transform: [{ translateY: -10 }] }}
       >
-        {/* Dark gradient overlay for readability */}
         <LinearGradient
-          colors={["rgba(8,8,8,0.15)", "rgba(8,8,8,0.6)", "rgba(8,8,8,0.95)"]}
+          colors={["rgba(8,8,8,0.0)", "rgba(8,8,8,0.3)", "rgba(8,8,8,0.7)"]}
           locations={[0, 0.55, 1]}
           style={StyleSheet.absoluteFillObject}
         />
@@ -508,7 +599,8 @@ const PremiumHeader = React.memo(function PremiumHeader({
 
         {/* Avatar — Centered */}
         <View style={styles.heroAvatarWrap}>
-          <TouchableOpacity onPress={onChangePhoto} activeOpacity={0.9}>
+          <TouchableOpacity onPress={onChangePhoto} activeOpacity={0.9} style={{ position: "relative" }}>
+            <AvatarGlowParticles />
             <LinearGradient colors={[GOLD, GOLD_LIGHT, GOLD]} style={styles.heroAvatarRing}>
               <Image source={{ uri: avatarUri }} style={styles.heroAvatar} />
             </LinearGradient>
@@ -548,20 +640,34 @@ const StatsCard = React.memo(function StatsCard() {
   ];
 
   return (
-    <Reanimated.View style={[styles.statsCard, scaleStyle]}>
-      {stats.map((stat, idx) => (
-        <React.Fragment key={idx}>
-          {idx > 0 && <View style={styles.statDivider} />}
-          <View style={styles.statBlock}>
-            <View style={styles.statIconCircle}>
-              <Ionicons name={stat.icon} size={20} color={GOLD} />
+    <Reanimated.View style={scaleStyle}>
+      <ImageBackground
+        source={require("../../assets/images/profileStatsBG.png")}
+        style={styles.statsCard}
+        imageStyle={{ borderRadius: 20 }}
+        resizeMode="cover"
+      >
+        {/* Dark overlay to adjust stats card background image darkness */}
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: "rgba(0, 0, 0, 0.70)", borderRadius: 20 },
+          ]}
+        />
+        {stats.map((stat, idx) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && <View style={styles.statDivider} />}
+            <View style={styles.statBlock}>
+              <View style={styles.statIconCircle}>
+                <Ionicons name={stat.icon} size={16} color={GOLD} />
+              </View>
+              <Text style={styles.statNumber}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statSub}>{stat.sub}</Text>
             </View>
-            <Text style={styles.statNumber}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-            <Text style={styles.statSub}>{stat.sub}</Text>
-          </View>
-        </React.Fragment>
-      ))}
+          </React.Fragment>
+        ))}
+      </ImageBackground>
     </Reanimated.View>
   );
 });
@@ -788,13 +894,6 @@ export default function Profile() {
 
   return (
     <View style={styles.safe}>
-      {/* Floating Animated Header (on scroll) */}
-      <Reanimated.View style={[styles.floatingHeader, headerStyle]}>
-        <LinearGradient colors={[`${DARK_BG}F0`, SURFACE_2]} style={[styles.floatingHeaderContent, { paddingTop: insets.top + 8 }]}>
-          <Text style={styles.floatingTitle}>Profile</Text>
-        </LinearGradient>
-      </Reanimated.View>
-
       <Reanimated.ScrollView
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
@@ -814,8 +913,7 @@ export default function Profile() {
         {/* Stats Card */}
         <StatsCard />
 
-        {/* Quick Actions */}
-        <QuickActions />
+
 
         {/* Membership Card */}
         {!isGold && <MembershipCard />}
@@ -867,7 +965,7 @@ const styles = StyleSheet.create({
   // ── Hero Section ──────────────────────────────────────────────────────────
   heroBg: {
     width: "100%",
-    paddingTop: 50,
+    paddingTop: 40,
     paddingBottom: 28,
   },
   heroTopBar: {
@@ -999,47 +1097,49 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: `${GOLD}18`,
-    paddingVertical: 20,
+    paddingVertical: 14,
     paddingHorizontal: 8,
+    position: "relative",
+    overflow: "hidden",
   },
   statBlock: {
     flex: 1,
     alignItems: "center",
   },
   statIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.2,
     borderColor: `${GOLD}50`,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 6,
     backgroundColor: `${GOLD}08`,
   },
   statNumber: {
     color: WHITE,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
     letterSpacing: 0.2,
   },
   statLabel: {
     color: "#AAAAAA",
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "600",
     marginTop: 3,
     letterSpacing: 0.2,
   },
   statSub: {
     color: GOLD,
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: "600",
     marginTop: 2,
     letterSpacing: 0.3,
   },
   statDivider: {
     width: 1,
-    height: 60,
+    height: 45,
     backgroundColor: `${GOLD}18`,
     alignSelf: "center",
   },

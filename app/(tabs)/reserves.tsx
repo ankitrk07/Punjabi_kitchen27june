@@ -51,6 +51,10 @@ const SURFACE3 = "#1e1e1e";
 const MUTED = "#555555";
 const WHITE = "#FFFFFF";
 
+// ─── Animation-once flag (persists across tab switches, resets on hot reload) ─
+let hasAnimatedOnce = false;
+
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function generateTimeSlots(year: number, month: number, day: number): string[] {
   const now = new Date();
@@ -341,7 +345,7 @@ function TappableField({
                 ref={inputRef}
                 style={[tf.pillText, !value && tf.pillPlaceholder]}
                 placeholder={placeholder}
-                placeholderTextColor="#3a3a3a"
+                placeholderTextColor="#888888"
                 value={value}
                 onChangeText={onChange}
                 keyboardType={keyboardType ?? "default"}
@@ -383,21 +387,21 @@ function TappableField({
 const tf = StyleSheet.create({
   wrap: { flex: 1 },
   label: {
-    color: "#C9A84C", fontSize: 10, fontWeight: "800",
-    letterSpacing: 1.5, marginBottom: 8,
+    color: "#C9A84C", fontSize: 9, fontWeight: "800",
+    letterSpacing: 1.5, marginBottom: 4,
   },
   pill: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(14, 14, 14, 0.7)",
-    borderRadius: 12,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 8,
     borderWidth: 1, borderColor: "rgba(201, 168, 76, 0.15)",
-    paddingHorizontal: 12, paddingVertical: 13,
+    paddingHorizontal: 8, paddingVertical: 5,
   },
   pillError: { borderColor: "#e85555" },
   pillText: {
-    flex: 1, color: WHITE, fontSize: 14, fontWeight: "500",
+    flex: 1, color: WHITE, fontSize: 11, fontWeight: "500",
   },
-  pillPlaceholder: { color: "#555555" },
+  pillPlaceholder: { color: "#888888" },
   errText: { color: "#e85555", fontSize: 10, marginTop: 4, letterSpacing: 0.3 },
   clearBtn: {
     padding: 2,
@@ -408,6 +412,12 @@ const tf = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 // REAL-TIME FULL CALENDAR
 // ─────────────────────────────────────────────────────────────────────────────
+const CALENDAR_IMAGES = [
+  require("../../assets/images/Jan.png"),
+  require("../../assets/images/Feb.png"),
+  require("../../assets/images/Mar.png"),
+];
+
 function FullCalendar({
   selected,
   onSelect,
@@ -418,6 +428,9 @@ function FullCalendar({
   error?: string;
 }) {
   const today = new Date();
+  const weekIndex = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  const bgImageSource = CALENDAR_IMAGES[weekIndex % 3];
+
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
 
@@ -522,6 +535,30 @@ function FullCalendar({
 
   return (
     <View style={calendar.card}>
+      <Image
+        source={bgImageSource}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100%",
+          height: "100%",
+        }}
+        resizeMode="cover"
+      />
+      {/* Dark overlay to adjust calendar background image darkness */}
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.45)", // Change 0.45 to adjust darkness (0.0 = transparent, 1.0 = solid black)
+        }}
+      />
       <Image
         source={require("../../assets/images/date.png")}
         style={calendar.dateTab}
@@ -781,8 +818,8 @@ const calendar = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any) => void, onValidationError?: () => void }) {
   const { reservations } = useApp();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const fadeAnim = useRef(new Animated.Value(hasAnimatedOnce ? 1 : 0)).current;
+  const slideAnim = useRef(new Animated.Value(hasAnimatedOnce ? 0 : 20)).current;
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -801,10 +838,12 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay: 100, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, delay: 100, useNativeDriver: true }),
-    ]).start();
+    if (!hasAnimatedOnce) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay: 100, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 600, delay: 100, useNativeDriver: true }),
+      ]).start();
+    }
   }, []);
 
   useEffect(() => {
@@ -858,267 +897,286 @@ function BookingWidget({ onSuccess, onValidationError }: { onSuccess: (data: any
     }, 800);
   };
 
-  const containerPadding = 16 * 2 + 18 * 2;
-  const buttonWidth = width - containerPadding;
-  const buttonHeight = buttonWidth / 5.65;
-
   return (
-    <Animated.View style={[widget.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-      {/* Title */}
-      <View style={widget.titleRow}>
-        <LinearGradient
-          colors={["#E8C97A", "#C9A84C"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={widget.titleIconWrap}
-        >
-          <Ionicons name="calendar-sharp" size={24} color="#000000" />
-        </LinearGradient>
-        <View style={widget.titleTextWrap}>
-          <Text style={widget.title}>Book a Table</Text>
-          <View style={widget.titleUnderline} />
-          <Text style={widget.titleSub}>Reserve your seat</Text>
-        </View>
-      </View>
-
-      {/* ── Name + Phone ── */}
-      <View style={widget.row}>
-        <TappableField
-          label="YOUR NAME"
-          value={name}
-          placeholder="Full name"
-          icon="person-outline"
-          error={errors.name}
-          modalLabel="YOUR NAME"
-          modalPlaceholder="Enter your full name"
-          inline
-          onChange={(v) => { setName(v); setErrors(p => ({ ...p, name: "" })); }}
+    <View style={{ width: "100%" }}>
+      <Animated.View style={[widget.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <Image
+          source={require("../../assets/images/statsTopBG.png")}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 40,
+            right: 0,
+            width: "100%",
+            height: 200,
+            borderTopRightRadius: 24,
+          }}
+          resizeMode="cover"
         />
-        <TappableField
-          label="PHONE"
-          value={phone}
-          placeholder="10-digit"
-          icon="call-outline"
-          error={errors.phone}
-          modalLabel="PHONE NUMBER"
-          modalPlaceholder="Enter 10-digit number"
-          inline
-          keyboardType="phone-pad"
-          maxLength={10}
-          onChange={(v) => { setPhone(v); setErrors(p => ({ ...p, phone: "" })); }}
+        <Image
+          source={require("../../assets/images/statsBG.png")}
+          style={{
+            position: "absolute",
+            left: 20,
+            right: 0,
+            bottom: 0,
+            width: "100%",
+            height: 100,
+            borderBottomRightRadius: 24,
+          }}
+          resizeMode="cover"
         />
-      </View>
-
-      {/* ── Guests ── */}
-      <View style={widget.sectionPad}>
-        <Text style={widget.sectionLabel}>GUESTS</Text>
-        <View style={widget.guestRow}>
-          {GUEST_OPTIONS.map((g) => {
-            const isSelected = guests === g || (g === "6+" && Number(guests) > 6);
-            return (
-              <TouchableOpacity
-                key={g}
-                onPress={() => {
-                  if (g === "6+") {
-                    setShowGuestModal(true);
-                  } else {
-                    setGuests(g);
-                    setCustomGuestCount("");
-                  }
-                }}
-                style={[widget.guestChip, isSelected && widget.guestChipActive]}
-              >
-                <Text style={[widget.guestChipText, isSelected && widget.guestChipTextActive]}>
-                  {g === "6+" && Number(guests) > 6 ? `${guests}` : g}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+        {/* Title (Legend overlaying the top border) */}
+        <View style={widget.titleRow}>
+          <View style={widget.titleTextWrap}>
+            <Text style={widget.title}>Book a Table</Text>
+          </View>
         </View>
-        {Number(guests) > 6 && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
-            <Ionicons name="information-circle-outline" size={13} color={GOLD} />
-            <Text style={{ color: GOLD, fontSize: 10, fontWeight: "600" }}>Large party — we'll arrange extended seating for your group.</Text>
-          </View>
-        )}
-      </View>
 
-      {/* 6+ Guest Modal */}
-      <InputModal
-        visible={showGuestModal}
-        label="NUMBER OF GUESTS"
-        placeholder="Enter number (7-30)"
-        value={customGuestCount}
-        keyboardType="number-pad"
-        maxLength={2}
-        onClose={() => {
-          setShowGuestModal(false);
-          const num = parseInt(customGuestCount, 10);
-          if (num && num >= 7 && num <= 30) {
-            setGuests(String(num));
-          } else if (customGuestCount) {
-            setCustomGuestCount("");
-          }
-        }}
-        onChange={setCustomGuestCount}
-      />
 
-      {/* ── Full Calendar Date Picker ── */}
-      <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
-        <FullCalendar
-          selected={selectedDate}
-          onSelect={handleDateSelect}
-          error={errors.date}
-        />
-      </View>
 
-      {/* ── Time Slots ── */}
-      {selectedDate && (
-        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
-          <View style={widget.slotTitleRow}>
-            <Ionicons name="time-outline" size={15} color={GOLD} />
-            <Text style={widget.slotTitle}>SELECT TIME SLOT</Text>
-          </View>
-
-          {timeSlots.length === 0 ? (
-            <View style={widget.slotHintWrap}>
-              <Ionicons name="moon-outline" size={14} color={MUTED} />
-              <Text style={widget.slotHint}>No slots available for this date</Text>
-            </View>
-          ) : (
-            <>
-              {/* Lunch slots */}
-              {timeSlots.filter(s => s.includes("AM") || s.startsWith("12")).length > 0 && (
-                <>
-                  <Text style={widget.slotSubLabel}>LUNCH SESSION  ·  11 AM – 3 PM</Text>
-                  <View style={widget.slotsGrid}>
-                    {timeSlots
-                      .filter(s => s.includes("AM") || ["12:", "1:", "2:", "3:"].some(x => s.startsWith(x)))
-                      .map((slot) => {
-                        const isSel = selectedSlot === slot;
-                        const isBooked = bookedSlots.includes(slot);
-                        return (
-                          <TouchableOpacity
-                            key={slot}
-                            onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
-                            disabled={isBooked}
-                            style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
-                          >
-                            <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
-                            {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
-                            {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
-                          </TouchableOpacity>
-                        );
-                      })}
-                  </View>
-                </>
-              )}
-
-              {/* Dinner slots */}
-              {timeSlots.filter(s => s.includes("PM") && !["12:", "1:", "2:", "3:"].some(x => s.startsWith(x))).length > 0 && (
-                <>
-                  <Text style={[widget.slotSubLabel, { marginTop: 12 }]}>DINNER SESSION  ·  7 PM – 10:30 PM</Text>
-                  <View style={widget.slotsGrid}>
-                    {timeSlots
-                      .filter(s => s.includes("PM") && !["12:", "1:", "2:", "3:"].some(x => s.startsWith(x)))
-                      .map((slot) => {
-                        const isSel = selectedSlot === slot;
-                        const isBooked = bookedSlots.includes(slot);
-                        return (
-                          <TouchableOpacity
-                            key={slot}
-                            onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
-                            disabled={isBooked}
-                            style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
-                          >
-                            <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
-                            {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
-                            {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
-                          </TouchableOpacity>
-                        );
-                      })}
-                  </View>
-                </>
-              )}
-            </>
-          )}
-          {errors.slot ? <Text style={widget.errText}>{errors.slot}</Text> : null}
+        {/* ── Name + Phone ── */}
+        <View style={widget.row}>
+          <TappableField
+            label="YOUR NAME"
+            value={name}
+            placeholder="Full name"
+            icon="person-outline"
+            error={errors.name}
+            modalLabel="YOUR NAME"
+            modalPlaceholder="Enter your full name"
+            inline
+            onChange={(v) => { setName(v); setErrors(p => ({ ...p, name: "" })); }}
+          />
+          <TappableField
+            label="PHONE"
+            value={phone}
+            placeholder="10-digit"
+            icon="call-outline"
+            error={errors.phone}
+            modalLabel="PHONE NUMBER"
+            modalPlaceholder="Enter 10-digit number"
+            inline
+            keyboardType="phone-pad"
+            maxLength={10}
+            onChange={(v) => { setPhone(v); setErrors(p => ({ ...p, phone: "" })); }}
+          />
         </View>
-      )}
 
-      {/* ── Table Selection Grid ── */}
-      {selectedDate && selectedSlot && (
-        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
-          <View style={widget.slotTitleRow}>
-            <Ionicons name="grid-outline" size={15} color={GOLD} />
-            <Text style={widget.slotTitle}>SELECT TABLE</Text>
-          </View>
-          <Text style={widget.slotSubLabel}>CHOOSE AN AVAILABLE TABLE SEAT</Text>
-
-          <View style={tableStyle.tablesGrid}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((tNum) => {
-              const dateStr = selectedDate ? `${MONTH_NAMES[selectedDate.month]} ${selectedDate.day}, ${selectedDate.year}` : "";
-              const dateKey = selectedDate ? `${selectedDate.year}-${String(selectedDate.month + 1).padStart(2, "0")}-${String(selectedDate.day).padStart(2, "0")}` : "";
-              const isDummyBooked = DUMMY_RESERVATIONS[dateKey]?.includes(selectedSlot);
-              const isBooked = isDummyBooked || reservations.some(
-                (r) => r.status === "Active" && r.reservationDate === dateStr && r.reservationSlot === selectedSlot && Number(r.tableNumber) === tNum
-              );
-              const isSel = selectedTable === tNum;
-
+        {/* ── Guests ── */}
+        <View style={widget.sectionPad}>
+          <Text style={widget.sectionLabel}>GUESTS</Text>
+          <View style={widget.guestRow}>
+            {GUEST_OPTIONS.map((g) => {
+              const isSelected = guests === g || (g === "6+" && Number(guests) > 6);
               return (
                 <TouchableOpacity
-                  key={tNum}
-                  disabled={isBooked}
+                  key={g}
                   onPress={() => {
-                    setSelectedTable(tNum);
-                    setErrors((p) => ({ ...p, table: "" }));
+                    if (g === "6+") {
+                      setShowGuestModal(true);
+                    } else {
+                      setGuests(g);
+                      setCustomGuestCount("");
+                    }
                   }}
-                  style={[
-                    tableStyle.tablePill,
-                    isSel && tableStyle.tablePillActive,
-                    isBooked && tableStyle.tablePillBooked
-                  ]}
+                  style={[widget.guestChip, isSelected && widget.guestChipActive]}
                 >
-                  <Ionicons
-                    name={isBooked ? "close-circle-outline" : isSel ? "checkmark-circle-outline" : "restaurant-outline"}
-                    size={13}
-                    color={isBooked ? "#ff8e8e" : isSel ? "#000" : GOLD}
-                  />
-                  <Text style={[
-                    tableStyle.tablePillText,
-                    isSel && tableStyle.tablePillTextActive,
-                    isBooked && tableStyle.tablePillTextBooked
-                  ]}>
-                    Table {tNum}
+                  <Text style={[widget.guestChipText, isSelected && widget.guestChipTextActive]}>
+                    {g === "6+" && Number(guests) > 6 ? `${guests}` : g}
                   </Text>
-                  {isBooked ? (
-                    <Text style={tableStyle.tableStatusTextBooked}>BOOKED</Text>
-                  ) : (
-                    <Text style={[tableStyle.tableStatusTextAvail, isSel && { color: "#000" }]}>VACANT</Text>
-                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
-          {errors.table ? <Text style={widget.errText}>{errors.table}</Text> : null}
+          {Number(guests) > 6 && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
+              <Ionicons name="information-circle-outline" size={13} color={GOLD} />
+              <Text style={{ color: GOLD, fontSize: 10, fontWeight: "600" }}>Large party — we'll arrange extended seating for your group.</Text>
+            </View>
+          )}
         </View>
-      )}
 
-      {/* ── Confirm button ── */}
-      <View style={{ marginTop: 8, paddingHorizontal: 18, marginBottom: 12, borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }}>
+        {/* 6+ Guest Modal */}
+        <InputModal
+          visible={showGuestModal}
+          label="NUMBER OF GUESTS"
+          placeholder="Enter number (7-30)"
+          value={customGuestCount}
+          keyboardType="number-pad"
+          maxLength={2}
+          onClose={() => {
+            setShowGuestModal(false);
+            const num = parseInt(customGuestCount, 10);
+            if (num && num >= 7 && num <= 30) {
+              setGuests(String(num));
+            } else if (customGuestCount) {
+              setCustomGuestCount("");
+            }
+          }}
+          onChange={setCustomGuestCount}
+        />
+
+
+
+        {/* ── Full Calendar Date Picker ── */}
+        <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
+          <FullCalendar
+            selected={selectedDate}
+            onSelect={handleDateSelect}
+            error={errors.date}
+          />
+        </View>
+
+        {/* ── Time Slots ── */}
+        {selectedDate && (
+          <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
+            <View style={widget.slotTitleRow}>
+              <Ionicons name="time-outline" size={15} color={GOLD} />
+              <Text style={widget.slotTitle}>SELECT TIME SLOT</Text>
+            </View>
+
+            {timeSlots.length === 0 ? (
+              <View style={widget.slotHintWrap}>
+                <Ionicons name="moon-outline" size={14} color={MUTED} />
+                <Text style={widget.slotHint}>No slots available for this date</Text>
+              </View>
+            ) : (
+              <>
+                {/* Lunch slots */}
+                {timeSlots.filter(s => s.includes("AM") || s.startsWith("12")).length > 0 && (
+                  <>
+                    <Text style={widget.slotSubLabel}>LUNCH SESSION  ·  11 AM – 3 PM</Text>
+                    <View style={widget.slotsGrid}>
+                      {timeSlots
+                        .filter(s => s.includes("AM") || ["12:", "1:", "2:", "3:"].some(x => s.startsWith(x)))
+                        .map((slot) => {
+                          const isSel = selectedSlot === slot;
+                          const isBooked = bookedSlots.includes(slot);
+                          return (
+                            <TouchableOpacity
+                              key={slot}
+                              onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
+                              disabled={isBooked}
+                              style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
+                            >
+                              <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
+                              {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
+                              {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
+                            </TouchableOpacity>
+                          );
+                        })}
+                    </View>
+                  </>
+                )}
+
+                {/* Dinner slots */}
+                {timeSlots.filter(s => s.includes("PM") && !["12:", "1:", "2:", "3:"].some(x => s.startsWith(x))).length > 0 && (
+                  <>
+                    <Text style={[widget.slotSubLabel, { marginTop: 22 }]}>DINNER SESSION  ·  7 PM – 10:30 PM</Text>
+                    <View style={widget.slotsGrid}>
+                      {timeSlots
+                        .filter(s => s.includes("PM") && !["12:", "1:", "2:", "3:"].some(x => s.startsWith(x)))
+                        .map((slot) => {
+                          const isSel = selectedSlot === slot;
+                          const isBooked = bookedSlots.includes(slot);
+                          return (
+                            <TouchableOpacity
+                              key={slot}
+                              onPress={() => { if (!isBooked) { setSlot(slot); setErrors(p => ({ ...p, slot: "" })); } }}
+                              disabled={isBooked}
+                              style={[widget.slotChip, isSel && widget.slotChipActive, isBooked && widget.slotChipBooked]}
+                            >
+                              <Text style={[widget.slotChipText, isSel && widget.slotChipTextActive, isBooked && widget.slotChipTextBooked]}>{slot}</Text>
+                              {isSel && <Ionicons name="checkmark" size={11} color="#1a0d0a" style={{ marginLeft: 3 }} />}
+                              {isBooked && <Text style={widget.bookedTag}>BOOKED</Text>}
+                            </TouchableOpacity>
+                          );
+                        })}
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+            {errors.slot ? <Text style={widget.errText}>{errors.slot}</Text> : null}
+          </View>
+        )}
+
+        {/* ── Table Selection Grid ── */}
+        {selectedDate && selectedSlot && (
+          <View style={[widget.sectionPad, { borderTopWidth: 1, borderTopColor: "rgba(201,168,76,0.08)", paddingTop: 16 }]}>
+            <View style={widget.slotTitleRow}>
+              <Ionicons name="grid-outline" size={15} color={GOLD} />
+              <Text style={widget.slotTitle}>SELECT TABLE</Text>
+            </View>
+            <Text style={widget.slotSubLabel}>CHOOSE AN AVAILABLE TABLE SEAT</Text>
+
+            <View style={tableStyle.tablesGrid}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((tNum) => {
+                const dateStr = selectedDate ? `${MONTH_NAMES[selectedDate.month]} ${selectedDate.day}, ${selectedDate.year}` : "";
+                const dateKey = selectedDate ? `${selectedDate.year}-${String(selectedDate.month + 1).padStart(2, "0")}-${String(selectedDate.day).padStart(2, "0")}` : "";
+                const isDummyBooked = DUMMY_RESERVATIONS[dateKey]?.includes(selectedSlot);
+                const isBooked = isDummyBooked || reservations.some(
+                  (r) => r.status === "Active" && r.reservationDate === dateStr && r.reservationSlot === selectedSlot && Number(r.tableNumber) === tNum
+                );
+                const isSel = selectedTable === tNum;
+
+                return (
+                  <TouchableOpacity
+                    key={tNum}
+                    disabled={isBooked}
+                    onPress={() => {
+                      setSelectedTable(tNum);
+                      setErrors((p) => ({ ...p, table: "" }));
+                    }}
+                    style={[
+                      tableStyle.tablePill,
+                      isSel && tableStyle.tablePillActive,
+                      isBooked && tableStyle.tablePillBooked
+                    ]}
+                  >
+                    <Ionicons
+                      name={isBooked ? "close-circle-outline" : isSel ? "checkmark-circle-outline" : "restaurant-outline"}
+                      size={13}
+                      color={isBooked ? "#ff8e8e" : isSel ? "#000" : GOLD}
+                    />
+                    <Text style={[
+                      tableStyle.tablePillText,
+                      isSel && tableStyle.tablePillTextActive,
+                      isBooked && tableStyle.tablePillTextBooked
+                    ]}>
+                      Table {tNum}
+                    </Text>
+                    {isBooked ? (
+                      <Text style={tableStyle.tableStatusTextBooked}>BOOKED</Text>
+                    ) : (
+                      <Text style={[tableStyle.tableStatusTextAvail, isSel && { color: "#000" }]}>VACANT</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {errors.table ? <Text style={widget.errText}>{errors.table}</Text> : null}
+          </View>
+        )}
+
+        {/* Confirm Booking Button (Positioned absolutely on the bottom border) */}
         <TouchableOpacity
+          style={widget.confirmBtn}
           onPress={handleConfirm}
           activeOpacity={0.85}
-          style={{ width: "100%", height: buttonHeight }}
         >
-          <Image
-            source={require("../../assets/images/reserveButton.png")}
-            style={{ width: "100%", height: "100%" }}
-            resizeMode="contain"
-          />
+          <LinearGradient
+            colors={["#72571D", "#C5A03A", "#72571D"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={widget.confirmBtnGradient}
+          >
+            <Text style={widget.confirmBtnText}>CONFIRM RESERVATION</Text>
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -1191,69 +1249,99 @@ const confirmSheet = StyleSheet.create({
 
 const widget = StyleSheet.create({
   container: {
-    backgroundColor: "rgba(10, 10, 10, 0.75)",
+    backgroundColor: "#000000",
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(201, 168, 76, 0.35)",
-    marginBottom: 24,
-    overflow: "hidden",
+    marginTop: 40,
+    marginBottom: 40, // Increased to provide spacing for bottom-overlapping button
+    overflow: "visible", // Set to visible so top/bottom overlapping elements render correctly
     position: "relative",
-    padding: 16,
+    paddingTop: 70, // Keeps all form contents exactly in their original place
+    paddingHorizontal: 16,
+    paddingBottom: 45,
     ...Platform.select({
       ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 18 },
       android: { elevation: 8 },
     }),
   },
   titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 4,
-    paddingTop: 8,
-    paddingBottom: 16,
-    gap: 14,
-  },
-  titleIconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
+    position: "absolute",
+    top: -22, // Places text exactly centered on the top border line
+    left: 0,
+    right: 0,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 100, // Highest zIndex
   },
   titleTextWrap: {
-    flex: 1,
+    backgroundColor: "#000000", // Black background covers the border line underneath
+    paddingHorizontal: 24, // Increased padding
+    paddingVertical: 6, // Increased padding
+    borderRadius: 12, // Smoother rounded borders
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.4)",
   },
   title: {
-    color: WHITE,
-    fontSize: 24,
-    fontWeight: "700",
-    fontFamily: Platform.select({ ios: "Palatino", android: "serif" }),
+    color: GOLD, // Gold text color
+    fontSize: 26,
+    fontFamily: Platform.select({ ios: "Snell Roundhand", android: "cursive" }),
+    textAlign: "center",
   },
   titleUnderline: {
     width: 42,
     height: 2,
     backgroundColor: "#C9A84C",
     marginVertical: 4,
+    alignSelf: "center",
   },
   titleSub: {
     color: "#C9A84C",
     fontSize: 12,
     fontWeight: "600",
+    textAlign: "center",
   },
-  row: { flexDirection: "row", gap: 10, paddingHorizontal: 4, marginBottom: 16 },
-  sectionPad: { paddingHorizontal: 4, marginBottom: 16 },
+  confirmBtn: {
+    position: "absolute",
+    bottom: -21, // Center on bottom border (half of height 42)
+    zIndex: 100, // Float over bottom border
+    width: "80%", // Slightly larger width
+    alignSelf: "center",
+    borderRadius: 21, // Adjusted border radius
+    height: 42, // Slightly larger height
+    overflow: "hidden",
+    shadowColor: GOLD,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  confirmBtnGradient: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmBtnText: {
+    color: "#000000",
+    fontSize: 13.5, // Slightly larger font size
+    fontWeight: "800",
+    letterSpacing: 1.5,
+  },
+  row: { flexDirection: "row", gap: 10, paddingHorizontal: 4, marginBottom: 8 },
+  sectionPad: { paddingHorizontal: 4, marginBottom: 8 },
   sectionLabel: {
-    color: "#C9A84C", fontSize: 10, fontWeight: "800",
-    letterSpacing: 1.5, marginBottom: 8,
+    color: "#C9A84C", fontSize: 9, fontWeight: "800",
+    letterSpacing: 1.5, marginBottom: 4,
   },
   guestRow: {
     flexDirection: "row",
     gap: 6,
-    marginTop: 6,
+    marginTop: 4,
   },
   guestChip: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
+    height: 30, // Reduced from 42
+    borderRadius: 6,
     backgroundColor: "rgba(14, 14, 14, 0.7)",
     borderWidth: 1,
     borderColor: "rgba(201, 168, 76, 0.15)",
@@ -1266,32 +1354,32 @@ const widget = StyleSheet.create({
   },
   guestChipText: {
     color: "#777",
-    fontSize: 14,
+    fontSize: 11.5, // Reduced from 14
     fontWeight: "600",
   },
   guestChipTextActive: {
     color: "#000",
     fontWeight: "800",
   },
-  slotTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
-  slotTitle: { color: GOLD, fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
-  slotSubLabel: { color: WHITE, fontSize: 9, fontWeight: "700", letterSpacing: 1, marginBottom: 8 },
+  slotTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  slotTitle: { color: GOLD, fontSize: 9, fontWeight: "800", letterSpacing: 1.5 },
+  slotSubLabel: { color: WHITE, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, marginBottom: 6 },
   slotHintWrap: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: GOLD_SOFT, borderRadius: 10,
-    padding: 12, borderWidth: 1, borderColor: `${GOLD}12`,
+    padding: 10, borderWidth: 1, borderColor: `${GOLD}12`,
   },
-  slotHint: { color: MUTED, fontSize: 12, flex: 1, lineHeight: 17 },
-  slotsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
+  slotHint: { color: MUTED, fontSize: 10, flex: 1, lineHeight: 15 },
+  slotsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 4 },
   slotChip: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: SURFACE2, borderRadius: 10,
+    backgroundColor: SURFACE2, borderRadius: 8,
     borderWidth: 1, borderColor: `${GOLD}20`,
-    paddingHorizontal: 12, paddingVertical: 9,
+    paddingHorizontal: 11, paddingVertical: 6.5,
   },
   slotChipActive: { backgroundColor: GOLD, borderColor: GOLD },
   slotChipBooked: { backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)", opacity: 0.5 },
-  slotChipText: { color: MUTED, fontSize: 12, fontWeight: "600" },
+  slotChipText: { color: MUTED, fontSize: 11, fontWeight: "600" },
   slotChipTextActive: { color: "#1a0d0a", fontWeight: "800" },
   slotChipTextBooked: { color: "#555", textDecorationLine: "line-through" as const },
   bookedTag: { fontSize: 7, fontWeight: "800" as const, color: "#e85555", letterSpacing: 1, marginLeft: 4 },
@@ -1677,10 +1765,12 @@ function ReserveCard({
 // ─── Empty State ──────────────────────────────────────────────────────────────
 function EmptyState() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(hasAnimatedOnce ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay: 200, useNativeDriver: true }).start();
+    if (!hasAnimatedOnce) {
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, delay: 200, useNativeDriver: true }).start();
+    }
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.08, duration: 1600, useNativeDriver: true }),
@@ -1803,8 +1893,8 @@ export default function Reserves() {
 
   const router = useRouter();
   const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
-  const heroFade = useRef(new Animated.Value(0)).current;
-  const heroSlide = useRef(new Animated.Value(-16)).current;
+  const heroFade = useRef(new Animated.Value(hasAnimatedOnce ? 1 : 0)).current;
+  const heroSlide = useRef(new Animated.Value(hasAnimatedOnce ? 0 : -16)).current;
   const [latestBooking, setLatestBooking] = useState<any | null>(null);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const [activeToken, setActiveToken] = useState("");
@@ -1816,10 +1906,14 @@ export default function Reserves() {
   const [showBookingForm, setShowBookingForm] = useState(displayedReservations.length === 0);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heroFade, { toValue: 1, duration: 550, useNativeDriver: true }),
-      Animated.timing(heroSlide, { toValue: 0, duration: 550, useNativeDriver: true }),
-    ]).start();
+    if (!hasAnimatedOnce) {
+      Animated.parallel([
+        Animated.timing(heroFade, { toValue: 1, duration: 550, useNativeDriver: true }),
+        Animated.timing(heroSlide, { toValue: 0, duration: 550, useNativeDriver: true }),
+      ]).start(() => {
+        hasAnimatedOnce = true;
+      });
+    }
   }, []);
 
   useEffect(() => {

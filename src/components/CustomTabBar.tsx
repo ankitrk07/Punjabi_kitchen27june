@@ -87,6 +87,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
    ================================================================ */
 
 /** Total visible height of the tab bar capsule */
+
+// ─── Dinner animation plays only once (persists across tab switches) ─────────
+let hasDinnerAnimPlayed = false;
+
 export const TAB_BAR_HEIGHT = 68;
 
 /** Horizontal inset from screen edge → bar edge */
@@ -950,7 +954,7 @@ function useContainerEntrance() {
    the Reserves screen.
    ================================================================ */
 
-function FoodTransitionOverlay({ visible }: { visible: boolean }) {
+function FoodTransitionOverlay({ visible, onFinish }: { visible: boolean; onFinish?: () => void }) {
     const backdropOpacity = useSharedValue(0);
     const cardScale = useSharedValue(0.88);
     const cardY = useSharedValue(14);
@@ -1214,20 +1218,27 @@ export default React.memo(function CustomTabBar({
                                                 });
                                                 if (!isFocused && !event.defaultPrevented) {
                                                     if (route.name === "reserves") {
-                                                        if (pendingNavigationTimeout.current) {
-                                                            clearTimeout(pendingNavigationTimeout.current);
+                                                        if (!hasDinnerAnimPlayed) {
+                                                            // First time: show dinner animation
+                                                            if (pendingNavigationTimeout.current) {
+                                                                clearTimeout(pendingNavigationTimeout.current);
+                                                            }
+                                                            setFoodTransitionVisible(true);
+                                                            hasDinnerAnimPlayed = true;
+
+                                                            // Navigate after 200ms so the overlay is visible first
+                                                            setTimeout(() => {
+                                                                navigation.navigate(route.name, route.params);
+                                                            }, 200);
+
+                                                            // Dismiss overlay after exactly 2 seconds
+                                                            pendingNavigationTimeout.current = setTimeout(() => {
+                                                                setFoodTransitionVisible(false);
+                                                            }, 2000);
+                                                            return;
                                                         }
-                                                        setFoodTransitionVisible(true);
-
-                                                        // Navigate after 200ms so the overlay is visible first
-                                                        setTimeout(() => {
-                                                            navigation.navigate(route.name, route.params);
-                                                        }, 200);
-
-                                                        // Keep overlay for 3.2 seconds total, then fade out
-                                                        pendingNavigationTimeout.current = setTimeout(() => {
-                                                            setFoodTransitionVisible(false);
-                                                        }, 3200);
+                                                        // Subsequent times: navigate immediately, no animation
+                                                        navigation.navigate(route.name, route.params);
                                                         return;
                                                     }
                                                     navigation.navigate(route.name, route.params);
@@ -1274,7 +1285,7 @@ export default React.memo(function CustomTabBar({
 
                                     {/* Rim light at very top edge */}
                                     <TopHighlight />
-                                    <FoodTransitionOverlay visible={foodTransitionVisible} />
+                                    <FoodTransitionOverlay visible={foodTransitionVisible} onFinish={() => setFoodTransitionVisible(false)} />
 
                                     {/* Micro shadow at bottom edge — depth cue */}
                                     <View

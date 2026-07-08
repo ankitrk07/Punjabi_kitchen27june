@@ -22,19 +22,16 @@ export function useTabBarScrollHandler(
   const lastScrollY = useSharedValue(0);
   const direction = useSharedValue<1 | -1 | 0>(0);
   const directionalDelta = useSharedValue(0);
-  const isTabBarVisible = useSharedValue(true);
 
   const hideTabBar = () => {
     "worklet";
     animatedTranslateY.value = withSpring(hiddenOffset.value, TAB_BAR_SPRING);
-    isTabBarVisible.value = false;
     directionalDelta.value = 0;
   };
 
   const showTabBar = () => {
     "worklet";
     animatedTranslateY.value = withSpring(0, TAB_BAR_SPRING);
-    isTabBarVisible.value = true;
     directionalDelta.value = 0;
   };
 
@@ -45,8 +42,10 @@ export function useTabBarScrollHandler(
         scrollY.value = y;
       }
 
+      const isTabBarVisible = animatedTranslateY.value < hiddenOffset.value / 2;
+
       if (y <= 0) {
-        if (!isTabBarVisible.value) {
+        if (!isTabBarVisible) {
           showTabBar();
         }
         lastScrollY.value = 0;
@@ -75,12 +74,12 @@ export function useTabBarScrollHandler(
       const shouldShowFast = nextDirection < 0 && velocityY < -VELOCITY_THRESHOLD;
       const passedThreshold = directionalDelta.value >= DELTA_THRESHOLD;
 
-      if (nextDirection > 0 && isTabBarVisible.value && (shouldHideFast || passedThreshold)) {
+      if (nextDirection > 0 && isTabBarVisible && (shouldHideFast || passedThreshold)) {
         hideTabBar();
         return;
       }
 
-      if (nextDirection < 0 && !isTabBarVisible.value && (shouldShowFast || passedThreshold)) {
+      if (nextDirection < 0 && !isTabBarVisible && (shouldShowFast || passedThreshold)) {
         showTabBar();
       }
     },
