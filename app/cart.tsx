@@ -1,6 +1,7 @@
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
 import { resolveImageUrl } from "@/src/utils/apiClient";
+import { getDishImageSource } from "@/src/utils/dishImages";
 import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -181,7 +182,7 @@ export default function Cart() {
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
               {cart.map((item) => (
                 <View key={item.id} style={styles.row} testID={`cart-item-${item.id}`}>
-                  <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.img} />
+                  <Image source={getDishImageSource(item.id, item.image)} style={styles.img} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.name}</Text>
                     <Text style={styles.price}>₹{item.price}</Text>

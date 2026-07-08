@@ -2,6 +2,7 @@ import { useApp } from "@/src/context/AppContext";
 import { CATEGORIES, Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { resolveImageUrl } from "@/src/utils/apiClient";
+import { getDishImageSource } from "@/src/utils/dishImages";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -10,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
-type FlyingItem = { id: string; image: string; x: number; y: number };
+type FlyingItem = { id: string; dishId: string; image: string; x: number; y: number };
 
 export default function CategoryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -71,7 +72,7 @@ export default function CategoryDetail() {
 
   const handleAdd = (d: Dish, layout: { x: number; y: number }) => {
     const flyId = `${d.id}-${Date.now()}`;
-    setFlying((prev) => [...prev, { id: flyId, image: d.image, x: layout.x, y: layout.y }]);
+    setFlying((prev) => [...prev, { id: flyId, dishId: d.id, image: d.image, x: layout.x, y: layout.y }]);
     addToCart(d);
     setTimeout(() => {
       setFlying((prev) => prev.filter((f) => f.id !== flyId));
@@ -141,7 +142,7 @@ export default function CategoryDetail() {
             return (
               <Animated.View key={d.id} style={{ opacity, transform: [{ translateY }] }}>
                 <View style={styles.dishCard}>
-                  <Image source={{ uri: resolveImageUrl(d.image) }} style={styles.dishImg} />
+                  <Image source={getDishImageSource(d.id, d.image)} style={styles.dishImg} />
                   <View style={styles.dishInfo}>
                     <View style={styles.dishHead}>
                       <View style={[styles.vegDot, { borderColor: d.veg ? colors.success : colors.error }]}>
@@ -177,13 +178,13 @@ export default function CategoryDetail() {
 
       {/* Flying images */}
       {flying.map((f) => (
-        <FlyingDish key={f.id} image={f.image} fromX={f.x} fromY={f.y} />
+        <FlyingDish key={f.id} dishId={f.dishId} image={f.image} fromX={f.x} fromY={f.y} />
       ))}
     </SafeAreaView>
   );
 }
 
-function FlyingDish({ image, fromX, fromY }: { image: string; fromX: number; fromY: number }) {
+function FlyingDish({ dishId, image, fromX, fromY }: { dishId: string; image: string; fromX: number; fromY: number }) {
   const trans = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
@@ -213,7 +214,7 @@ function FlyingDish({ image, fromX, fromY }: { image: string; fromX: number; fro
         },
       ]}
     >
-      <Image source={{ uri: resolveImageUrl(image) }} style={styles.flyingImg} />
+      <Image source={getDishImageSource(dishId, image)} style={styles.flyingImg} />
     </Animated.View>
   );
 }

@@ -187,6 +187,12 @@ export default function MenuScreen() {
   const { onScroll: onModalScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
   const router = useRouter();
 
+  // Filter states
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
   // Reset tab bar visibility when the category modal is closed
   useEffect(() => {
     if (!showCategoryModal) {
@@ -198,20 +204,14 @@ export default function MenuScreen() {
     }
   }, [showCategoryModal]);
 
+  useEffect(() => {
+    setSelectedSubTab("all");
+  }, [selectedCategory]);
+
   const filters = useMemo(() => {
     const list = apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES;
     return [ALL_FILTER, ...list.filter(cat => cat.parentId === null)];
   }, [apiCategories]);
-
-  // Filter states
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedSubTab, setSelectedSubTab] = useState<string>("all");
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-
-  useEffect(() => {
-    setSelectedSubTab("all");
-  }, [selectedCategory]);
 
   const [dishType, setDishType] = useState<DishTypeFilter>("all");
   const [priceRange, setPriceRange] = useState<PriceRangeFilter>("all");

@@ -15,3 +15,4 @@ const getBaseUrl = () => {
 };
 
 export const API_BASE_URL = getBaseUrl();
+console.log("Resolved API_BASE_URL is:", API_BASE_URL);

@@ -6,6 +6,7 @@ import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
 import { resolveImageUrl } from "@/src/utils/apiClient";
+import { getDishImageSource } from "@/src/utils/dishImages";
 import { storage } from "@/src/utils/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -936,7 +937,7 @@ export default function Orders() {
                   if (!dish) return null;
                   return (
                     <View key={dish.id} style={styles.popupItem}>
-                      <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.popupItemImg} />
+                      <Image source={getDishImageSource(dish.id, dish.image)} style={styles.popupItemImg} />
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={styles.popupItemTitle} numberOfLines={1}>{dish.name}</Text>
                         <Text style={styles.popupItemPrice}>₹{dish.price}</Text>

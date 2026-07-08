@@ -670,6 +670,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshAllData: async () => {
       if (user) {
         await loadData(user);
+      } else {
+        try {
+          const [cats, dishs, apiOrders, apiNotifs] = await Promise.all([
+            apiClient.getCategories().catch(() => []),
+            apiClient.getDishes().catch(() => []),
+            apiClient.getOrders().catch(() => []),
+            apiClient.getNotifications().catch(() => []),
+          ]);
+          if (cats.length > 0) setCategories(cats);
+          if (dishs.length > 0) setDishes(dishs);
+          setOrders(apiOrders);
+          setNotifications(apiNotifs);
+        } catch (e) {
+          console.log("Failed to refresh guest content:", e);
+        }
       }
     },
   }), [

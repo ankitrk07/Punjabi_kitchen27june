@@ -1,6 +1,7 @@
 import { Dish } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { resolveImageUrl } from "@/src/utils/apiClient";
+import { getDishImageSource } from "@/src/utils/dishImages";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -90,7 +91,7 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
         activeOpacity={0.92}
         onPress={() => onOpen(dish)}
       >
-        <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.cinematicImg} />
+        <Image source={getDishImageSource(dish.id, dish.image)} style={styles.cinematicImg} />
         <LinearGradient
           colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
           style={StyleSheet.absoluteFill}
@@ -165,7 +166,7 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
       onPress={() => onOpen(dish)}
     >
       <View style={styles.imageWrap}>
-        <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.cardImg} />
+        <Image source={getDishImageSource(dish.id, dish.image)} style={styles.cardImg} />
         <LinearGradient
           colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
           style={StyleSheet.absoluteFill}

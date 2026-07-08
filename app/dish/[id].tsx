@@ -2,6 +2,7 @@ import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
 import { storage } from "@/src/utils/storage";
 import { resolveImageUrl } from "@/src/utils/apiClient";
+import { getDishImageSource } from "@/src/utils/dishImages";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AnimatedHeartButton from "@/src/components/AnimatedHeartButton";
@@ -105,11 +106,11 @@ export default function DishDetail() {
                 },
               ]}
             >
-              <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.heroImg} />
+              <Image source={getDishImageSource(dish.id, dish.image)} style={styles.heroImg} />
               <LinearGradient colors={["transparent", "rgba(10,10,10,0.25)", "rgba(10,10,10,0.94)"]} style={StyleSheet.absoluteFill} />
             </Animated.View>
           ) : (
-            <Image source={{ uri: resolveImageUrl(dish.image) }} style={styles.heroImg} />
+            <Image source={getDishImageSource(dish.id, dish.image)} style={styles.heroImg} />
           )}
           <LinearGradient colors={["transparent", "rgba(10,10,10,0.25)", "rgba(10,10,10,0.94)"]} style={StyleSheet.absoluteFill} />
 
