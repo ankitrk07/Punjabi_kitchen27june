@@ -970,6 +970,866 @@ app.post("/api/upload", async (req, res) => {
   }
 });
 
+// 17. Dish Image Upload & Database Sync (Admin Dev Tool)
+app.post("/api/dishes/:id/upload-image", async (req, res) => {
+  const { id } = req.params;
+  const { base64, fileName } = req.body;
+
+  if (!base64) {
+    return res.status(400).json({ error: "Base64 image data is required" });
+  }
+
+  try {
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+
+    let ext = ".jpeg";
+    if (fileName) {
+      const parsedExt = path.extname(fileName);
+      if (parsedExt) ext = parsedExt.toLowerCase();
+    }
+
+    const sanitizedId = id.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const uniqueFileName = `${sanitizedId}${ext}`;
+    const filePath = path.join(uploadsDir, uniqueFileName);
+
+    fs.writeFileSync(filePath, buffer);
+
+    const relativeUrl = `/uploads/${uniqueFileName}`;
+
+    // Update Prisma database
+    const updatedDish = await prisma.dish.update({
+      where: { id },
+      data: { image: relativeUrl }
+    });
+
+    console.log(`[Admin Upload Tool] Updated image for ${id} to ${relativeUrl}`);
+    res.json({ success: true, dish: updatedDish });
+  } catch (error: any) {
+    console.error("Image upload/db sync failed:", error);
+    res.status(500).json({ error: error.message || "Failed to save image" });
+  }
+});
+
+// 18. Serve the Development Image Upload web page
+app.get("/upload-tool", (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Punjab Kitchen | Master Image Upload Tool</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0A0806;
+      --card-bg: #130F0C;
+      --border: #241B15;
+      --gold: #D4AF37;
+      --gold-hover: #F3C846;
+      --text: #F4ECE6;
+      --text-muted: #9E9187;
+      --success: #10B981;
+      --error: #EF4444;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      padding-bottom: 80px;
+      min-height: 100vh;
+      position: relative;
+    }
+    
+    .ambient-glow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 10% 20%, rgba(212,175,55,0.04) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 80%, rgba(212,175,55,0.03) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    header {
+      background: rgba(19, 15, 12, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--gold), #8A6F27);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #000;
+      font-size: 22px;
+      box-shadow: 0 4px 20px rgba(212, 175, 55, 0.25);
+    }
+    
+    .brand-text h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #FFF, #EAD699);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .brand-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    
+    .header-controls {
+      display: flex;
+      gap: 16px;
+      flex-grow: 1;
+      justify-content: flex-end;
+      max-width: 800px;
+    }
+    
+    .search-input-wrapper {
+      position: relative;
+      flex-grow: 1;
+      max-width: 400px;
+    }
+    
+    .search-input-wrapper input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: 12px;
+      color: #FFF;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.3s;
+    }
+    
+    .search-input-wrapper input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.15);
+      background: rgba(0, 0, 0, 0.6);
+    }
+    
+    .select-dropdown {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: 12px;
+      color: #FFF;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-width: 180px;
+    }
+    
+    .select-dropdown:focus {
+      border-color: var(--gold);
+    }
+    
+    .container {
+      max-width: 1440px;
+      margin: 40px auto 0;
+      padding: 0 40px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 30px;
+      background: rgba(19, 15, 12, 0.5);
+      border: 1px solid var(--border);
+      padding: 18px 24px;
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gold);
+      margin-top: 4px;
+    }
+    
+    .category-section {
+      background: rgba(19, 15, 12, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 40px;
+      position: relative;
+    }
+    
+    .category-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .category-dish-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      background: rgba(212, 175, 55, 0.06);
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.15);
+    }
+    
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    
+    .dish-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .dish-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--gold);
+      box-shadow: 0 8px 24px rgba(212, 175, 55, 0.1);
+    }
+    
+    .preview-box {
+      height: 120px;
+      position: relative;
+      background-color: #080605;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .dish-card:hover .preview-box img {
+      transform: scale(1.06);
+    }
+    
+    .no-img-text {
+      color: var(--text-muted);
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .no-img-text svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: var(--text-muted);
+      stroke-width: 1.5;
+    }
+    
+    .hud-hint {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 3px 6px;
+      font-size: 9px;
+      color: var(--gold);
+      font-weight: 500;
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    .card-drop-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 8, 6, 0.9);
+      border: 2px dashed var(--gold);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-in-out;
+      z-index: 10;
+      color: var(--gold);
+      font-weight: 600;
+      font-size: 13px;
+      gap: 8px;
+    }
+    
+    .dish-card.drag-over .card-drop-overlay {
+      opacity: 1;
+    }
+    
+    .card-info {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      gap: 8px;
+    }
+    
+    .dish-details {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .dish-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFF;
+      line-height: 1.3;
+    }
+    
+    .dish-id {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    
+    .dish-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    
+    .meta-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 20px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    
+    .meta-badge-cat {
+      background: rgba(212, 175, 55, 0.06);
+      color: var(--gold);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+    }
+    
+    .meta-badge-veg {
+      background: rgba(16, 185, 129, 0.06);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.12);
+    }
+    
+    .meta-badge-nonveg {
+      background: rgba(239, 68, 68, 0.06);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.12);
+    }
+    
+    .actions-panel {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .action-btn {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .action-btn-primary {
+      background: var(--gold);
+      color: #000;
+    }
+    
+    .action-btn-primary:hover {
+      background: var(--gold-hover);
+      box-shadow: 0 4px 10px rgba(212, 175, 55, 0.2);
+    }
+    
+    .card-upload-spinner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(19, 15, 12, 0.85);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      gap: 12px;
+    }
+    
+    .dish-card.uploading .card-upload-spinner {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .loader {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(212, 175, 55, 0.1);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: rotating 0.8s linear infinite;
+    }
+    
+    @keyframes rotating {
+      to { transform: rotate(360deg); }
+    }
+    
+    .card-success-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(16, 185, 129, 0.95);
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      color: #000;
+      font-weight: 800;
+      gap: 10px;
+    }
+    
+    .dish-card.success-flash .card-success-overlay {
+      opacity: 1;
+    }
+    
+    .dish-card.active-paste-target {
+      border-color: var(--gold);
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.35);
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow"></div>
+  
+  <header>
+    <div class="brand">
+      <div class="brand-icon">PK</div>
+      <div class="brand-text">
+        <h1>Master Image Upload Tool</h1>
+        <p>Development & Content Sync Environment</p>
+      </div>
+    </div>
+    
+    <div class="header-controls">
+      <div class="search-input-wrapper">
+        <input type="text" id="searchBar" placeholder="Search dishes by name or id...">
+      </div>
+      
+      <select id="categoryFilter" class="select-dropdown">
+        <option value="all">All Categories</option>
+      </select>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">Total Dishes</span>
+        <span class="stat-value" id="statTotal">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Has Local Image</span>
+        <span class="stat-value" id="statHasImage">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Missing/Unsplash</span>
+        <span class="stat-value" id="statMissing">0</span>
+      </div>
+    </div>
+    
+    <div id="dishesContainer"></div>
+  </div>
+  
+  <script>
+    let dishesList = [];
+    let categoriesList = [];
+    const dishesContainer = document.getElementById('dishesContainer');
+    const searchBar = document.getElementById('searchBar');
+    const categoryFilter = document.getElementById('categoryFilter');
+    
+    const API_BASE = window.location.origin;
+    let selectedPasteTarget = null;
+
+    async function loadData() {
+      try {
+        const [dishesRes, categoriesRes] = await Promise.all([
+          fetch(API_BASE + '/api/dishes'),
+          fetch(API_BASE + '/api/categories')
+        ]);
+        
+        dishesList = await dishesRes.json();
+        categoriesList = await categoriesRes.json();
+        
+        categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+        
+        const roots = categoriesList.filter(c => !c.parentId);
+        roots.forEach(root => {
+          const opt = document.createElement('option');
+          opt.value = root.id;
+          opt.textContent = '📦 ' + root.name.replace(/Page \\d+:\\s*/i, '');
+          categoryFilter.appendChild(opt);
+          
+          const subCats = categoriesList.filter(c => c.parentId === root.id);
+          subCats.forEach(sub => {
+            const optSub = document.createElement('option');
+            optSub.value = sub.id;
+            optSub.textContent = '    ├─ ' + sub.name;
+            categoryFilter.appendChild(optSub);
+            
+            const grandCats = categoriesList.filter(c => c.parentId === sub.id);
+            grandCats.forEach(grand => {
+              const optGrand = document.createElement('option');
+              optGrand.value = grand.id;
+              optGrand.textContent = '        └─ ' + grand.name;
+              categoryFilter.appendChild(optGrand);
+            });
+          });
+        });
+        
+        renderDishes();
+        updateStats();
+      } catch (err) {
+        console.error('Failed to load upload-tool data:', err);
+      }
+    }
+
+    function isCategoryDescendant(childCatId, parentCatId) {
+      if (childCatId === parentCatId) return true;
+      const parentCat = categoriesList.find(c => c.id === childCatId);
+      if (!parentCat || !parentCat.parentId) return false;
+      return isCategoryDescendant(parentCat.parentId, parentCatId);
+    }
+
+    function updateStats() {
+      const total = dishesList.length;
+      const withLocal = dishesList.filter(d => d.image && d.image.startsWith('/uploads/')).length;
+      const missing = total - withLocal;
+      
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statHasImage').textContent = withLocal;
+      document.getElementById('statMissing').textContent = missing;
+    }
+
+    function renderDishes() {
+      const term = searchBar.value.toLowerCase().trim();
+      const selectedCat = categoryFilter.value;
+      
+      dishesContainer.innerHTML = '';
+      
+      const filtered = dishesList.filter(d => {
+        const matchesSearch = d.name.toLowerCase().includes(term) || d.id.toLowerCase().includes(term);
+        const matchesCat = selectedCat === 'all' || isCategoryDescendant(d.category, selectedCat);
+        return matchesSearch && matchesCat;
+      });
+
+      const dishesGrouped = {};
+      filtered.forEach(dish => {
+        const catId = dish.category || 'uncategorized';
+        if (!dishesGrouped[catId]) {
+          dishesGrouped[catId] = [];
+        }
+        dishesGrouped[catId].push(dish);
+      });
+
+      categoriesList.forEach(category => {
+        const categoryDishes = dishesGrouped[category.id];
+        if (!categoryDishes || categoryDishes.length === 0) return;
+
+        createCategorySection(category.name, category.id, categoryDishes);
+      });
+
+      const uncategorizedDishes = dishesGrouped['uncategorized'];
+      if (uncategorizedDishes && uncategorizedDishes.length > 0) {
+        createCategorySection('Uncategorized', 'uncategorized', uncategorizedDishes);
+      }
+
+      if (filtered.length === 0) {
+        dishesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">No dishes matched your search criteria.</div>';
+      }
+    }
+
+    function createCategorySection(catName, catId, dishes) {
+      const section = document.createElement('div');
+      section.className = 'category-section';
+      section.id = 'section-' + catId;
+
+      section.innerHTML = \'<div class="category-title"><span>\' + catName + \'</span><span class="category-dish-count">\' + dishes.length + \' \' + (dishes.length === 1 ? \'item\' : \'items\') + \'</span></div><div class="category-grid" id="grid-\' + catId + \'"></div>\';
+
+      dishesContainer.appendChild(section);
+      const grid = document.getElementById('grid-' + catId);
+
+      dishes.forEach(dish => {
+        const isLocal = dish.image && dish.image.startsWith('/uploads/');
+        const imgUrl = isLocal ? (API_BASE + dish.image) : dish.image;
+        
+        const card = document.createElement('div');
+        card.className = 'dish-card';
+        card.id = 'card-' + dish.id;
+        card.dataset.dishId = dish.id;
+        if (selectedPasteTarget === dish.id) {
+          card.classList.add('active-paste-target');
+        }
+
+        const previewHtml = dish.image 
+          ? \'<img src="\' + imgUrl + \'" alt="\' + dish.name + \'">\'
+          : \'<div class="no-img-text"><svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 5H5l3.5-4.5z" stroke-linecap="round" stroke-linejoin="round"/></svg><span>No Image Set</span></div>\';
+
+        card.innerHTML = 
+          \'<div class="preview-box">\' +
+            previewHtml +
+            \'<div class="hud-hint">PASTE OR DROP</div>\' +
+          \'</div>\' +
+          \'<div class="card-drop-overlay">\' +
+            \'<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>\' +
+            \'<span>Drop image</span>\' +
+          \'</div>\' +
+          \'<div class="card-upload-spinner">\' +
+            \'<div class="loader"></div>\' +
+            \'<span style="font-size: 11px; font-weight: 500;">Uploading...</span>\' +
+          \'</div>\' +
+          \'<div class="card-success-overlay">\' +
+            \'<svg width="24" height="24" fill="none" stroke="#000" stroke-width="3"><path d="M20 6L9 17l-5-5" stroke-linecap="round"/></svg>\' +
+            \'<span style="font-size: 12px; margin-top: 4px;">Saved!</span>\' +
+          \'</div>\' +
+          \'<div class="card-info">\' +
+            \'<div class="dish-details">\' +
+              \'<span class="dish-name">\' + dish.name + \'</span>\' +
+              \'<span class="dish-id">ID: \' + dish.id + \'</span>\' +
+              \'<span class="dish-desc">\' + dish.description + \'</span>\' +
+            \'</div>\' +
+            \'<div class="meta-badges">\' +
+              \'<span class="meta-badge meta-badge-cat">\' + dish.category + \'</span>\' +
+              \'<span class="meta-badge \' + (dish.veg ? \'meta-badge-veg\' : \'meta-badge-nonveg\') + \'">\' +
+                (dish.veg ? \'Veg\' : \'Non-Veg\') +
+              \'</span>\' +
+            \'</div>\' +
+            \'<div class="actions-panel">\' +
+              \'<button class="action-btn action-btn-primary" onclick="triggerFileInput(\\\'\' + dish.id + \'\\\')">\' +
+                \'Choose File\' +
+              \'</button>\' +
+            \'</div>\' +
+            \'<input type="file" id="file-\' + dish.id + \'" accept="image/*" style="display: none;" onchange="handleFileSelect(event, \\\'\' + dish.id + \'\\\')">\' +
+          \'</div>\';
+        
+        card.addEventListener(\'dragover\', (e) => {
+          e.preventDefault();
+          card.classList.add(\'drag-over\');
+        });
+        
+        card.addEventListener(\'dragleave\', () => {
+          card.classList.remove(\'drag-over\');
+        });
+        
+        card.addEventListener(\'drop\', (e) => {
+          e.preventDefault();
+          card.classList.remove(\'drag-over\');
+          const file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith(\'image/\')) {
+            uploadFile(file, dish.id);
+          }
+        });
+        
+        card.addEventListener(\'click\', () => {
+          document.querySelectorAll(\'.dish-card\').forEach(c => c.classList.remove(\'active-paste-target\'));
+          card.classList.add(\'active-paste-target\');
+          selectedPasteTarget = dish.id;
+        });
+        
+        grid.appendChild(card);
+      });
+    }
+
+    document.addEventListener(\'paste\', (e) => {
+      if (!selectedPasteTarget) return;
+      
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (const item of items) {
+        if (item.type.indexOf(\'image\') !== -1) {
+          const file = item.getAsFile();
+          uploadFile(file, selectedPasteTarget);
+          break;
+        }
+      }
+    });
+
+    function triggerFileInput(dishId) {
+      document.getElementById(\'file-\' + dishId).click();
+    }
+
+    function handleFileSelect(e, dishId) {
+      const file = e.target.files[0];
+      if (file) {
+        uploadFile(file, dishId);
+      }
+    }
+
+    async function uploadFile(file, dishId) {
+      const card = document.getElementById(\'card-\' + dishId);
+      card.classList.add(\'uploading\');
+      
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        const base64 = evt.target.result;
+        try {
+          const res = await fetch(API_BASE + \'/api/dishes/\' + dishId + \'/upload-image\', {
+            method: \'POST\',
+            headers: { \'Content-Type\': \'application/json\' },
+            body: JSON.stringify({
+              base64: base64,
+              fileName: file.name
+            })
+          });
+          
+          const data = await res.json();
+          if (data.success) {
+            const idx = dishesList.findIndex(d => d.id === dishId);
+            if (idx !== -1) {
+              dishesList[idx].image = data.dish.image;
+            }
+            
+            card.classList.remove(\'uploading\');
+            card.classList.add(\'success-flash\');
+            
+            setTimeout(() => {
+              card.classList.remove(\'success-flash\');
+              renderDishes();
+              updateStats();
+            }, 1000);
+          } else {
+            alert(\'Upload failed: \' + (data.error || \'Unknown error\'));
+            card.classList.remove(\'uploading\');
+          }
+        } catch (err) {
+          console.error(err);
+          alert(\'Upload request failed.\');
+          card.classList.remove(\'uploading\');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    searchBar.addEventListener(\'input\', renderDishes);
+    categoryFilter.addEventListener(\'change\', renderDishes);
+
+    window.onload = loadData;
+  </script>
+</body>
+</html>`);
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Punjabi Kitchen API server running at http://localhost:${PORT}`);
 });
