@@ -375,7 +375,11 @@ export default function MenuScreen() {
 
   const categorySections = useMemo(() => {
     const catsSource = apiCategories.length > 0 ? apiCategories : CATEGORIES;
-    let categoriesToShow = catsSource.filter((c) => c.parentId !== null);
+    let categoriesToShow = catsSource.filter((c) => {
+      if (c.parentId === null) return false;
+      const hasChildren = catsSource.some((child) => child.parentId === c.id);
+      return !hasChildren;
+    });
 
     if (selectedCategory !== "all") {
       if (selectedSubTab === "all") {

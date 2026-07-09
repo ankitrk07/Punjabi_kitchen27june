@@ -44,6 +44,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { iconBase64 } from "@/src/data/iconBase64";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   FadeIn,
@@ -62,6 +64,7 @@ import Animated, {
   withSpring,
   withTiming,
   ZoomIn,
+  runOnJS,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -1108,6 +1111,23 @@ const modeCard = StyleSheet.create({
 // 5. AnimatedMoodStrip
 //    Placed below HomeModes, gold left-bar REMOVED
 // ─────────────────────────────────────────────────────────────────────────────
+function PaginatorDot({ index, activeIndex }: { index: number; activeIndex: number }) {
+  const isActive = index === activeIndex;
+  
+  const animStyle = useAnimatedStyle(() => {
+    const width = withSpring(isActive ? 18 : 6, { damping: 15, stiffness: 220 });
+    const opacity = withSpring(isActive ? 1.0 : 0.35, { damping: 15, stiffness: 220 });
+    return {
+      width,
+      opacity,
+    };
+  });
+  
+  return (
+    <Animated.View style={[moodStyle.dot, animStyle]} />
+  );
+}
+
 function MoodChip({
   item,
   index,
@@ -1119,41 +1139,99 @@ function MoodChip({
   animatedActiveIndex: SharedValue<number>;
   onPress: () => void;
 }) {
-  const scale = useSharedValue(0.6);
-  const opacityVal = useSharedValue(0);
-
-  useEffect(() => {
-    scale.value = withSpring(1, SPRING_CONFIG);
-    opacityVal.value = withTiming(1, { duration: 300 });
-  }, []);
-
   const pressScale = useSharedValue(1);
 
   const animStyle = useAnimatedStyle(() => {
     let d = index - animatedActiveIndex.value;
+    
+    // Circular wrap of the distance d so that cards wrap around cleanly
     if (d < -MOODS.length / 2) d += MOODS.length;
     if (d > MOODS.length / 2) d -= MOODS.length;
 
-    const isCenter = Math.abs(d) === 0;
-
-    // Shift sideways: center is 0, adjacent is -110 or 110
-    const translateX = withSpring(d * 110, { damping: 16, stiffness: 120 });
-    // Drops down when shifted left or right
-    const translateY = withSpring(isCenter ? -8 : 16, { damping: 16, stiffness: 120 });
-    // Pops up if center (1.25), drops down if side (0.85)
-    const cardScale = withSpring(isCenter ? 1.25 * pressScale.value : 0.85, { damping: 16, stiffness: 120 });
-    // Hide items further away than 1.1 units to maintain a clean 3-card stack
-    const opacity = withSpring(
-      isCenter ? 1.0 : (Math.abs(d) <= 1.1 ? 0.72 : 0.0),
-      { damping: 16, stiffness: 120 }
-    );
+    const absD = Math.abs(d);
+    
+    // translateX: circular spacing
+    const translateX = d * 115;
+    
+    // translateY: nice curve path dipping down on sides, center card shifted down a bit
+    const translateY = absD * absD * 20 + 4;
+    
+    // Scale: center pops out, sides push back
+    const scale = interpolate(absD, [0, 1], [1.3, 0.82], "clamp");
+    
+    // rotateY: 3D curvature
+    const rotateY = `${interpolate(d, [-1, 0, 1], [28, 0, -28], "clamp")}deg`;
+    
+    // rotateZ: tilt side cards slightly
+    const rotateZ = `${interpolate(d, [-1, 0, 1], [-10, 0, 10], "clamp")}deg`;
+    
+    // Opacity: Center is 1.0, adjacent is 0.72, and fades out completely beyond that
+    const opacity = interpolate(absD, [0, 0.8, 1.25], [1.0, 0.85, 0.0], "clamp");
+    
+    // ZIndex: Center card gets highest priority (e.g. 10), side cards get 5
+    const zIndex = Math.round((3 - absD) * 10);
 
     return {
       transform: [
+        { perspective: 800 },
         { translateX },
         { translateY },
-        { scale: cardScale * scale.value }
+        { scale: scale * pressScale.value },
+        { rotateY },
+        { rotateZ },
       ],
+      opacity,
+      zIndex,
+    };
+  });
+
+  const cardContentAnimStyle = useAnimatedStyle(() => {
+    let d = index - animatedActiveIndex.value;
+    if (d < -MOODS.length / 2) d += MOODS.length;
+    if (d > MOODS.length / 2) d -= MOODS.length;
+    const absD = Math.abs(d);
+    
+    const borderOpacity = interpolate(absD, [0, 1], [0.9, 0.15], "clamp");
+    const shadowOpacity = interpolate(absD, [0, 1], [0.35, 0.05], "clamp");
+    const shadowRadius = interpolate(absD, [0, 1], [16, 4], "clamp");
+    
+    return {
+      borderColor: `rgba(201,168,76, ${borderOpacity})`,
+      shadowOpacity,
+      shadowRadius,
+      backgroundColor: absD < 0.5 
+        ? "rgba(18, 12, 10, 0.95)" 
+        : "rgba(255, 255, 255, 0.01)",
+    };
+  });
+
+  const iconFrameAnimStyle = useAnimatedStyle(() => {
+    let d = index - animatedActiveIndex.value;
+    if (d < -MOODS.length / 2) d += MOODS.length;
+    if (d > MOODS.length / 2) d -= MOODS.length;
+    const absD = Math.abs(d);
+    
+    const glowOpacity = interpolate(absD, [0, 1], [0.35, 0.05], "clamp");
+    const scale = interpolate(absD, [0, 1], [1.08, 0.9], "clamp");
+    
+    return {
+      transform: [{ scale }],
+      borderColor: `rgba(201,168,76, ${glowOpacity + 0.1})`,
+    };
+  });
+
+  const labelAnimStyle = useAnimatedStyle(() => {
+    let d = index - animatedActiveIndex.value;
+    if (d < -MOODS.length / 2) d += MOODS.length;
+    if (d > MOODS.length / 2) d -= MOODS.length;
+    const absD = Math.abs(d);
+    
+    const scale = interpolate(absD, [0, 1], [1.0, 0.85], "clamp");
+    const opacity = interpolate(absD, [0, 0.8, 1.15], [1.0, 0.6, 0.0], "clamp");
+    const translateY = interpolate(absD, [0, 1], [0, 4], "clamp");
+    
+    return {
+      transform: [{ scale }, { translateY }],
       opacity,
     };
   });
@@ -1166,25 +1244,29 @@ function MoodChip({
       ]}
     >
       <TouchableOpacity
-        activeOpacity={0.85}
-        onPressIn={() => { pressScale.value = 0.92; }}
-        onPressOut={() => { pressScale.value = 1; }}
+        activeOpacity={0.9}
+        onPressIn={() => { pressScale.value = withSpring(0.92, { damping: 12, stiffness: 300 }); }}
+        onPressOut={() => { pressScale.value = withSpring(1, SPRING_CONFIG); }}
         onPress={onPress}
         style={moodStyle.chipTouch}
       >
-        <LinearGradient
-          colors={["rgba(201,168,76,0.32)", "rgba(201,168,76,0.06)"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={moodStyle.imageCircle}
-        >
-          <Image
-            source={item.icon}
-            style={moodStyle.largeIcon}
-            contentFit="contain"
-          />
-        </LinearGradient>
-        <Text style={moodStyle.cardText}>{item.label}</Text>
+        <Animated.View style={[moodStyle.cardContent, cardContentAnimStyle]}>
+          {/* Circular frame with soft golden glow */}
+          <Animated.View style={[moodStyle.iconFrame, iconFrameAnimStyle]}>
+            <LinearGradient
+              colors={["rgba(201,168,76,0.22)", "rgba(201,168,76,0.03)"]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Image
+              source={item.icon}
+              style={moodStyle.iconImg}
+              contentFit="contain"
+            />
+          </Animated.View>
+          <Animated.Text style={[moodStyle.cardLabel, labelAnimStyle]}>
+            {item.label}
+          </Animated.Text>
+        </Animated.View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1195,16 +1277,81 @@ function AnimatedMoodStrip() {
   const animatedActiveIndex = useSharedValue(0);
   const router = useRouter();
 
-  useEffect(() => {
-    animatedActiveIndex.value = activeIndex;
-  }, [activeIndex]);
+  // Gesture states
+  const [isDraggingState, setIsDraggingState] = useState(false);
+  const startActiveIndex = useSharedValue(0);
+  const isDragging = useSharedValue(false);
 
+  const panGesture = useMemo(() => {
+    return Gesture.Pan()
+      .activeOffsetX([-10, 10])
+      .onStart(() => {
+        isDragging.value = true;
+        runOnJS(setIsDraggingState)(true);
+        startActiveIndex.value = animatedActiveIndex.value;
+      })
+      .onUpdate((event) => {
+        const swipeWidth = 150;
+        const dragOffset = -event.translationX / swipeWidth;
+        animatedActiveIndex.value = startActiveIndex.value + dragOffset;
+      })
+      .onEnd((event) => {
+        isDragging.value = false;
+        const swipeWidth = 150;
+        const velocityIndexOffset = -event.velocityX / (swipeWidth * 3.5);
+        
+        let target = Math.round(animatedActiveIndex.value + velocityIndexOffset);
+        
+        animatedActiveIndex.value = withSpring(target, {
+          damping: 22,
+          stiffness: 85,
+          mass: 1.0,
+        }, (finished) => {
+          if (finished) {
+            let wrapped = target % MOODS.length;
+            if (wrapped < 0) wrapped += MOODS.length;
+            animatedActiveIndex.value = wrapped;
+            runOnJS(setActiveIndex)(wrapped);
+            runOnJS(setIsDraggingState)(false);
+          }
+        });
+      });
+  }, []);
+
+  // Handle activeIndex transitions smoothly on the animated active index shared value
   useEffect(() => {
+    if (isDraggingState) return;
+
+    let current = animatedActiveIndex.value;
+    let target = activeIndex;
+
+    let diff = target - (current % MOODS.length);
+    if (diff < -MOODS.length / 2) diff += MOODS.length;
+    if (diff > MOODS.length / 2) diff -= MOODS.length;
+
+    let finalTarget = current + diff;
+
+    animatedActiveIndex.value = withSpring(finalTarget, {
+      damping: 22,
+      stiffness: 85,
+      mass: 1.0,
+    }, (finished) => {
+      if (finished) {
+        let wrapped = finalTarget % MOODS.length;
+        if (wrapped < 0) wrapped += MOODS.length;
+        animatedActiveIndex.value = wrapped;
+      }
+    });
+  }, [activeIndex, isDraggingState]);
+
+  // Auto-cycle index every 4.5 seconds (re-created on activeIndex changes to refresh timer)
+  useEffect(() => {
+    if (isDraggingState) return;
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % MOODS.length);
-    }, 4200); // cycle every 4.2 seconds
+    }, 4500);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeIndex, isDraggingState]);
 
   const handleCardPress = (index: number) => {
     const diff = (index - activeIndex + MOODS.length) % MOODS.length;
@@ -1231,15 +1378,24 @@ function AnimatedMoodStrip() {
         What are you craving?
       </Animated.Text>
 
-      <View style={moodStyle.carouselFrame}>
-        {MOODS.map((m, i) => (
-          <MoodChip
-            key={m.cat}
-            item={m}
-            index={i}
-            animatedActiveIndex={animatedActiveIndex}
-            onPress={() => handleCardPress(i)}
-          />
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={moodStyle.carouselFrame}>
+          {MOODS.map((m, i) => (
+            <MoodChip
+              key={m.cat}
+              item={m}
+              index={i}
+              animatedActiveIndex={animatedActiveIndex}
+              onPress={() => handleCardPress(i)}
+            />
+          ))}
+        </Animated.View>
+      </GestureDetector>
+
+      {/* Sync Dots indicator */}
+      <View style={moodStyle.dotsRow}>
+        {MOODS.map((_, i) => (
+          <PaginatorDot key={i} index={i} activeIndex={activeIndex} />
         ))}
       </View>
     </Animated.View>
@@ -1257,7 +1413,7 @@ const moodStyle = StyleSheet.create({
     marginBottom: 16,
   },
   carouselFrame: {
-    height: 155,
+    height: 180,
     width: "100%",
     justifyContent: "center",
     alignItems: "center",
@@ -1266,9 +1422,8 @@ const moodStyle = StyleSheet.create({
     marginVertical: 4,
   },
   cardContainer: {
-    width: 104,
+    width: 100,
     position: "absolute",
-    top: 20,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1276,33 +1431,53 @@ const moodStyle = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    paddingVertical: 4,
   },
-  imageCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1.2,
-    borderColor: "rgba(201,168,76,0.32)",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+  cardContent: {
+    borderRadius: 22,
+    borderWidth: 0.8,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    width: 100,
+    shadowColor: "#C9A84C",
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
-  largeIcon: {
-    width: 54,
-    height: 54,
+  iconFrame: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+    overflow: "hidden",
+    position: "relative",
   },
-  cardText: {
+  iconImg: {
+    width: 44,
+    height: 44,
+  },
+  cardLabel: {
     color: "#E8C97A",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     textAlign: "center",
     letterSpacing: 0.2,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#C9A84C",
   },
 });
 
@@ -1477,7 +1652,7 @@ function useRestaurantStatus() {
   return { isOpen, statusDetail };
 }
 
-function buildMapHTML(hasActiveDelivery: boolean) {
+function buildMapHTML(hasActiveDelivery: boolean, iconUri: string) {
   return `
 <!DOCTYPE html>
 <html><head>
@@ -1501,12 +1676,13 @@ function buildMapHTML(hasActiveDelivery: boolean) {
     animation: pinPulse 2s ease-in-out infinite;
   }
   .restaurant-pin .pin-core {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: radial-gradient(circle at 40% 35%, #E8C97A, #C9A84C, #8A6D2F);
-    border: 2px solid rgba(255,255,255,0.9);
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #140E0A;
+    border: 1.5px solid rgba(201,168,76,0.85);
     box-shadow: 0 2px 12px rgba(201,168,76,0.5), 0 0 20px rgba(201,168,76,0.25);
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; z-index: 2;
+    z-index: 2;
+    overflow: hidden;
   }
   @keyframes pinPulse {
     0%, 100% { transform: scale(1); opacity: 0.7; }
@@ -1576,7 +1752,7 @@ function buildMapHTML(hasActiveDelivery: boolean) {
   // Restaurant marker
   var pinIcon = L.divIcon({
     className: '',
-    html: '<div class="restaurant-pin"><div class="pin-ring"></div><div class="pin-core">🍛</div></div>',
+    html: '<div class="restaurant-pin"><div class="pin-ring"></div><div class="pin-core"><img src="' + iconUri + '" style="width: 100%; height: 100%; object-fit: cover;" /></div></div>',
     iconSize: [44, 44],
     iconAnchor: [22, 22]
   });
@@ -1656,7 +1832,9 @@ function LocationSection() {
   );
   const hasActiveDelivery = !!activeDeliveryOrder;
 
-  const mapHTML = useMemo(() => buildMapHTML(hasActiveDelivery), [hasActiveDelivery]);
+  const mapHTML = useMemo(() => {
+    return buildMapHTML(hasActiveDelivery, iconBase64);
+  }, [hasActiveDelivery]);
 
   const handleMapMessage = useCallback((event: any) => {
     if (event.nativeEvent.data === "openDirections") {

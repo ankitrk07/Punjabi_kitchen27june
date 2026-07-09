@@ -88,6 +88,11 @@ export const apiClient = {
 
   // Reviews
   getReviews: () => apiCall<ReviewData[]>("/reviews"),
+  addReview: (review: { name: string; avatar?: string; rating: number; text: string }) =>
+    apiCall<ReviewData>("/reviews", {
+      method: "POST",
+      body: JSON.stringify(review),
+    }),
 
   // Offers
   getOffers: () => apiCall<OfferData[]>("/offers"),

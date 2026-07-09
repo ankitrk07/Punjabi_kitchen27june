@@ -234,7 +234,20 @@ const LOCAL_IMAGES: Record<string, any> = {
 };
 
 export const getDishImageSource = (dishId: string, serverPath: string) => {
+  if (serverPath && typeof serverPath === "string" && serverPath.trim() !== "") {
+    // Prefer remote external URLs directly
+    if (serverPath.startsWith("http://") || serverPath.startsWith("https://")) {
+      return { uri: serverPath };
+    }
+    // Prefer backend uploaded assets from database
+    if (serverPath.includes("uploads") || serverPath.startsWith("/")) {
+      return { uri: resolveImageUrl(serverPath) };
+    }
+  }
+
+  // Fallback to local bundled static assets
   const local = LOCAL_IMAGES[dishId];
   if (local) return local;
+
   return { uri: resolveImageUrl(serverPath) };
 };
