@@ -15,16 +15,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Reanimated, {
+import {
+  default as Animated,
   Easing,
   interpolate,
+  default as Reanimated,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -351,29 +352,31 @@ const SubItem = React.memo(function SubItem({
       <TouchableOpacity
         style={[styles.sectionItem, level > 0 && styles.subItem]}
         onPress={handlePress}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <View style={styles.itemLeft}>
-          <View style={[styles.itemIcon, { backgroundColor: `${sectionColor}10` }]}>
-            <Ionicons name={item.icon as any} size={level === 0 ? 18 : 14} color={sectionColor} />
+        <View style={styles.sectionItemGradient}>
+          <View style={styles.itemLeft}>
+            <View style={styles.itemIcon}>
+              <Ionicons name={item.icon as any} size={level === 0 ? 18 : 14} color={GOLD} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.itemLabel, level > 0 && styles.subItemLabel]}>{item.label}</Text>
+              {item.sub && <Text style={styles.itemSub}>{item.sub}</Text>}
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.itemLabel, level > 0 && styles.subItemLabel]}>{item.label}</Text>
-            {item.sub && <Text style={styles.itemSub}>{item.sub}</Text>}
+          <View style={styles.itemRight}>
+            {item.value && (
+              <Text style={[styles.itemValue, item.valueColor && { color: item.valueColor }]}>
+                {item.value}
+              </Text>
+            )}
+            {hasSubItems && (
+              <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={GOLD} />
+            )}
+            {!hasSubItems && !item.subItems && (
+              <Ionicons name="chevron-forward" size={16} color={MUTED} />
+            )}
           </View>
-        </View>
-        <View style={styles.itemRight}>
-          {item.value && (
-            <Text style={[styles.itemValue, item.valueColor && { color: item.valueColor }]}>
-              {item.value}
-            </Text>
-          )}
-          {hasSubItems && (
-            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={MUTED} />
-          )}
-          {!hasSubItems && !item.subItems && (
-            <Ionicons name="chevron-forward" size={16} color={MUTED} />
-          )}
         </View>
       </TouchableOpacity>
 
@@ -403,14 +406,16 @@ const SettingsSection = React.memo(function SettingsSection({ section, onPress }
 
   return (
     <View style={styles.section}>
-      <TouchableOpacity style={styles.sectionHeader} onPress={toggleExpand} activeOpacity={0.7}>
-        <View style={styles.sectionLeft}>
-          <View style={styles.sectionIconCircle}>
-            <Ionicons name={section.icon as any} size={18} color={GOLD} />
+      <TouchableOpacity style={styles.sectionHeader} onPress={toggleExpand} activeOpacity={0.8}>
+        <View style={styles.sectionHeaderGradient}>
+          <View style={styles.sectionLeft}>
+            <View style={styles.sectionIconCircle}>
+              <Ionicons name={section.icon as any} size={18} color={GOLD} />
+            </View>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
           </View>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
+          <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={GOLD} />
         </View>
-        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={MUTED} />
       </TouchableOpacity>
 
       {expanded && (
@@ -588,9 +593,6 @@ const PremiumHeader = React.memo(function PremiumHeader({
             <LinearGradient colors={[GOLD, GOLD_LIGHT, GOLD]} style={styles.heroAvatarRing}>
               <Image source={{ uri: avatarUri }} style={styles.heroAvatar} />
             </LinearGradient>
-            <View style={styles.heroCameraBadge}>
-              <Ionicons name="camera" size={13} color="#FFF" />
-            </View>
           </TouchableOpacity>
         </View>
 
@@ -1272,24 +1274,35 @@ const styles = StyleSheet.create({
   // ── Sections ──────────────────────────────────────────────────────────────
   sectionsContainer: {
     marginHorizontal: 16,
-    gap: 2,
+    gap: 4,
     marginBottom: 24,
-    backgroundColor: SURFACE_2,
-    borderRadius: 20,
+    backgroundColor: "#060606",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: `${GOLD}12`,
+    borderColor: "rgba(201,168,76,0.16)",
     overflow: "hidden",
+    paddingVertical: 4,
   },
   section: {
     borderBottomWidth: 1,
     borderBottomColor: `${GOLD}08`,
+    paddingBottom: 2,
   },
   sectionHeader: {
+    marginHorizontal: 8,
+    marginTop: 4,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: `${GOLD}10`,
+  },
+  sectionHeaderGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#0A0A0A",
   },
   sectionLeft: {
     flexDirection: "row",
@@ -1297,9 +1310,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: `${GOLD}10`,
     borderWidth: 1,
     borderColor: `${GOLD}20`,
@@ -1308,25 +1321,40 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: WHITE,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     letterSpacing: 0.2,
   },
   sectionItems: {
     borderTopWidth: 1,
     borderTopColor: `${GOLD}08`,
-    backgroundColor: `${SURFACE}80`,
+    backgroundColor: "#080808",
+    paddingTop: 2,
+    paddingBottom: 1,
   },
   sectionItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: `${GOLD}06`,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginHorizontal: 8,
+    marginVertical: 1,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: `${GOLD}10`,
+    overflow: "hidden",
   },
-  subItem: { paddingLeft: 40 },
+  sectionItemGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 11,
+    backgroundColor: "#0A0A0A",
+  },
+  subItem: { paddingLeft: 20, marginVertical: 1 },
   itemLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -1334,19 +1362,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemIcon: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: `${GOLD}20`,
+    backgroundColor: "#070707",
   },
   itemLabel: {
     color: WHITE,
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "500",
   },
-  subItemLabel: { fontSize: 13, fontWeight: "400" },
-  itemSub: { color: MUTED, fontSize: 11, marginTop: 2 },
+  subItemLabel: { fontSize: 12, fontWeight: "500" },
+  itemSub: { color: MUTED, fontSize: 10, marginTop: 1 },
   itemRight: {
     flexDirection: "row",
     alignItems: "center",
@@ -1354,11 +1385,15 @@ const styles = StyleSheet.create({
   },
   itemValue: {
     color: GOLD,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "500",
   },
   subItemsContainer: {
-    backgroundColor: `${SURFACE_3}50`,
+    backgroundColor: "rgba(10,10,10,0.95)",
+    marginHorizontal: 8,
+    borderRadius: 10,
+    overflow: "hidden",
+    paddingVertical: 2,
   },
 
   // ── Sign Out / Delete / Footer ────────────────────────────────────────────
