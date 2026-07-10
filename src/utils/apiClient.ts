@@ -14,7 +14,8 @@ export const resolveImageUrl = (imageUrl: string): string => {
   // Strip "/api" from API_BASE_URL (e.g. "http://192.168.1.10:3000/api" -> "http://192.168.1.10:3000")
   const serverBase = API_BASE_URL.replace(/\/api$/, "");
   const cleanPath = imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`;
-  return `${serverBase}${encodeURI(cleanPath)}`;
+  // Append a cache-buster query parameter to bypass expo-image caching
+  return `${serverBase}${encodeURI(cleanPath)}?v=rectified`;
 };
 
 export type ReviewData = {
