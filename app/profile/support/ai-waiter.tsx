@@ -10,7 +10,9 @@ import {
   Platform,
   ActivityIndicator,
   Dimensions,
-  Clipboard
+  Clipboard,
+  NativeScrollEvent,
+  NativeSyntheticEvent
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/src/theme";
@@ -63,20 +65,20 @@ const FormattedText = ({ text, isUser }: { text: string; isUser: boolean }) => {
         }
 
         // Split by markdown bold tags ** or *
-        const parts = cleanLine.split(/(\*\*?[^*]+\*\*?)/g);
+        const parts = cleanLine.split(/(\*\*[^*]+\*\*)/g);
         
         return (
           <View key={idx} style={[styles.textLineRow, isBullet && styles.bulletLineRow]}>
             {isBullet && <Text style={styles.bulletPoint}>•</Text>}
             <Text style={styles.messageText}>
               {parts.map((part, pIdx) => {
-                const isBold = (part.startsWith("**") && part.endsWith("**")) || (part.startsWith("*") && part.endsWith("*"));
+                const isBold = part.startsWith("**") && part.endsWith("**");
                 let cleanPart = part;
                 if (isBold) {
-                  cleanPart = part.startsWith("**") ? part.slice(2, -2) : part.slice(1, -1);
+                  cleanPart = part.slice(2, -2);
                 }
 
-                // Strip any remaining rogue asterisks
+                // Strip remaining rogue asterisks
                 cleanPart = cleanPart.replace(/\*/g, "").trim();
                 if (!cleanPart) return null;
 
@@ -130,6 +132,8 @@ export default function AIWaiterScreen() {
   const [isDictating, setIsDictating] = useState(false);
   const [isVoicePlaybackEnabled, setIsVoicePlaybackEnabled] = useState(true);
   const [dictationText, setDictationText] = useState("Listening...");
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleSend = async (textToSend?: string) => {
@@ -169,9 +173,11 @@ export default function AIWaiterScreen() {
         setSuggestions(data.quickReplies);
       }
 
+      // Add placeholder message with empty text, then stream the actual text character-by-character
+      const placeholderId = (Date.now() + 1).toString();
       const tadkaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: replyText,
+        id: placeholderId,
+        text: "",
         sender: "tadka",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         dishes: data.dishes || [],
@@ -182,12 +188,25 @@ export default function AIWaiterScreen() {
       };
 
       setMessages((prev) => [...prev, tadkaMsg]);
+      setIsTyping(false);
 
-      if (data.navigation) {
-        setTimeout(() => {
-          router.push(data.navigation);
-        }, 1800);
-      }
+      // Stream text generation simulation
+      let currentLength = 0;
+      const interval = setInterval(() => {
+        currentLength += Math.ceil(replyText.length / 25);
+        if (currentLength >= replyText.length) {
+          clearInterval(interval);
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: replyText } : m));
+          
+          if (data.navigation) {
+            setTimeout(() => {
+              router.push(data.navigation);
+            }, 1800);
+          }
+        } else {
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: replyText.substring(0, currentLength) } : m));
+        }
+      }, 35);
 
     } catch (err) {
       console.error("AI chat request failed:", err);
@@ -198,7 +217,6 @@ export default function AIWaiterScreen() {
         sender: "tadka",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }]);
-    } finally {
       setIsTyping(false);
     }
   };
@@ -267,9 +285,37 @@ export default function AIWaiterScreen() {
     }
   };
 
+  const handleCopyText = (text: string) => {
+    Clipboard.setString(text);
+    showToast("Message copied to clipboard! 📋");
+  };
+
   const handleCopyCode = (code: string) => {
     Clipboard.setString(code);
-    alert(`Coupon code "${code}" copied to clipboard! 🎁`);
+    showToast(`Coupon code "${code}" copied! 🎁`);
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2000);
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const yOffset = event.nativeEvent.contentOffset.y;
+    const contentHeight = event.nativeEvent.contentSize.height;
+    const viewHeight = event.nativeEvent.layoutMeasurement.height;
+    
+    // Show button if user scrolled up significantly
+    if (contentHeight - viewHeight - yOffset > 250) {
+      setShowScrollBottom(true);
+    } else {
+      setShowScrollBottom(false);
+    }
+  };
+
+  const scrollToBottom = () => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+    setShowScrollBottom(false);
   };
 
   useEffect(() => {
@@ -289,8 +335,17 @@ export default function AIWaiterScreen() {
           isUser ? styles.userWrapper : styles.tadkaWrapper,
         ]}
       >
+        {/* Avatar design for AI */}
+        {!isUser && (
+          <View style={styles.bubbleAvatar}>
+            <Text style={styles.bubbleAvatarText}>🧑‍🍳</Text>
+          </View>
+        )}
+
         {/* Text bubble block */}
-        <View
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onLongPress={() => handleCopyText(msg.text)}
           style={[
             styles.bubble,
             isUser ? styles.userBubble : styles.tadkaBubble,
@@ -299,7 +354,7 @@ export default function AIWaiterScreen() {
           <FormattedText text={msg.text} isUser={isUser} />
 
           {/* Speaker icon for Tadka replies */}
-          {!isUser && (
+          {!isUser && msg.text.length > 0 && (
             <View style={styles.bubbleFooter}>
               <TouchableOpacity style={styles.speakerBtn} onPress={() => speakMessage(msg)}>
                 <Ionicons 
@@ -312,7 +367,7 @@ export default function AIWaiterScreen() {
               <Text style={styles.bubbleTime}>{msg.time}</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         {/* Structured Cards (Rendered outside bubble for full width visual aesthetics) */}
         {!isUser && (
@@ -351,7 +406,7 @@ export default function AIWaiterScreen() {
                           style={styles.addToCartBtn} 
                           onPress={() => {
                             addToCart(dish);
-                            alert(`Added ${dish.name} to cart!`);
+                            showToast(`Added ${dish.name} to cart! 🛒`);
                           }}
                         >
                           <Ionicons name="cart" size={12} color="#000" />
@@ -491,12 +546,41 @@ export default function AIWaiterScreen() {
           style={styles.messageScroll}
           contentContainerStyle={styles.messageContent}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
         >
-          {messages.map(renderMessage)}
+          {/* Welcome Screen Empty State */}
+          {messages.length === 1 && (
+            <View style={styles.welcomeContainer}>
+              <View style={styles.welcomeIconContainer}>
+                <Text style={styles.welcomeIcon}>🧑‍🍳</Text>
+              </View>
+              <Text style={styles.welcomeTitle}>Namaste! I'm Tadka</Text>
+              <Text style={styles.welcomeDesc}>
+                Your personalized AI Host for Punjabi Kitchen. I can suggest matching meals, check active coupon codes, reserve a dining table, or track orders.
+              </Text>
+              <View style={styles.suggestionGrid}>
+                {SUGGESTIONS.map((item, idx) => (
+                  <TouchableOpacity 
+                    key={idx} 
+                    style={styles.welcomeSuggestionChip}
+                    onPress={() => handleSend(item.replace(/[🌱🔥🥜🍜🎁🛒👉]/g, '').trim())}
+                  >
+                    <Text style={styles.welcomeSuggestionText}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {messages.length > 1 && messages.map(renderMessage)}
 
           {isTyping && (
             <View style={[styles.bubbleWrapper, styles.tadkaWrapper]}>
+              <View style={styles.bubbleAvatar}>
+                <Text style={styles.bubbleAvatarText}>🧑‍🍳</Text>
+              </View>
               <View style={[styles.bubble, styles.tadkaBubble, styles.typingBubble]}>
                 <ActivityIndicator size="small" color={colors.gold} />
                 <Text style={styles.typingText}>Tadka is planning your meal...</Text>
@@ -505,16 +589,25 @@ export default function AIWaiterScreen() {
           )}
         </ScrollView>
 
+        {/* Floating Scroll Bottom Button */}
+        {showScrollBottom && (
+          <TouchableOpacity style={styles.floatingScrollBtn} onPress={scrollToBottom}>
+            <Ionicons name="chevron-down" size={18} color="#000" />
+          </TouchableOpacity>
+        )}
+
         {/* Suggested Queries */}
-        <View style={styles.suggestionsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
-            {suggestions.map((sug, i) => (
-              <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.replace(/[🌱🔥🥜🍜🎁🛒👉]/g, '').trim())}>
-                <Text style={styles.suggestionText}>{sug}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {messages.length > 1 && (
+          <View style={styles.suggestionsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
+              {suggestions.map((sug, i) => (
+                <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.replace(/[🌱🔥🥜🍜🎁🛒👉]/g, '').trim())}>
+                  <Text style={styles.suggestionText}>{sug}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Input Bar */}
         <View style={styles.inputBar}>
@@ -549,6 +642,13 @@ export default function AIWaiterScreen() {
                 <Text style={styles.closeDictateText}>Cancel</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {/* Custom Toast Alert */}
+        {toastMessage && (
+          <View style={styles.toastContainer}>
+            <Text style={styles.toastText}>{toastMessage}</Text>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -655,27 +755,45 @@ const styles = StyleSheet.create({
   bubbleWrapper: {
     width: "100%",
     marginBottom: 8,
+    flexDirection: "row",
+    gap: 8,
   },
   userWrapper: {
-    alignItems: "flex-end",
+    justifyContent: "flex-end",
   },
   tadkaWrapper: {
-    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  bubbleAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.borderGold,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-end",
+  },
+  bubbleAvatarText: {
+    fontSize: 14,
   },
   bubble: {
-    maxWidth: "85%",
+    maxWidth: "80%",
     borderRadius: 18,
     padding: 14,
   },
   userBubble: {
     backgroundColor: colors.gold,
     borderTopRightRadius: 2,
+    alignSelf: "flex-end",
   },
   tadkaBubble: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 2,
     borderWidth: 1,
     borderColor: colors.border,
+    alignSelf: "flex-start",
   },
   messageText: {
     fontSize: 14,
@@ -743,6 +861,78 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontStyle: "italic",
   },
+  welcomeContainer: {
+    padding: 20,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.borderGold,
+    alignItems: "center",
+    marginVertical: 40,
+  },
+  welcomeIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(212, 175, 55, 0.1)",
+    borderWidth: 1,
+    borderColor: colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  welcomeIcon: {
+    fontSize: 32,
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  welcomeDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  suggestionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+  },
+  welcomeSuggestionChip: {
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  welcomeSuggestionText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.goldBright,
+  },
+  floatingScrollBtn: {
+    position: "absolute",
+    bottom: 80,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 99,
+  },
   suggestionsContainer: {
     paddingVertical: 8,
     borderTopWidth: 1,
@@ -806,12 +996,13 @@ const styles = StyleSheet.create({
   },
   outerCardsWrapper: {
     width: "100%",
-    marginTop: 8,
-    paddingRight: 40, // Keeps spacing align matching the chat bubble bounds
+    marginTop: 4,
+    paddingLeft: 40, // Offsets the AI avatar space to align cards right under bubble
   },
   cardsContainer: {
     gap: 10,
     width: "100%",
+    marginTop: 8,
   },
   dishCard: {
     flexDirection: "row",
@@ -1085,6 +1276,23 @@ const styles = StyleSheet.create({
   closeDictateText: {
     fontSize: 12,
     color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  toastContainer: {
+    position: "absolute",
+    bottom: 120,
+    alignSelf: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(212, 175, 55, 0.3)",
+    zIndex: 9999,
+  },
+  toastText: {
+    fontSize: 12,
+    color: colors.goldBright,
     fontWeight: "600",
   },
 });
