@@ -2393,7 +2393,7 @@ const styles = StyleSheet.create({
   scroll: { zIndex: 1 },
   floatingAiBtnContainer: {
     position: "absolute",
-    bottom: 85,
+    bottom: 100,
     right: 20,
     zIndex: 999,
   },
