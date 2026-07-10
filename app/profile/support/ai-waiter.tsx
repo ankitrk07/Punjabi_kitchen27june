@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image, Dimensions } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
 import { useApp } from "@/src/context/AppContext";
 import { resolveImageUrl } from "@/src/utils/apiClient";
 import { getDishImageSource } from "@/src/utils/dishImages";
+import { Image } from "expo-image";
 
 type ChatMessage = {
   id: string;
@@ -23,7 +24,7 @@ const SUGGESTIONS = [
 ];
 
 export default function AIWaiterScreen() {
-  const { dishes, addToCart } = useApp();
+  const { dishes, addToCart, user } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome-1",
@@ -60,6 +61,7 @@ export default function AIWaiterScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          userEmail: user?.email || "",
           messages: messages
             .concat(userMsg)
             .map(m => ({

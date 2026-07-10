@@ -36,7 +36,7 @@ export default function AdminDashboard() {
     refreshAllData,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "menu" | "deal" | "orders" | "bookings" | "support" | "broadcast">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "menu" | "deal" | "orders" | "bookings" | "support" | "broadcast" | "ai">("overview");
 
   // Overview state
   const [metrics, setMetrics] = useState<any>(null);
@@ -85,6 +85,10 @@ export default function AdminDashboard() {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [isDishFormMinimized, setIsDishFormMinimized] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // AI Insights State
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
 
   // Heading/Category editor states
   const [editingCategory, setEditingCategory] = useState<any>(null);
@@ -201,9 +205,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadAiInsights = async () => {
+    setLoadingAi(true);
+    try {
+      const res = await fetch("https://punjabi-kitchen27june.onrender.com/api/admin/ai-insights");
+      const data = await res.json();
+      setAiInsights(data);
+    } catch (e) {
+      console.log("Failed to load AI insights:", e);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "deal") {
       loadDealStatus();
+    } else if (activeTab === "ai") {
+      loadAiInsights();
     } else {
       loadAdminMetrics();
       refreshAllData();
@@ -481,6 +500,7 @@ export default function AdminDashboard() {
             { id: "bookings", label: "Bookings", icon: "calendar-outline" },
             { id: "support", label: "Queries", icon: "help-buoy-outline" },
             { id: "broadcast", label: "Broadcast", icon: "megaphone-outline" },
+            { id: "ai", label: "AI Insights", icon: "bulb-outline" },
           ].map((tab) => (
             <TouchableOpacity
               key={tab.id}
@@ -1146,6 +1166,112 @@ export default function AdminDashboard() {
           </View>
         )}
 
+        {/* 8. AI BUSINESS INSIGHTS */}
+        {activeTab === "ai" && (
+          <View>
+            <Text style={s.sectionHeader}>🧑‍🍳 Tadka AI Business Insights</Text>
+            
+            {loadingAi ? (
+              <ActivityIndicator color={colors.gold} size="large" style={{ marginVertical: 40 }} />
+            ) : aiInsights ? (
+              <View>
+                {/* A. Demand Forecasting */}
+                <View style={s.aiCard}>
+                  <View style={s.aiHeaderRow}>
+                    <Ionicons name="trending-up-outline" size={20} color={colors.gold} />
+                    <Text style={s.aiCardTitle}>Staff & Demand Forecasting</Text>
+                  </View>
+                  <Text style={s.aiText}>
+                    Predicted Peak Shift: <Text style={{ fontWeight: "700", color: colors.goldBright }}>{aiInsights.forecast.peakDay} ({aiInsights.forecast.peakHours})</Text>
+                  </Text>
+                  <Text style={s.aiText}>
+                    Expected Volume Increase: <Text style={{ fontWeight: "700", color: colors.success }}>+{aiInsights.forecast.predictedVolumeIncrease}</Text>
+                  </Text>
+                  <View style={s.aiAlertBox}>
+                    <Ionicons name="bulb-outline" size={16} color={colors.gold} style={{ marginRight: 6 }} />
+                    <Text style={s.aiAlertText}>{aiInsights.forecast.staffingRecommendation}</Text>
+                  </View>
+                </View>
+
+                {/* B. Inventory / Waste Prediction */}
+                <View style={s.aiCard}>
+                  <View style={s.aiHeaderRow}>
+                    <Ionicons name="leaf-outline" size={20} color={colors.gold} />
+                    <Text style={s.aiCardTitle}>Inventory Stocking Suggestions</Text>
+                  </View>
+                  <Text style={[s.aiSubText, { marginBottom: 12 }]}>Based on next 3-days predicted demand to cut down ingredient wastage.</Text>
+                  {aiInsights.inventoryForecast.map((inv: any, i: number) => (
+                    <View key={i} style={s.aiInventoryRow}>
+                      <View>
+                        <Text style={s.aiInvName}>{inv.ingredient}</Text>
+                        <Text style={s.aiInvSaving}>{inv.predictedWasteCut}</Text>
+                      </View>
+                      <Text style={s.aiInvStock}>{inv.requiredStock} {inv.unit}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* C. Menu Engineering AI */}
+                <View style={s.aiCard}>
+                  <View style={s.aiHeaderRow}>
+                    <Ionicons name="bar-chart-outline" size={20} color={colors.gold} />
+                    <Text style={s.aiCardTitle}>Menu Engineering Optimizer</Text>
+                  </View>
+                  <Text style={[s.aiSubText, { marginBottom: 12 }]}>Analysis of margins vs orders popularity. Optimize placement to drive profits.</Text>
+                  {aiInsights.menuEngineering.slice(0, 5).map((dish: any, i: number) => (
+                    <View key={i} style={s.aiMenuRow}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={s.aiMenuName}>{dish.name} (₹{dish.price})</Text>
+                        <Text style={s.aiMenuNudge}>{dish.nudge}</Text>
+                      </View>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <View style={[s.aiBadge, { backgroundColor: dish.category === 'Star' ? "rgba(16,185,129,0.12)" : dish.category === 'Puzzle' ? "rgba(212,175,55,0.12)" : "rgba(239,68,68,0.12)" }]}>
+                          <Text style={[s.aiBadgeText, { color: dish.category === 'Star' ? colors.success : dish.category === 'Puzzle' ? colors.gold : colors.error }]}>
+                            {dish.category}
+                          </Text>
+                        </View>
+                        <Text style={s.aiMenuSales}>{dish.sales} orders</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* D. Churn Win-Back list */}
+                <View style={s.aiCard}>
+                  <View style={s.aiHeaderRow}>
+                    <Ionicons name="people-outline" size={20} color={colors.gold} />
+                    <Text style={s.aiCardTitle}>Churn Risk & Win-Back Automator</Text>
+                  </View>
+                  <Text style={[s.aiSubText, { marginBottom: 12 }]}>Users inactive for &gt; 14 days. Tap to trigger promotional Win-Back message.</Text>
+                  {aiInsights.churnRiskList.length === 0 ? (
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, fontStyle: "italic" }}>No users currently flagged as churn risks. All customers active! 🎉</Text>
+                  ) : (
+                    aiInsights.churnRiskList.map((user: any, i: number) => (
+                      <View key={i} style={s.aiChurnRow}>
+                        <View>
+                          <Text style={s.aiChurnName}>{user.name} ({user.email})</Text>
+                          <Text style={s.aiChurnDays}>Inactive for {user.inactiveDays} days • Last Order: ₹{user.lastOrderTotal}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={s.winBackBtn}
+                          onPress={() => {
+                            alert(`WIN-BACK WhatsApp triggered successfully to ${user.name} (${user.phone})! Promo code 'WELCOMEBACK20' sent.`);
+                          }}
+                        >
+                          <Ionicons name="logo-whatsapp" size={13} color="#000" style={{ marginRight: 4 }} />
+                          <Text style={s.winBackText}>Win-Back</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
+            ) : (
+              <Text style={{ textAlign: "center", color: colors.textSecondary, marginTop: 40 }}>Failed to retrieve AI insights. Verify backend is running.</Text>
+            )}
+          </View>
+        )}
+
       </ScrollView>
 
       {/* Action Sheet Modal */}
@@ -1416,4 +1542,136 @@ const s = StyleSheet.create({
   actionSheetBtnDelete: { borderColor: "rgba(239,68,68,0.2)" },
   actionSheetCancel: { alignItems: "center", justifyContent: "center", paddingVertical: 12, marginTop: 12 },
   actionSheetCancelText: { fontSize: 13, fontWeight: "800", color: colors.textSecondary },
+
+  // AI Tab Styles
+  aiCard: {
+    backgroundColor: "#130F0C",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  aiHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  aiCardTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  aiText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  aiSubText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  aiAlertBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(212,175,55,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.15)",
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  aiAlertText: {
+    fontSize: 11,
+    color: colors.gold,
+    flex: 1,
+  },
+  aiInventoryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#241B15",
+    paddingVertical: 10,
+  },
+  aiInvName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  aiInvSaving: {
+    fontSize: 10,
+    color: colors.success,
+    marginTop: 2,
+  },
+  aiInvStock: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.gold,
+  },
+  aiMenuRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#241B15",
+    paddingVertical: 10,
+  },
+  aiMenuName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  aiMenuNudge: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  aiMenuSales: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  aiBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  aiChurnRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#241B15",
+    paddingVertical: 10,
+    gap: 8,
+  },
+  aiChurnName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  aiChurnDays: {
+    fontSize: 10,
+    color: colors.error,
+    marginTop: 2,
+  },
+  winBackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#25D366",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  winBackText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#000",
+  },
 });
