@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
+import { useRouter } from "expo-router";
 
 type Message = {
   id: string;
@@ -12,6 +13,7 @@ type Message = {
 };
 
 export default function LiveChatScreen() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -70,6 +72,25 @@ export default function LiveChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardContainer}
       >
+        {/* Toggle between AI Waiter and Live Support */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tabButton, styles.tabButtonActive]}
+            disabled={true}
+          >
+            <Ionicons name="headset-outline" size={14} color="#000" style={{ marginRight: 6 }} />
+            <Text style={[styles.tabButtonText, styles.tabButtonTextActive]}>Live Support</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.tabButton}
+            onPress={() => router.push("/profile/support/ai-waiter")}
+          >
+            <Ionicons name="restaurant-outline" size={14} color={colors.gold} style={{ marginRight: 6 }} />
+            <Text style={styles.tabButtonText}>AI Waiter (Tadka)</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Agent Info bar */}
         <View style={styles.agentBar}>
           <View style={styles.avatar}>
@@ -295,5 +316,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
+  },
+  tabContainer: {
+    flexDirection: "row",
+    padding: 8,
+    backgroundColor: "#130F0C",
+    borderBottomWidth: 1,
+    borderColor: "#241B15",
+    gap: 8,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: "row",
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2A2017",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabButtonActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  tabButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  tabButtonTextActive: {
+    color: "#000",
   },
 });

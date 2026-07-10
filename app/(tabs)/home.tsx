@@ -2358,12 +2358,31 @@ export default function Home() {
             subtitle="Opp. Kashyap Eye Hospital, Ranchi"
           />
           <LocationSection />
-        </Animated.ScrollView>
+         </Animated.ScrollView>
 
       </Animated.View>
 
       {/* Offer detail modal — rendered at root level to avoid overflow clipping */}
       <OfferDetailModal />
+
+      {/* Floating AI Waiter Mascot Trigger Button */}
+      <Animated.View style={styles.floatingAiBtnContainer}>
+        <TouchableOpacity
+          style={styles.floatingAiBtn}
+          onPress={() => router.push("/profile/support/ai-waiter")}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={["#D4AF37", "#8A6F27"]}
+            style={styles.floatingAiBtnGradient}
+          >
+            <Text style={styles.floatingAiIcon}>🧑‍🍳</Text>
+          </LinearGradient>
+          <View style={styles.pulseTag}>
+            <Text style={styles.pulseTagText}>Tadka AI</Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -2372,4 +2391,52 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, position: "relative" },
   scroll: { zIndex: 1 },
+  floatingAiBtnContainer: {
+    position: "absolute",
+    bottom: 24,
+    right: 16,
+    zIndex: 999,
+  },
+  floatingAiBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    backgroundColor: "#130F0C",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(212,175,55,0.4)",
+  },
+  floatingAiBtnGradient: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  floatingAiIcon: {
+    fontSize: 28,
+  },
+  pulseTag: {
+    position: "absolute",
+    top: -10,
+    alignSelf: "center",
+    backgroundColor: "#D4AF37",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#000",
+  },
+  pulseTagText: {
+    fontSize: 8,
+    fontWeight: "900",
+    color: "#000",
+    textTransform: "uppercase",
+  },
 });

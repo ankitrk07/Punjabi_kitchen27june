@@ -1830,6 +1830,193 @@ app.get("/upload-tool", (req, res) => {
 </html>`);
 });
 
+function getFallbackAIResponse(userMessage: string, dishes: any[]): string {
+  const query = userMessage.toLowerCase();
+  
+  // 1. Check Veg/Non-Veg
+  const isVeg = /\b(veg|vegetarian|green|pure veg)\b/i.test(query);
+  const isNonVeg = /\b(non-veg|nonveg|chicken|mutton|egg|fish|prawn)\b/i.test(query);
+  
+  // 2. Check Budget
+  const budgetMatch = query.match(/\b(?:under|below|less than|max|budget of)?\s*(?:rs\.?|inr|₹)?\s*(\d+)\b/i);
+  const maxBudget = budgetMatch ? parseInt(budgetMatch[1]) : null;
+  
+  // 3. Check Spiciness
+  const isSpicy = /\b(spicy|hot|masala|chilly|chili|schezwan|schezuan|gravy)\b/i.test(query);
+  const isNonSpicy = /\b(mild|non-spicy|sweet|less spicy|not spicy|not too spicy)\b/i.test(query);
+  
+  // 4. Check category keywords
+  const isSoup = /\b(soup|soups)\b/i.test(query);
+  const isBread = /\b(bread|breads|roti|naan|kulcha|paratha)\b/i.test(query);
+  const isBiryani = /\b(biryani|dum biryani|matki biryani)\b/i.test(query);
+  const isRice = /\b(rice|pulao|steamed rice|fried rice)\b/i.test(query);
+  const isSweets = /\b(sweet|sweets|dessert|desserts|brownie|jamun|ice cream)\b/i.test(query);
+  const isDrinks = /\b(drink|drinks|beverage|beverages|coffee|tea|shake|shakes|soda)\b/i.test(query);
+  const isStarter = /\b(starter|starters|roll|fries|pakora|kabab|tikka|lollypop|65)\b/i.test(query);
+
+  let filtered = [...dishes];
+
+  if (isVeg) {
+    filtered = filtered.filter(d => d.veg === true);
+  } else if (isNonVeg) {
+    filtered = filtered.filter(d => d.veg === false);
+  }
+
+  if (maxBudget !== null) {
+    filtered = filtered.filter(d => d.price <= maxBudget);
+  }
+
+  if (isSoup) {
+    filtered = filtered.filter(d => d.categoryId?.includes('soup') || d.category?.includes('soup'));
+  } else if (isBread) {
+    filtered = filtered.filter(d => d.categoryId?.includes('bread') || d.category?.includes('bread'));
+  } else if (isBiryani) {
+    filtered = filtered.filter(d => d.id.toLowerCase().includes('biryani') || d.name.toLowerCase().includes('biryani'));
+  } else if (isRice) {
+    filtered = filtered.filter(d => d.categoryId?.includes('rice') || d.category?.includes('rice'));
+  } else if (isSweets) {
+    filtered = filtered.filter(d => d.categoryId?.includes('dessert') || d.category?.includes('dessert'));
+  } else if (isDrinks) {
+    filtered = filtered.filter(d => d.categoryId?.includes('beverage') || d.categoryId?.includes('shakes') || d.category?.includes('beverage') || d.category?.includes('shakes'));
+  } else if (isStarter) {
+    filtered = filtered.filter(d => d.categoryId?.includes('starter') || d.categoryId?.includes('tandoor') || d.category?.includes('starter') || d.category?.includes('tandoor'));
+  }
+
+  if (isSpicy) {
+    filtered = filtered.filter(d => d.description.toLowerCase().match(/(spicy|hot|chilly|chili|schezwan|pepper|choupsey)/i));
+  } else if (isNonSpicy) {
+    filtered = filtered.filter(d => !d.description.toLowerCase().match(/(spicy|hot|chilly|chili|schezwan|pepper)/i));
+  }
+
+  // Sort by rating
+  filtered.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
+
+  const results = filtered.slice(0, 3);
+
+  if (results.length === 0) {
+    return "I couldn't find exact matches on the menu for that, but here are some of our popular recommendations:\n\n• Dal Makhani (₹240) [DISH:Dal_Makhani] - Creamy slow-cooked whole black lentils.\n• Paneer Tikka Butter Masala (₹310) [DISH:Paneer_Tikka_Butter_Masala] - Skewered paneer in spiced gravy.\n• Tandoori Chicken (₹360) [DISH:Tandoori_Chicken] - Classic chargrilled chicken.";
+  }
+
+  let response = "I found some delicious options on our menu for you:\n\n";
+  results.forEach(d => {
+    response += `• **${d.name}** (₹${d.price}) [DISH:${d.id}]\n  ${d.description}\n\n`;
+  });
+  
+  if (isVeg) {
+    response += "All these options are 100% vegetarian. 🌱";
+  } else if (maxBudget !== null) {
+    response += `All these options are well within your ₹${maxBudget} budget! 💰`;
+  } else {
+    response += "Would you like me to add any of these to your cart? 🛒";
+  }
+
+  return response;
+}
+
+app.post("/api/ai/chat", async (req, res) => {
+  const { messages } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Messages array is required in body" });
+  }
+
+  try {
+    const dishes = await prisma.dish.findMany();
+    const categories = await prisma.category.findMany();
+
+    const token = process.env.HF_API_TOKEN;
+    const lastUserMessage = messages[messages.length - 1]?.content || "";
+
+    if (!token || token.trim() === "") {
+      console.log("[Tadka AI] HF_API_TOKEN is missing. Using local NLP fallback engine.");
+      const fallbackReply = getFallbackAIResponse(lastUserMessage, dishes);
+      return res.json({
+        choices: [{
+          message: {
+            role: "assistant",
+            content: fallbackReply
+          }
+        }],
+        fallback: true
+      });
+    }
+
+    // Format menu context
+    let menuContext = "Categories:\n";
+    categories.forEach(c => {
+      menuContext += `- ${c.name} (ID: ${c.id})\n`;
+    });
+    
+    menuContext += "\nDishes:\n";
+    dishes.forEach(d => {
+      menuContext += `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg ? 'Yes' : 'No'} | Rating: ${d.rating || 4.5} | Description: ${d.description} | Category: ${d.categoryId || d.category}\n`;
+    });
+
+    const systemPrompt = `You are "Tadka", the friendly, polite, and expert AI Waiter and Assistant for the "Punjabi Kitchen" restaurant app.
+Your goals:
+1. Help users browse the menu, recommend dishes, and find items based on budget, spiciness, vegetarian/non-vegetarian preferences, categories, or allergens.
+2. When recommending specific dishes, you MUST ALWAYS format their IDs as [DISH:dish_id] (e.g. [DISH:Paneer_Chilly]) so the app can display interactive action cards. Only use IDs from the menu below. DO NOT make up dish IDs.
+3. Be professional, concise, and polite. Always sound like a welcoming host.
+
+Here is the active restaurant menu:
+${menuContext}
+
+Guidelines:
+- If a user asks for recommendations under a specific budget (e.g., "under 300 rupees" or "less than 200"), only recommend dishes whose price is less than or equal to that number.
+- Answer allergen/dietary flags instantly based on dish descriptions (e.g., wheat/gluten inside breads, dairy inside paneer/butter, egg/prawns inside non-veg).
+- If you don't know or if a dish isn't on the menu, politely say so. Do not invent menu items.`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    try {
+      const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-3-12b-it/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          model: "google/gemma-3-12b-it",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages.slice(-6) // Only send the last 6 messages to keep context window clean
+          ],
+          max_tokens: 512,
+          temperature: 0.7
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HF API HTTP ${response.status}`);
+      }
+
+      const data: any = await response.json();
+      res.json(data);
+    } catch (apiError: any) {
+      clearTimeout(timeoutId);
+      console.error("[Tadka AI] HF API error or timeout. Falling back to local NLP engine:", apiError.message);
+      const fallbackReply = getFallbackAIResponse(lastUserMessage, dishes);
+      res.json({
+        choices: [{
+          message: {
+            role: "assistant",
+            content: fallbackReply
+          }
+        }],
+        fallback: true
+      });
+    }
+
+  } catch (error: any) {
+    console.error("AI Assistant request failed:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Punjabi Kitchen API server running at http://localhost:${PORT}`);
 });
