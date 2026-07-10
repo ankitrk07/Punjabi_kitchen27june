@@ -35,11 +35,11 @@ type ChatMessage = {
 };
 
 const SUGGESTIONS = [
-  "🔥 Spicy but not heavy?",
+  "🔥 Spicy main course",
   "🌱 Pure veg under ₹300",
   "🥜 Gluten/Allergen check",
-  "🍜 Recommended noodles",
-  "🎁 Show active offers",
+  "🎁 Active promo offers",
+  "📅 Book a table",
 ];
 
 const FormattedText = ({ text, isUser }: { text: string; isUser: boolean }) => {
@@ -52,21 +52,35 @@ const FormattedText = ({ text, isUser }: { text: string; isUser: boolean }) => {
     <View style={{ gap: 6 }}>
       {lines.map((line, idx) => {
         const trimmed = line.trim();
-        const isBullet = trimmed.startsWith("•") || trimmed.startsWith("-");
-        const cleanLine = isBullet ? trimmed.replace(/^[•\-]\s*/, "") : line;
+        if (!trimmed) {
+          return <View key={idx} style={{ height: 6 }} />;
+        }
 
-        // Parse **bold** tags
-        const parts = cleanLine.split(/(\*\*[^*]+\*\*)/g);
+        const isBullet = trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*");
+        let cleanLine = trimmed;
+        if (isBullet) {
+          cleanLine = trimmed.replace(/^[•\-\*]\s*/, "");
+        }
+
+        // Split by markdown bold tags ** or *
+        const parts = cleanLine.split(/(\*\*?[^*]+\*\*?)/g);
         
         return (
           <View key={idx} style={[styles.textLineRow, isBullet && styles.bulletLineRow]}>
             {isBullet && <Text style={styles.bulletPoint}>•</Text>}
             <Text style={styles.messageText}>
               {parts.map((part, pIdx) => {
-                const isBold = part.startsWith("**") && part.endsWith("**");
-                const cleanPart = isBold ? part.slice(2, -2) : part;
+                const isBold = (part.startsWith("**") && part.endsWith("**")) || (part.startsWith("*") && part.endsWith("*"));
+                let cleanPart = part;
+                if (isBold) {
+                  cleanPart = part.startsWith("**") ? part.slice(2, -2) : part.slice(1, -1);
+                }
 
-                // Highlight prices or currency symbols
+                // Strip any remaining rogue asterisks
+                cleanPart = cleanPart.replace(/\*/g, "").trim();
+                if (!cleanPart) return null;
+
+                // Highlight price symbols
                 if (cleanPart.includes("₹")) {
                   const priceParts = cleanPart.split(/(₹\d+)/g);
                   return priceParts.map((subPart, sIdx) => {
@@ -169,7 +183,6 @@ export default function AIWaiterScreen() {
 
       setMessages((prev) => [...prev, tadkaMsg]);
 
-      // Handle structured navigation actions returned by the backend
       if (data.navigation) {
         setTimeout(() => {
           router.push(data.navigation);
@@ -276,6 +289,7 @@ export default function AIWaiterScreen() {
           isUser ? styles.userWrapper : styles.tadkaWrapper,
         ]}
       >
+        {/* Text bubble block */}
         <View
           style={[
             styles.bubble,
@@ -283,132 +297,6 @@ export default function AIWaiterScreen() {
           ]}
         >
           <FormattedText text={msg.text} isUser={isUser} />
-
-          {/* Structured Navigation Action */}
-          {!isUser && msg.navigation && (
-            <TouchableOpacity 
-              style={styles.navCard}
-              onPress={() => router.push(msg.navigation as any)}
-            >
-              <View style={styles.navCardHeader}>
-                <Ionicons name="compass-outline" size={16} color={colors.goldBright} />
-                <Text style={styles.navCardTitle}>Quick Navigation</Text>
-              </View>
-              <Text style={styles.navCardDesc}>Tap here to open the requested page automatically.</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Structured Dish Cards */}
-          {!isUser && msg.dishes && msg.dishes.length > 0 && (
-            <View style={styles.cardsContainer}>
-              {msg.dishes.map((dish) => (
-                <View key={dish.id} style={styles.dishCard}>
-                  <Image source={getDishImageSource(dish.id, dish.image)} style={styles.dishImg} />
-                  <View style={styles.dishDetails}>
-                    <View style={styles.dishRow}>
-                      <Text style={styles.dishName} numberOfLines={1}>{dish.name}</Text>
-                      <View style={[styles.badge, { borderColor: dish.veg ? colors.success : colors.error }]}>
-                        <View style={[styles.badgeDot, { backgroundColor: dish.veg ? colors.success : colors.error }]} />
-                      </View>
-                    </View>
-                    <Text style={styles.dishDesc} numberOfLines={2}>{dish.description}</Text>
-                    <View style={styles.dishActionRow}>
-                      <Text style={styles.dishPrice}>₹{dish.price}</Text>
-                      <TouchableOpacity 
-                        style={styles.addToCartBtn} 
-                        onPress={() => {
-                          addToCart(dish);
-                          alert(`Added ${dish.name} to cart!`);
-                        }}
-                      >
-                        <Ionicons name="cart" size={12} color="#000" />
-                        <Text style={styles.addToCartText}>Add</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Structured Offer Cards */}
-          {!isUser && msg.offers && msg.offers.length > 0 && (
-            <View style={styles.cardsContainer}>
-              {msg.offers.map((offer) => (
-                <TouchableOpacity 
-                  key={offer.id} 
-                  style={styles.offerCard}
-                  onPress={() => handleCopyCode(offer.code)}
-                >
-                  <View style={styles.offerHeader}>
-                    <Ionicons name="gift-outline" size={16} color={colors.gold} />
-                    <Text style={styles.offerCodeBadge}>{offer.code}</Text>
-                  </View>
-                  <Text style={styles.offerTitle}>{offer.title}</Text>
-                  <Text style={styles.offerDesc}>{offer.desc}</Text>
-                  <Text style={styles.offerTapToCopy}>Tap to copy promo code</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Structured Reservation Cards */}
-          {!isUser && msg.reservations && msg.reservations.length > 0 && (
-            <View style={styles.cardsContainer}>
-              {msg.reservations.map((r) => (
-                <View key={r.id} style={styles.resCard}>
-                  <View style={styles.resHeader}>
-                    <Ionicons name="calendar-outline" size={16} color={colors.gold} />
-                    <Text style={styles.resTitle}>Active Table Booking</Text>
-                  </View>
-                  <View style={styles.resGrid}>
-                    <View style={styles.resGridCol}>
-                      <Text style={styles.resLabel}>DATE</Text>
-                      <Text style={styles.resVal}>{r.reservationDate}</Text>
-                    </View>
-                    <View style={styles.resGridCol}>
-                      <Text style={styles.resLabel}>SLOT</Text>
-                      <Text style={styles.resVal}>{r.reservationSlot}</Text>
-                    </View>
-                    <View style={styles.resGridCol}>
-                      <Text style={styles.resLabel}>GUESTS</Text>
-                      <Text style={styles.resVal}>{r.guests}</Text>
-                    </View>
-                    <View style={styles.resGridCol}>
-                      <Text style={styles.resLabel}>TABLE</Text>
-                      <Text style={styles.resVal}>#{r.tableNumber}</Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Structured Order Cards */}
-          {!isUser && msg.orders && msg.orders.length > 0 && (
-            <View style={styles.cardsContainer}>
-              {msg.orders.map((o) => (
-                <View key={o.id} style={styles.orderCard}>
-                  <View style={styles.orderHeader}>
-                    <Ionicons name="receipt-outline" size={16} color={colors.gold} />
-                    <Text style={styles.orderTitle}>Order ID: {o.id.slice(0, 8)}</Text>
-                    <View style={styles.orderStatusBadge}>
-                      <Text style={styles.orderStatusText}>{o.status}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.orderTotal}>Total: ₹{o.total}</Text>
-                  
-                  {/* Status Progress Line */}
-                  <View style={styles.progressLine}>
-                    <View style={[styles.progressSegment, { backgroundColor: colors.gold }]} />
-                    <View style={[styles.progressSegment, { backgroundColor: ["Preparing", "Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
-                    <View style={[styles.progressSegment, { backgroundColor: ["Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
-                    <View style={[styles.progressSegment, { backgroundColor: o.status === "Delivered" ? colors.gold : "#262626" }]} />
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
 
           {/* Speaker icon for Tadka replies */}
           {!isUser && (
@@ -425,6 +313,136 @@ export default function AIWaiterScreen() {
             </View>
           )}
         </View>
+
+        {/* Structured Cards (Rendered outside bubble for full width visual aesthetics) */}
+        {!isUser && (
+          <View style={styles.outerCardsWrapper}>
+            {/* Structured Navigation Action */}
+            {msg.navigation && (
+              <TouchableOpacity 
+                style={styles.navCard}
+                onPress={() => router.push(msg.navigation as any)}
+              >
+                <View style={styles.navCardHeader}>
+                  <Ionicons name="compass-outline" size={16} color={colors.goldBright} />
+                  <Text style={styles.navCardTitle}>Quick Navigation</Text>
+                </View>
+                <Text style={styles.navCardDesc}>Tap here to open the requested page automatically.</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Structured Dish Cards */}
+            {msg.dishes && msg.dishes.length > 0 && (
+              <View style={styles.cardsContainer}>
+                {msg.dishes.map((dish) => (
+                  <View key={dish.id} style={styles.dishCard}>
+                    <Image source={getDishImageSource(dish.id, dish.image)} style={styles.dishImg} />
+                    <View style={styles.dishDetails}>
+                      <View style={styles.dishRow}>
+                        <Text style={styles.dishName} numberOfLines={1}>{dish.name}</Text>
+                        <View style={[styles.badge, { borderColor: dish.veg ? colors.success : colors.error }]}>
+                          <View style={[styles.badgeDot, { backgroundColor: dish.veg ? colors.success : colors.error }]} />
+                        </View>
+                      </View>
+                      <Text style={styles.dishDesc} numberOfLines={2}>{dish.description}</Text>
+                      <View style={styles.dishActionRow}>
+                        <Text style={styles.dishPrice}>₹{dish.price}</Text>
+                        <TouchableOpacity 
+                          style={styles.addToCartBtn} 
+                          onPress={() => {
+                            addToCart(dish);
+                            alert(`Added ${dish.name} to cart!`);
+                          }}
+                        >
+                          <Ionicons name="cart" size={12} color="#000" />
+                          <Text style={styles.addToCartText}>Add to Cart</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Structured Offer Cards */}
+            {msg.offers && msg.offers.length > 0 && (
+              <View style={styles.cardsContainer}>
+                {msg.offers.map((offer) => (
+                  <TouchableOpacity 
+                    key={offer.id} 
+                    style={styles.offerCard}
+                    onPress={() => handleCopyCode(offer.code)}
+                  >
+                    <View style={styles.offerHeader}>
+                      <Ionicons name="gift-outline" size={16} color={colors.gold} />
+                      <Text style={styles.offerCodeBadge}>{offer.code}</Text>
+                    </View>
+                    <Text style={styles.offerTitle}>{offer.title}</Text>
+                    <Text style={styles.offerDesc}>{offer.desc}</Text>
+                    <Text style={styles.offerTapToCopy}>Tap to copy promo code</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Structured Reservation Cards */}
+            {msg.reservations && msg.reservations.length > 0 && (
+              <View style={styles.cardsContainer}>
+                {msg.reservations.map((r) => (
+                  <View key={r.id} style={styles.resCard}>
+                    <View style={styles.resHeader}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.gold} />
+                      <Text style={styles.resTitle}>Active Table Booking</Text>
+                    </View>
+                    <View style={styles.resGrid}>
+                      <View style={styles.resGridCol}>
+                        <Text style={styles.resLabel}>DATE</Text>
+                        <Text style={styles.resVal}>{r.reservationDate}</Text>
+                      </View>
+                      <View style={styles.resGridCol}>
+                        <Text style={styles.resLabel}>SLOT</Text>
+                        <Text style={styles.resVal}>{r.reservationSlot}</Text>
+                      </View>
+                      <View style={styles.resGridCol}>
+                        <Text style={styles.resLabel}>GUESTS</Text>
+                        <Text style={styles.resVal}>{r.guests}</Text>
+                      </View>
+                      <View style={styles.resGridCol}>
+                        <Text style={styles.resLabel}>TABLE</Text>
+                        <Text style={styles.resVal}>#{r.tableNumber}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Structured Order Cards */}
+            {msg.orders && msg.orders.length > 0 && (
+              <View style={styles.cardsContainer}>
+                {msg.orders.map((o) => (
+                  <View key={o.id} style={styles.orderCard}>
+                    <View style={styles.orderHeader}>
+                      <Ionicons name="receipt-outline" size={16} color={colors.gold} />
+                      <Text style={styles.orderTitle}>Order ID: {o.id.slice(0, 8)}</Text>
+                      <View style={styles.orderStatusBadge}>
+                        <Text style={styles.orderStatusText}>{o.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.orderTotal}>Total: ₹{o.total}</Text>
+                    
+                    <View style={styles.progressLine}>
+                      <View style={[styles.progressSegment, { backgroundColor: colors.gold }]} />
+                      <View style={[styles.progressSegment, { backgroundColor: ["Preparing", "Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
+                      <View style={[styles.progressSegment, { backgroundColor: ["Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
+                      <View style={[styles.progressSegment, { backgroundColor: o.status === "Delivered" ? colors.gold : "#262626" }]} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </View>
     );
   };
@@ -635,14 +653,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   bubbleWrapper: {
-    flexDirection: "row",
     width: "100%",
+    marginBottom: 8,
   },
   userWrapper: {
-    justifyContent: "flex-end",
+    alignItems: "flex-end",
   },
   tadkaWrapper: {
-    justifyContent: "flex-start",
+    alignItems: "flex-start",
   },
   bubble: {
     maxWidth: "85%",
@@ -786,8 +804,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  outerCardsWrapper: {
+    width: "100%",
+    marginTop: 8,
+    paddingRight: 40, // Keeps spacing align matching the chat bubble bounds
+  },
   cardsContainer: {
-    marginTop: 10,
     gap: 10,
     width: "100%",
   },
@@ -801,8 +823,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dishImg: {
-    width: 70,
-    height: 70,
+    width: 75,
+    height: 75,
     borderRadius: 10,
   },
   dishDetails: {
@@ -992,7 +1014,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 10,
-    marginTop: 10,
   },
   navCardHeader: {
     flexDirection: "row",
