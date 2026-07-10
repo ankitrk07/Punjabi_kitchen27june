@@ -1867,19 +1867,19 @@ function getFallbackAIResponse(userMessage: string, dishes: any[]): string {
   }
 
   if (isSoup) {
-    filtered = filtered.filter(d => d.categoryId?.includes('soup') || d.category?.includes('soup'));
+    filtered = filtered.filter(d => d.categoryId?.includes('soup'));
   } else if (isBread) {
-    filtered = filtered.filter(d => d.categoryId?.includes('bread') || d.category?.includes('bread'));
+    filtered = filtered.filter(d => d.categoryId?.includes('bread'));
   } else if (isBiryani) {
     filtered = filtered.filter(d => d.id.toLowerCase().includes('biryani') || d.name.toLowerCase().includes('biryani'));
   } else if (isRice) {
-    filtered = filtered.filter(d => d.categoryId?.includes('rice') || d.category?.includes('rice'));
+    filtered = filtered.filter(d => d.categoryId?.includes('rice'));
   } else if (isSweets) {
-    filtered = filtered.filter(d => d.categoryId?.includes('dessert') || d.category?.includes('dessert'));
+    filtered = filtered.filter(d => d.categoryId?.includes('dessert'));
   } else if (isDrinks) {
-    filtered = filtered.filter(d => d.categoryId?.includes('beverage') || d.categoryId?.includes('shakes') || d.category?.includes('beverage') || d.category?.includes('shakes'));
+    filtered = filtered.filter(d => d.categoryId?.includes('beverage') || d.categoryId?.includes('shakes'));
   } else if (isStarter) {
-    filtered = filtered.filter(d => d.categoryId?.includes('starter') || d.categoryId?.includes('tandoor') || d.category?.includes('starter') || d.category?.includes('tandoor'));
+    filtered = filtered.filter(d => d.categoryId?.includes('starter') || d.categoryId?.includes('tandoor'));
   }
 
   if (isSpicy) {
@@ -1949,7 +1949,7 @@ app.post("/api/ai/chat", async (req, res) => {
     
     menuContext += "\nDishes:\n";
     dishes.forEach(d => {
-      menuContext += `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg ? 'Yes' : 'No'} | Rating: ${d.rating || 4.5} | Description: ${d.description} | Category: ${d.categoryId || d.category}\n`;
+      menuContext += `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg ? 'Yes' : 'No'} | Rating: ${d.rating || 4.5} | Description: ${d.description} | Category: ${d.categoryId}\n`;
     });
 
     const systemPrompt = `You are "Tadka", the friendly, polite, and expert AI Waiter and Assistant for the "Punjabi Kitchen" restaurant app.
