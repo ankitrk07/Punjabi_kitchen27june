@@ -43,8 +43,38 @@ export class AIService {
     const token = process.env.HF_API_TOKEN;
 
     // 1. STAGE 1: Semantic Understanding via LLM
-    const semantic = await this.intentDetector.detectSemantic(userMessage, token);
+    const semantic = await this.intentDetector.detectSemantic(userMessage, messagesHistory, token);
     console.log('[Tadka AIService] Stage 1 Semantic Output:', semantic);
+
+    // 1.1 Confidence Check
+    if (semantic.confidence < 0.6) {
+      return {
+        text: "I want to make sure I assist you correctly! Could you please clarify what you need help with?\n\n• Ordering food 🍲\n• Booking a table 📅\n• Offers & discounts 🎁\n• Tracking my order 🛒",
+        dishes: [],
+        offers: [],
+        reservations: [],
+        orders: [],
+        navigation: null,
+        quickReplies: ["🍲 Order food", "📅 Book table", "🎁 Active offers"]
+      };
+    }
+
+    // 1.2 Missing Required Reservation Information Check
+    if (semantic.intent === "reservations" && semantic.missing && semantic.missing.length > 0) {
+      let missingQuestion = "I'd love to help you book a table! Could you please let me know:\n";
+      if (semantic.missing.includes("people")) missingQuestion += "• How many guests will be dining with us? 👥\n";
+      if (semantic.missing.includes("date")) missingQuestion += "• What date would you like to book? 📅\n";
+      if (semantic.missing.includes("time")) missingQuestion += "• What time slot/hours would you prefer? ⏰\n";
+      return {
+        text: missingQuestion.trim(),
+        dishes: [],
+        offers: [],
+        reservations: [],
+        orders: [],
+        navigation: null,
+        quickReplies: ["for 2 guests", "for 4 guests", "tomorrow evening"]
+      };
+    }
 
     // 2. STAGE 2: Business Retrieval Layer based on Inferred Filters
     let menuContext = "";
@@ -61,12 +91,12 @@ export class AIService {
     let allReservationsList: any[] = [];
 
     // Query dishes using structured semantic parameters
-    if (semantic.intent === "menu_recommendation" || semantic.category || semantic.taste) {
+    if (semantic.intent === "menu_recommendation" || semantic.intent === "menu_search" || semantic.entities.category || semantic.entities.spice) {
       const dishes = await this.menuRetriever.retrieveSemantic({
-        category: semantic.category,
-        veg: semantic.veg,
-        maxPrice: semantic.maxPrice,
-        taste: semantic.taste
+        category: (semantic.entities.category as any) || null,
+        veg: semantic.entities.veg !== undefined ? semantic.entities.veg : null,
+        maxPrice: semantic.entities.maxPrice || null,
+        taste: (semantic.entities.spice as any) || null
       });
       allDishesList = dishes;
       menuContext = dishes.map(d => `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg} | Category: ${d.categoryId} | Description: ${d.description}`).join("\n");
@@ -109,8 +139,8 @@ export class AIService {
       if (faq) faqContext = faq;
     }
 
-    if (semantic.intent === "navigation" || semantic.navigation) {
-      const route = semantic.navigation || this.navigationRetriever.retrieve(userMessage)?.route || null;
+    if (semantic.intent === "navigation" || semantic.entities.navigationTarget) {
+      const route = semantic.entities.navigationTarget || this.navigationRetriever.retrieve(userMessage)?.route || null;
       if (route) navContext = `- Action: Navigate to screen | Target Route: ${route}`;
     }
 
@@ -130,7 +160,7 @@ export class AIService {
 
     // Append LLM constraints to Stage 2 prompt to enforce reasoning based on taste profile (sweet, spicy, light, creamy)
     const refinedSystemPrompt = `${systemPrompt}\n\nAdditional Reasoning Guidelines:
-- The user expressed taste/style preferences: Category=${semantic.category || 'any'}, Taste Preference=${semantic.taste || 'any'}.
+- The user expressed taste/style preferences: Category=${semantic.entities.category || 'any'}, Taste Preference=${semantic.entities.spice || 'any'}.
 - Sort and rank recommendations strictly matching these preferences. For example, if they ask for "sweet", recommend Desserts (like Gulab Jamun, Brownie) or Shakes. NEVER recommend soups (like Sweet Corn Soup) as a dessert just because of word matching.
 - If they ask for "something light", recommend lighter items (soups, salads, clear noodles, dry tandoor bread).
 - If they ask for "spicy", recommend items matching spicy tags or Chinese Schezwan / Tikka starter lines.`;
@@ -260,7 +290,7 @@ export class AIService {
       let filteredDishes = [...dishes];
       
       // If taste is sweet, filter out soups offline
-      if (semantic.taste === "sweet") {
+      if (semantic.entities.spice === "sweet") {
         filteredDishes = filteredDishes.filter(d => !d.categoryId.includes("soup"));
       }
 
