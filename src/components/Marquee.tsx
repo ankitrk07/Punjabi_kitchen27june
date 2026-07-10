@@ -1,5 +1,12 @@
-import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import React, { useEffect } from "react";
+import { View, StyleSheet, Dimensions } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing
+} from "react-native-reanimated";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -11,95 +18,34 @@ type Props = {
 };
 
 export default function Marquee({ children, speed = 30, itemWidth, itemCount }: Props) {
-  const scrollViewRef = useRef<ScrollView>(null);
   const totalWidth = itemWidth * itemCount;
-  
-  const currentX = useRef(0);
-  const isDragging = useRef(false);
-  const animationFrameId = useRef<number | null>(null);
+  const translateX = useSharedValue(0);
+
+  // Speed is in pixels per second. Duration (ms) = (distance / speed) * 1000
+  const duration = (totalWidth / speed) * 1000;
 
   useEffect(() => {
-    let lastTime = Date.now();
+    translateX.value = 0;
+    translateX.value = withRepeat(
+      withTiming(-totalWidth, {
+        duration: duration,
+        easing: Easing.linear
+      }),
+      -1, // Infinite loop
+      false // Do not reverse, loop back to start
+    );
+  }, [totalWidth, speed, duration]);
 
-    const tick = () => {
-      const now = Date.now();
-      const delta = (now - lastTime) / 1000;
-      lastTime = now;
-
-      if (!isDragging.current && scrollViewRef.current) {
-        currentX.current += speed * delta;
-
-        if (currentX.current >= totalWidth) {
-          currentX.current -= totalWidth;
-        }
-
-        scrollViewRef.current.scrollTo({
-          x: currentX.current,
-          animated: false,
-        });
-      }
-
-      animationFrameId.current = requestAnimationFrame(tick);
-    };
-
-    animationFrameId.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (animationFrameId.current !== null) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-    };
-  }, [totalWidth, speed]);
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    let x = event.nativeEvent.contentOffset.x;
-    
-    // Infinite loop snap checks
-    if (x >= totalWidth) {
-      x -= totalWidth;
-      scrollViewRef.current?.scrollTo({ x, animated: false });
-    } else if (x < 0) {
-      x += totalWidth;
-      scrollViewRef.current?.scrollTo({ x, animated: false });
-    }
-
-    if (isDragging.current) {
-      currentX.current = x;
-    }
-  };
-
-  const handleScrollBeginDrag = () => {
-    isDragging.current = true;
-  };
-
-  const handleScrollEndDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    currentX.current = event.nativeEvent.contentOffset.x;
-    isDragging.current = false;
-  };
-
-  const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    currentX.current = event.nativeEvent.contentOffset.x;
-    isDragging.current = false;
-  };
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }]
+  }));
 
   return (
     <View style={styles.wrap}>
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={handleScroll}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onScrollEndDrag={handleScrollEndDrag}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        decelerationRate="fast"
-      >
-        <View style={styles.row}>
-          {children}
-          {children}
-        </View>
-      </ScrollView>
+      <Animated.View style={[styles.row, animatedStyle]}>
+        {children}
+        {children}
+      </Animated.View>
     </View>
   );
 }
