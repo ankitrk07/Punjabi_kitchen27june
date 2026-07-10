@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
 import { useApp } from "@/src/context/AppContext";
 import { resolveImageUrl } from "@/src/utils/apiClient";
 import { getDishImageSource } from "@/src/utils/dishImages";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type ChatMessage = {
   id: string;
@@ -24,6 +25,7 @@ const SUGGESTIONS = [
 ];
 
 export default function AIWaiterScreen() {
+  const router = useRouter();
   const { dishes, addToCart, user } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -221,9 +223,21 @@ export default function AIWaiterScreen() {
   };
 
   return (
-    <ScreenHeader title="Tadka: AI Waiter" backHref="/(tabs)/profile">
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.replace("/(tabs)/profile")}
+          style={styles.iconBtn}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.gold} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Tadka: AI Waiter</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboardContainer}
       >
         {/* Top Status */}
@@ -346,11 +360,41 @@ export default function AIWaiterScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
-    </ScreenHeader>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  header: {
+    height: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderGold,
+  },
+  headerTitle: {
+    flex: 1,
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   keyboardContainer: {
     flex: 1,
     backgroundColor: "#0A0806",
