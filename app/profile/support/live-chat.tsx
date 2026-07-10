@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "@/src/components/ScreenHeader";
 import { colors } from "@/src/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 type Message = {
   id: string;
@@ -67,9 +67,10 @@ export default function LiveChatScreen() {
   }, [messages, isTyping]);
 
   return (
-    <ScreenHeader title="Support Live Chat" backHref="/(tabs)/profile">
+    <ScreenHeader title="Support Live Chat" backHref="/(tabs)/profile" scrollable={false}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : "position"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 90}
         style={styles.keyboardContainer}
       >
         {/* Toggle between AI Waiter and Live Support */}
@@ -91,76 +92,80 @@ export default function LiveChatScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Agent Info bar */}
-        <View style={styles.agentBar}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>S</Text>
-            <View style={styles.onlineBadge} />
+        <View style={styles.pageBody}>
+          {/* Agent Info bar */}
+          <View style={styles.agentBar}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>S</Text>
+              <View style={styles.onlineBadge} />
+            </View>
+            <View style={styles.agentInfoText}>
+              <Text style={styles.agentName}>Simran • Punjabi Kitchen</Text>
+              <Text style={styles.agentStatus}>Live support for order updates, spice choices, and delivery help.</Text>
+            </View>
+            <TouchableOpacity style={styles.callIcon} onPress={() => alert("Calling Helpline...")}> 
+              <Ionicons name="call-outline" size={18} color={colors.gold} />
+            </TouchableOpacity>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.agentName}>Simran (Support Associate)</Text>
-            <Text style={styles.agentStatus}>Online • Response time: under 1 min</Text>
-          </View>
-          <TouchableOpacity style={styles.callIcon} onPress={() => alert("Calling Helpline...")}>
-            <Ionicons name="call-outline" size={18} color={colors.gold} />
-          </TouchableOpacity>
-        </View>
 
-        {/* Message Area */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messageScroll}
-          contentContainerStyle={styles.messageContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.map((msg) => (
-            <View
-              key={msg.id}
-              style={[
-                styles.bubbleWrapper,
-                msg.sender === "user" ? styles.userWrapper : styles.agentWrapper,
-              ]}
-            >
+          {/* Message Area */}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messageScroll}
+            contentContainerStyle={styles.messageContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {messages.map((msg) => (
               <View
+                key={msg.id}
                 style={[
-                  styles.bubble,
-                  msg.sender === "user" ? styles.userBubble : styles.agentBubble,
+                  styles.bubbleWrapper,
+                  msg.sender === "user" ? styles.userWrapper : styles.agentWrapper,
                 ]}
               >
-                <Text
+                <View
                   style={[
-                    styles.messageText,
-                    msg.sender === "user" ? styles.userText : styles.agentText,
+                    styles.bubble,
+                    msg.sender === "user" ? styles.userBubble : styles.agentBubble,
                   ]}
                 >
-                  {msg.text}
-                </Text>
-                <Text style={styles.timeText}>{msg.time}</Text>
+                  <Text
+                    style={[
+                      styles.messageText,
+                      msg.sender === "user" ? styles.userText : styles.agentText,
+                    ]}
+                  >
+                    {msg.text}
+                  </Text>
+                  <Text style={styles.timeText}>{msg.time}</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
 
-          {isTyping && (
-            <View style={[styles.bubbleWrapper, styles.agentWrapper]}>
-              <View style={[styles.bubble, styles.agentBubble, styles.typingBubble]}>
-                <ActivityIndicator size="small" color={colors.gold} />
-                <Text style={[styles.messageText, styles.agentText, { marginLeft: 8 }]}>
-                  Simran is typing...
-                </Text>
+            {isTyping && (
+              <View style={[styles.bubbleWrapper, styles.agentWrapper]}>
+                <View style={[styles.bubble, styles.agentBubble, styles.typingBubble]}>
+                  <ActivityIndicator size="small" color={colors.gold} />
+                  <Text style={[styles.messageText, styles.agentText, { marginLeft: 8 }]}> 
+                    Simran is typing...
+                  </Text>
+                </View>
               </View>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
+        </View>
 
         {/* Input Bar */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
-            placeholder="Type your message here..."
+            placeholder="Ask about your order, menu or delivery..."
             placeholderTextColor={colors.textSecondary}
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={sendMessage}
+            returnKeyType="send"
           />
           <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} activeOpacity={0.8}>
             <Ionicons name="send" size={18} color="#000" />
@@ -174,26 +179,28 @@ export default function LiveChatScreen() {
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    height: 520, // Provides a bounded height to render within ScreenHeader's ScrollView
+  },
+  pageBody: {
+    flex: 1,
   },
   agentBar: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
-    padding: 12,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(212, 175, 55, 0.2)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(212, 175, 55, 0.18)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
     position: "relative",
   },
   avatarText: {
@@ -212,21 +219,25 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.surface,
   },
+  agentInfoText: {
+    flex: 1,
+  },
   agentName: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.textPrimary,
   },
   agentStatus: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,
+    lineHeight: 18,
   },
   callIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.06)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -234,14 +245,15 @@ const styles = StyleSheet.create({
   },
   messageScroll: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.01)",
-    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 16,
   },
   messageContent: {
-    padding: 12,
+    padding: 16,
+    paddingBottom: 22,
   },
   bubbleWrapper: {
     flexDirection: "row",

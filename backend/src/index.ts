@@ -1830,22 +1830,76 @@ app.get("/upload-tool", (req, res) => {
 </html>`);
 });
 
-function getFallbackAIResponse(userMessage: string, dishes: any[]): string {
+async function getFallbackAIResponseWithContext(userMessage: string, dishes: any[], userEmail?: string): Promise<string> {
   const query = userMessage.toLowerCase();
-  
-  // 1. Check Veg/Non-Veg
+
+  // 1. Check for Active Bookings / Reservations queries
+  if (/\b(booking|bookings|reservation|reservations|table|booked)\b/i.test(query)) {
+    if (!userEmail || userEmail.trim() === "") {
+      return "To see your active bookings, please make sure you are logged into your account. Let me know if you need help with anything else!";
+    }
+    const user = await prisma.user.findUnique({
+      where: { email: userEmail },
+      include: { reservations: { where: { status: "Active" } } }
+    });
+    if (!user || !user.reservations || user.reservations.length === 0) {
+      return `Hello ${user?.name || "there"}! I checked our system and you don't have any active table reservations at the moment. Would you like me to guide you to the booking tab? 📅`;
+    }
+    let resMsg = `Hello ${user.name}! I found your active table reservation:\n`;
+    user.reservations.forEach(r => {
+      resMsg += `\n📅 **Table Reservation Details**:\n• **Date**: ${r.reservationDate}\n• **Time Slot**: ${r.reservationSlot}\n• **Table Number**: #${r.tableNumber}\n• **Guests**: ${r.guests}\n• **Occasion**: ${r.occasion || "Casual Dine-in"}\n`;
+    });
+    return resMsg;
+  }
+
+  // 2. Check for Favorites
+  if (/\b(favorite|favorites|favourite|favourites|my fav|my favorite)\b/i.test(query)) {
+    if (!userEmail || userEmail.trim() === "") {
+      return "Log in to view your culinary favorites! I can recommend some amazing options once I know your tastes.";
+    }
+    const user = await prisma.user.findUnique({ where: { email: userEmail } });
+    if (!user || !user.favorites || user.favorites.length === 0) {
+      return `Hey ${user?.name || "there"}! You haven't added any dishes to your favorites yet. Tap the heart icon on any dish, and I will remember it here! \n\nIn the meantime, some of our crowd favorites are Paneer Tikka (₹270) [DISH:Paneer_Tikka_] or Dal Makhani (₹240) [DISH:Dal_Makhani]!`;
+    }
+    
+    const favDishes = dishes.filter(d => user.favorites.includes(d.id));
+    if (favDishes.length === 0) {
+      return "I couldn't load your favorite dishes on the menu right now. What type of food are you in the mood for?";
+    }
+
+    let favMsg = `Here are your absolute favorite dishes from Punjabi Kitchen:\n\n`;
+    favDishes.forEach(d => {
+      favMsg += `• **${d.name}** (₹${d.price}) [DISH:${d.id}]\n  ${d.description}\n\n`;
+    });
+    favMsg += "Would you like me to add one of your favorites to the cart? 🛒";
+    return favMsg;
+  }
+
+  // 3. Check for Active Offers
+  if (/\b(offer|offers|deal|deals|promo|coupon|coupons|discount|discounts)\b/i.test(query)) {
+    const renderedOffers = OFFERS.map((offer) => `• **${offer.title}**: ${offer.code} — ${offer.desc}`).join("\n");
+    return `Here are the active promo codes and offers available today at Punjabi Kitchen:\n\n${renderedOffers}\n\nSimply apply any of these codes at checkout to claim your savings! 💰`;
+  }
+
+  // 4. Check for spicy but not heavy / spicy but light
+  if (/\b(spicy\s+but\s+(?:not\s+too\s+heavy|light|not\s+heavy|not\s+greasy))\b/i.test(query) || (/\bspicy\b/i.test(query) && /\b(light|heavy)\b/i.test(query))) {
+    return `Looking for a kick but want to keep it light on the stomach? Here are some spicy yet non-greasy options:\n\n• **Chilli Paneer Dry** (₹260) [DISH:Chilli_Paneer_Dry]\n  Wok-tossed paneer cubes in spicy soy-chilli glaze.\n\n• **Chilli Mushrooms** (₹260) [DISH:Chilli_Mushrooms]\n  Crispy wok-tossed mushrooms with peppers.\n\n• **Veg Schezwan Noodles** (₹200) [DISH:Veg_Schezwan_Noodles]\n  Thin noodles stir-fried in hot fiery Schezwan sauce.\n\nAll of these are spicy and delicious without heavy cream or rich cashew gravy! 🌶️`;
+  }
+
+  // 5. Standard filtering
+  // Check Veg/Non-Veg
   const isVeg = /\b(veg|vegetarian|green|pure veg)\b/i.test(query);
   const isNonVeg = /\b(non-veg|nonveg|chicken|mutton|egg|fish|prawn)\b/i.test(query);
   
-  // 2. Check Budget
+  // Check Budget
   const budgetMatch = query.match(/\b(?:under|below|less than|max|budget of)?\s*(?:rs\.?|inr|₹)?\s*(\d+)\b/i);
   const maxBudget = budgetMatch ? parseInt(budgetMatch[1]) : null;
   
-  // 3. Check Spiciness
+  // Check Spiciness
   const isSpicy = /\b(spicy|hot|masala|chilly|chili|schezwan|schezuan|gravy)\b/i.test(query);
   const isNonSpicy = /\b(mild|non-spicy|sweet|less spicy|not spicy|not too spicy)\b/i.test(query);
   
-  // 4. Check category keywords
+  // Check category keywords
   const isSoup = /\b(soup|soups)\b/i.test(query);
   const isBread = /\b(bread|breads|roti|naan|kulcha|paratha)\b/i.test(query);
   const isBiryani = /\b(biryani|dum biryani|matki biryani)\b/i.test(query);
@@ -1894,7 +1948,7 @@ function getFallbackAIResponse(userMessage: string, dishes: any[]): string {
   const results = filtered.slice(0, 3);
 
   if (results.length === 0) {
-    return "I couldn't find exact matches on the menu for that, but here are some of our popular recommendations:\n\n• Dal Makhani (₹240) [DISH:Dal_Makhani] - Creamy slow-cooked whole black lentils.\n• Paneer Tikka Butter Masala (₹310) [DISH:Paneer_Tikka_Butter_Masala] - Skewered paneer in spiced gravy.\n• Tandoori Chicken (₹360) [DISH:Tandoori_Chicken] - Classic chargrilled chicken.";
+    return "I couldn't find exact matches on the menu for that, but here are some of our popular recommendations:\n\n• **Dal Makhani** (₹240) [DISH:Dal_Makhani] - Creamy slow-cooked whole black lentils.\n• **Paneer Tikka Butter Masala** (₹310) [DISH:Paneer_Tikka_Butter_Masala] - Skewered paneer in spiced gravy.\n• **Tandoori Chicken** (₹360) [DISH:Tandoori_Chicken] - Classic chargrilled chicken.";
   }
 
   let response = "I found some delicious options on our menu for you:\n\n";
@@ -1962,17 +2016,14 @@ app.post("/api/ai/chat", async (req, res) => {
       }
     }
 
-    const offersContext = `\nActive Promo Codes & Offers Today:
-- Code: PKFEST15 | 15% OFF on orders above ₹500
-- Code: LUNCH100 | Flat ₹100 OFF on weekday lunch orders above ₹600
-- Code: FREEDEL | FREE DELIVERY on orders above ₹400`;
+    const offersContext = `\nActive Promo Codes & Offers Today:\n${OFFERS.map((offer) => `- ID: ${offer.id} | Code: ${offer.code} | ${offer.title} | ${offer.desc}`).join("\n")}`;
 
     const token = process.env.HF_API_TOKEN;
     const lastUserMessage = messages[messages.length - 1]?.content || "";
 
     if (!token || token.trim() === "") {
       console.log("[Tadka AI] HF_API_TOKEN is missing. Using local NLP fallback engine.");
-      const fallbackReply = getFallbackAIResponse(lastUserMessage, dishes);
+      const fallbackReply = await getFallbackAIResponseWithContext(lastUserMessage, dishes, userEmail);
       return res.json({
         choices: [{
           message: {
@@ -2001,6 +2052,7 @@ Your goals:
 2. When recommending specific dishes, you MUST ALWAYS format their IDs as [DISH:dish_id] (e.g. [DISH:Paneer_Chilly]) so the app can display interactive action cards. Only use IDs from the menu below. DO NOT make up dish IDs.
 3. Be professional, concise, and polite. Always sound like a welcoming host.
 4. Recommend smart pairings based on standard combinations (e.g., if ordering main course gravy, recommend Garlic Naan or Roti; if ordering noodles, suggest a Chinese starter; if ordering spicy starters, recommend a cold Shake or Soda to wash it down).
+5. When recommending an active promotion, refer to it by its ID using [OFFER:offer_id] and only use IDs from the offer list below.
 
 Here is the active restaurant menu:
 ${menuContext}
@@ -2046,7 +2098,7 @@ Guidelines:
     } catch (apiError: any) {
       clearTimeout(timeoutId);
       console.error("[Tadka AI] HF API error or timeout. Falling back to local NLP engine:", apiError.message);
-      const fallbackReply = getFallbackAIResponse(lastUserMessage, dishes);
+      const fallbackReply = await getFallbackAIResponseWithContext(lastUserMessage, dishes, userEmail);
       res.json({
         choices: [{
           message: {

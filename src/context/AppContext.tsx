@@ -1,5 +1,6 @@
 import { CATEGORIES, DISHES } from "@/src/data/menu";
 import type { Category, Dish } from "@/src/data/menu";
+import type { OfferData } from "@/src/utils/apiClient";
 import { storage } from "@/src/utils/storage";
 import { apiClient } from "@/src/utils/apiClient";
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -111,6 +112,7 @@ type AppState = {
   notifications: NotificationItem[];
   dishes: Dish[];
   categories: Category[];
+  offers: OfferData[];
   cartBumpAnim: Animated.Value;
   signIn: (u: User) => Promise<void>;
   signOut: () => Promise<void>;
@@ -175,6 +177,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cateringRequests, setCateringRequests] = useState<CateringItem[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [offers, setOffers] = useState<OfferData[]>([]);
   const cartBumpAnim = useRef(new Animated.Value(0)).current;
 
   const loadData = async (u: User) => {
@@ -210,6 +213,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 6. Load notifications (Admin loads all, user loads public+targeted)
       const apiNotifs = await apiClient.getNotifications(isUserAdmin ? undefined : u.email).catch(() => []);
       setNotifications(apiNotifs);
+
+      // 7. Load active offers
+      const apiOffers = await apiClient.getOffers().catch(() => []);
+      setOffers(apiOffers);
     } catch (err) {
       console.log("Error loading fresh app data:", err);
     }
@@ -260,16 +267,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         // Not logged in: fetch public content
         try {
-          const [cats, dishs, apiOrders, apiNotifs] = await Promise.all([
+          const [cats, dishs, apiOrders, apiNotifs, apiOffers] = await Promise.all([
             apiClient.getCategories().catch(() => []),
             apiClient.getDishes().catch(() => []),
             apiClient.getOrders().catch(() => []),
             apiClient.getNotifications().catch(() => []),
+            apiClient.getOffers().catch(() => []),
           ]);
           if (cats.length > 0) setCategories(cats);
           if (dishs.length > 0) setDishes(dishs);
           setOrders(apiOrders);
           setNotifications(apiNotifs);
+          setOffers(apiOffers);
         } catch (e) {
           console.log("Failed to sync public dynamic content:", e);
         }
@@ -335,6 +344,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notifications,
     dishes,
     categories,
+    offers,
     cartBumpAnim,
     highlightedDishId,
     setHighlightedDishId,

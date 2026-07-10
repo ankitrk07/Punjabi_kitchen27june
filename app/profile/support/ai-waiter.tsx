@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/src/theme";
 import { useApp } from "@/src/context/AppContext";
-import { resolveImageUrl } from "@/src/utils/apiClient";
 import { getDishImageSource } from "@/src/utils/dishImages";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -22,11 +21,12 @@ const SUGGESTIONS = [
   "🌱 Pure veg under ₹300",
   "🥜 Gluten/Allergen check",
   "🍜 Recommended noodles",
+  "🎁 Show active offers",
 ];
 
 export default function AIWaiterScreen() {
   const router = useRouter();
-  const { dishes, addToCart, user } = useApp();
+  const { dishes, offers, addToCart, user } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome-1",
@@ -37,6 +37,7 @@ export default function AIWaiterScreen() {
   ]);
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>(SUGGESTIONS);
   const [isDictating, setIsDictating] = useState(false);
   const [isVoicePlaybackEnabled, setIsVoicePlaybackEnabled] = useState(true);
   const [dictationText, setDictationText] = useState("Listening...");
@@ -75,6 +76,13 @@ export default function AIWaiterScreen() {
 
       const data = await response.json();
       const replyText = data.choices?.[0]?.message?.content || "I apologize, but I am having trouble connecting to the kitchen. Can you repeat that?";
+      if (offers.length > 0 && suggestions.length === SUGGESTIONS.length) {
+        setSuggestions((prev) => [
+          `Show active offers`,
+          ...(offers.slice(0, 2).map((offer) => `${offer.title} (${offer.code})`)),
+          ...prev.slice(0, 2),
+        ]);
+      }
       
       const tadkaMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -173,17 +181,33 @@ export default function AIWaiterScreen() {
     }, 100);
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    if (offers.length > 0) {
+      setSuggestions((prev) => {
+        const offerSuggestions = offers.slice(0, 2).map((offer) => `${offer.title} (${offer.code})`);
+        const base = prev.filter((item) => !item.includes("Show active offers") && !offerSuggestions.includes(item));
+        return ["🎁 Show active offers", ...offerSuggestions, ...base.slice(0, 2)];
+      });
+    }
+  }, [offers]);
+
   const renderMessageContent = (text: string) => {
     // Regex to match [DISH:id] format
     const dishRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
-    const cleanText = text.replace(dishRegex, "");
+    const offerRegex = /\[OFFER:([A-Za-z0-9_\-\(\)]+)\]/g;
+    const cleanText = text.replace(dishRegex, "").replace(offerRegex, "");
     
-    // Extract dish recommendations
-    const matches: string[] = [];
+    // Extract dish and offer recommendations
+    const dishMatches: string[] = [];
+    const offerMatches: string[] = [];
     let match;
-    const searchRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
-    while ((match = searchRegex.exec(text)) !== null) {
-      matches.push(match[1]);
+    const searchDishRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
+    while ((match = searchDishRegex.exec(text)) !== null) {
+      dishMatches.push(match[1]);
+    }
+    const searchOfferRegex = /\[OFFER:([A-Za-z0-9_\-\(\)]+)\]/g;
+    while ((match = searchOfferRegex.exec(text)) !== null) {
+      offerMatches.push(match[1]);
     }
 
     return (
@@ -238,6 +262,7 @@ export default function AIWaiterScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 70}
         style={styles.keyboardContainer}
       >
         {/* Top Status */}
@@ -259,12 +284,27 @@ export default function AIWaiterScreen() {
           </TouchableOpacity>
         </View>
 
+        {offers.length > 0 && (
+          <View style={styles.offerStrip}>
+            <Text style={styles.offerStripLabel}>Active offers</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.offerScroll}>
+              {offers.map((offer) => (
+                <View key={offer.id} style={styles.offerCard}>
+                  <Text style={styles.offerTitle}>{offer.title}</Text>
+                  <Text style={styles.offerCode}>{offer.code}</Text>
+                  <Text style={styles.offerDesc} numberOfLines={2}>{offer.desc}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Suggested Queries */}
         {messages.length === 1 && (
           <View style={styles.suggestionsContainer}>
             <Text style={styles.suggestionsTitle}>Quick Suggestions:</Text>
             <View style={styles.suggestionsRow}>
-              {SUGGESTIONS.map((sug, i) => (
+              {suggestions.map((sug, i) => (
                 <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.replace(/[🌱🔥🥜🍜]/g, '').trim())}>
                   <Text style={styles.suggestionText}>{sug}</Text>
                 </TouchableOpacity>
@@ -478,6 +518,48 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 12,
     color: colors.textPrimary,
+  },
+  offerStrip: {
+    paddingVertical: 12,
+    paddingLeft: 16,
+    backgroundColor: "#110B08",
+    borderBottomWidth: 1,
+    borderColor: "#241B15",
+  },
+  offerStripLabel: {
+    fontSize: 12,
+    color: colors.gold,
+    marginBottom: 10,
+    fontWeight: "700",
+  },
+  offerScroll: {
+    gap: 12,
+    paddingRight: 16,
+  },
+  offerCard: {
+    minWidth: 170,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "#1F1711",
+    borderWidth: 1,
+    borderColor: "#2A2017",
+  },
+  offerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  offerCode: {
+    fontSize: 12,
+    color: colors.gold,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  offerDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
   messageScroll: {
     flex: 1,
