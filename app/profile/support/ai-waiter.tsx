@@ -328,46 +328,47 @@ export default function AIWaiterScreen() {
     const isUser = msg.sender === "user";
 
     return (
-      <View
-        key={msg.id}
-        style={[
-          styles.bubbleWrapper,
-          isUser ? styles.userWrapper : styles.tadkaWrapper,
-        ]}
-      >
-        {/* Avatar design for AI */}
-        {!isUser && (
-          <View style={styles.bubbleAvatar}>
-            <Text style={styles.bubbleAvatarText}>🧑‍🍳</Text>
-          </View>
-        )}
-
-        {/* Text bubble block */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onLongPress={() => handleCopyText(msg.text)}
+      <View key={msg.id} style={{ width: "100%", marginBottom: 12 }}>
+        <View
           style={[
-            styles.bubble,
-            isUser ? styles.userBubble : styles.tadkaBubble,
+            styles.bubbleWrapper,
+            isUser ? styles.userWrapper : styles.tadkaWrapper,
           ]}
         >
-          <FormattedText text={msg.text} isUser={isUser} />
-
-          {/* Speaker icon for Tadka replies */}
-          {!isUser && msg.text.length > 0 && (
-            <View style={styles.bubbleFooter}>
-              <TouchableOpacity style={styles.speakerBtn} onPress={() => speakMessage(msg)}>
-                <Ionicons 
-                  name={msg.isSpeaking ? "radio-outline" : "volume-low-outline"} 
-                  size={16} 
-                  color={msg.isSpeaking ? colors.goldBright : colors.textSecondary} 
-                />
-                {msg.isSpeaking && <Text style={styles.speakingText}>Speaking...</Text>}
-              </TouchableOpacity>
-              <Text style={styles.bubbleTime}>{msg.time}</Text>
+          {/* Avatar design for AI */}
+          {!isUser && (
+            <View style={styles.bubbleAvatar}>
+              <Text style={styles.bubbleAvatarText}>🧑‍🍳</Text>
             </View>
           )}
-        </TouchableOpacity>
+
+          {/* Text bubble block */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={() => handleCopyText(msg.text)}
+            style={[
+              styles.bubble,
+              isUser ? styles.userBubble : styles.tadkaBubble,
+            ]}
+          >
+            <FormattedText text={msg.text} isUser={isUser} />
+
+            {/* Speaker icon for Tadka replies */}
+            {!isUser && msg.text.length > 0 && (
+              <View style={styles.bubbleFooter}>
+                <TouchableOpacity style={styles.speakerBtn} onPress={() => speakMessage(msg)}>
+                  <Ionicons 
+                    name={msg.isSpeaking ? "radio-outline" : "volume-low-outline"} 
+                    size={16} 
+                    color={msg.isSpeaking ? colors.goldBright : colors.textSecondary} 
+                  />
+                  {msg.isSpeaking && <Text style={styles.speakingText}>Speaking...</Text>}
+                </TouchableOpacity>
+                <Text style={styles.bubbleTime}>{msg.time}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
         {/* Structured Cards (Rendered outside bubble for full width visual aesthetics) */}
         {!isUser && (
