@@ -518,8 +518,8 @@ export default function AIWaiterScreen() {
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         style={styles.keyboardContainer}
       >
         {/* Top Status */}
@@ -612,18 +612,20 @@ export default function AIWaiterScreen() {
 
         {/* Input Bar */}
         <View style={styles.inputBar}>
-          <TouchableOpacity style={styles.micBtn} onPress={handleDictationStart}>
-            <Ionicons name="mic" size={20} color={colors.gold} />
-          </TouchableOpacity>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Ask: 'Any chicken starter under ₹200?'"
-            placeholderTextColor={colors.textSecondary}
-            value={inputText}
-            onChangeText={setInputText}
-            onSubmitEditing={() => handleSend()}
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Ask: 'Any chicken starter under ₹200?'"
+              placeholderTextColor={colors.textSecondary}
+              value={inputText}
+              onChangeText={setInputText}
+              onSubmitEditing={() => handleSend()}
+            />
+            
+            <TouchableOpacity style={styles.micBtn} onPress={handleDictationStart}>
+              <Ionicons name="mic" size={20} color={colors.gold} />
+            </TouchableOpacity>
+          </View>
           
           <TouchableOpacity style={styles.sendBtn} onPress={() => handleSend()}>
             <Ionicons name="send" size={18} color="#000" />
@@ -960,37 +962,41 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.bg,
     borderTopWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
-    gap: 10,
+    gap: 8,
   },
-  micBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  inputContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  micBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bg,
   },
   input: {
     flex: 1,
-    height: 42,
-    backgroundColor: colors.bg,
-    borderRadius: 21,
-    paddingHorizontal: 16,
     color: colors.textPrimary,
     fontSize: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
+    height: "100%",
   },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
