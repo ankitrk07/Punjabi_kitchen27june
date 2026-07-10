@@ -1,297 +1,140 @@
-import { NAVIGATION_TARGETS, findNavigationTarget } from "./navigationMap";
-import type {
-  AssistantDependencies,
-  DishRecord,
-  FaqRecord,
-  OfferRecord,
-  OrderRecord,
-  ReservationRecord,
-  ResolvedIntent,
-  RetrievalBundle,
-  UserProfileRecord,
-} from "./types";
+import { PrismaClient } from "@prisma/client";
 
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((token) => token.length > 1);
-}
-
-function summarizeOrderItems(rawItems: unknown): string[] {
-  if (!Array.isArray(rawItems)) {
-    return [];
+export class MenuRetriever {
+  private prisma: PrismaClient;
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
   }
 
-  return rawItems
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return null;
-      }
+  async retrieve(filters: {
+    query?: string;
+    maxBudget?: number;
+    veg?: boolean;
+    spicy?: boolean;
+  }) {
+    const allDishes = await this.prisma.dish.findMany();
+    let results = [...allDishes];
 
-      const safeItem = item as { name?: string; qty?: number };
-      const name = safeItem.name || "Item";
-      const qty = safeItem.qty || 1;
-      return `${qty} x ${name}`;
-    })
-    .filter((entry): entry is string => !!entry);
+    if (filters.veg !== undefined) {
+      results = results.filter(d => d.veg === filters.veg);
+    }
+    if (filters.maxBudget !== undefined) {
+      results = results.filter(d => d.price <= filters.maxBudget!);
+    }
+    if (filters.spicy !== undefined) {
+      results = results.filter(d => {
+        const matchesSpicy = d.description.toLowerCase().match(/(spicy|hot|chilly|chili|schezwan|pepper)/i);
+        return filters.spicy ? !!matchesSpicy : !matchesSpicy;
+      });
+    }
+    if (filters.query) {
+      const q = filters.query.toLowerCase();
+      results = results.filter(d => {
+        const dishNameLower = d.name.toLowerCase();
+        // Check if the query contains the full dish name or ingredients/words of the dish name
+        if (q.includes(dishNameLower)) return true;
+        
+        const words = dishNameLower.split(/[\s_\-\(\)]+/).filter(w => w.length > 2);
+        return words.some(w => q.includes(w));
+      });
+    }
+
+    // Sort by rating desc
+    results.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
+    return results.slice(0, 3);
+  }
 }
 
-function getFaqRecords(): FaqRecord[] {
-  return [
-    {
-      id: "delivery_help",
-      title: "Delivery Help",
-      answer: "You can track a live delivery from the Orders section, and support is available from the Help Center or Live Chat screens.",
-    },
-    {
-      id: "refund_help",
-      title: "Refund Help",
-      answer: "Refund and payment history are available from the profile payments section, and order-specific help is available from support.",
-    },
-    {
-      id: "reservation_help",
-      title: "Reservations",
-      answer: "Table bookings and reservation updates are managed from the Reserves tab and reservation history screens.",
-    },
+export class OfferRetriever {
+  async retrieve() {
+    // Dynamic offers list
+    return [
+      { id: "pkfest15", code: "PKFEST15", title: "15% Festival Off", desc: "Get 15% off on all orders above ₹500", minCart: 500 },
+      { id: "lunch100", code: "LUNCH100", title: "Flat ₹100 Off", desc: "Save ₹100 flat on weekday lunch orders above ₹600", minCart: 600 },
+      { id: "freedel", code: "FREEDEL", title: "Free Delivery", desc: "Enjoy zero delivery fees on orders above ₹400", minCart: 400 }
+    ];
+  }
+}
+
+export class OrderRetriever {
+  private prisma: PrismaClient;
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
+  async retrieve(userEmail: string) {
+    if (!userEmail) return [];
+    return await this.prisma.order.findMany({
+      where: { userEmail },
+      orderBy: { createdAt: "desc" },
+      take: 2
+    });
+  }
+}
+
+export class ReservationRetriever {
+  private prisma: PrismaClient;
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
+  async retrieve(userEmail: string) {
+    if (!userEmail) return [];
+    return await this.prisma.reservation.findMany({
+      where: { userEmail, status: "Active" },
+      orderBy: { createdAt: "desc" },
+      take: 2
+    });
+  }
+}
+
+export class UserRetriever {
+  private prisma: PrismaClient;
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
+
+  async retrieve(userEmail: string) {
+    if (!userEmail) return null;
+    return await this.prisma.user.findUnique({
+      where: { email: userEmail }
+    });
+  }
+}
+
+export class NavigationRetriever {
+  private routes = [
+    { phrase: "cart", route: "/cart" },
+    { phrase: "basket", route: "/cart" },
+    { phrase: "profile", route: "/(tabs)/profile" },
+    { phrase: "account", route: "/(tabs)/profile" },
+    { phrase: "home", route: "/(tabs)/home" },
+    { phrase: "menu", route: "/(tabs)/home" },
+    { phrase: "bookings", route: "/(tabs)/profile" },
+    { phrase: "reservations", route: "/(tabs)/profile" },
+    { phrase: "offers", route: "/profile/offers" },
+    { phrase: "coupon", route: "/profile/offers" }
   ];
+
+  retrieve(query: string) {
+    const q = query.toLowerCase();
+    const match = this.routes.find(r => q.includes(r.phrase));
+    return match ? { route: match.route, action: `Navigate to ${match.phrase}` } : null;
+  }
 }
 
-async function getPopularityMap(deps: AssistantDependencies): Promise<Map<string, number>> {
-  const orders = await deps.prisma.order.findMany({
-    take: 120,
-    orderBy: { createdAt: "desc" },
-    select: { items: true },
-  });
+export class FAQRetriever {
+  private faqs = [
+    { q: "timings", a: "Punjabi Kitchen is open daily from 11:00 AM to 11:00 PM." },
+    { q: "hours", a: "We serve customers between 11:00 AM and 11:00 PM every day of the week." },
+    { q: "refund", a: "Refunds for cancelled orders are processed back to the original payment method within 5-7 business days." },
+    { q: "delivery", a: "We deliver within a 8km radius of रांची Opp. Kashyap Eye Hospital. Delivery is free for orders above ₹400." },
+    { q: "contact", a: "You can call us directly at +91 99887 76655 or email support@punjabikitchen.com." }
+  ];
 
-  const popularityMap = new Map<string, number>();
-
-  for (const order of orders) {
-    for (const item of summarizeOrderItems(order.items)) {
-      const parts = item.split(" x ");
-      const name = parts.length > 1 ? parts[1] : parts[0];
-      popularityMap.set(name.toLowerCase(), (popularityMap.get(name.toLowerCase()) || 0) + 1);
-    }
+  retrieve(query: string) {
+    const q = query.toLowerCase();
+    const match = this.faqs.find(f => q.includes(f.q));
+    return match ? match.a : null;
   }
-
-  return popularityMap;
-}
-
-function scoreDish(dish: DishRecord, query: string, intent: ResolvedIntent, queryTokens: string[]): number {
-  const haystack = `${dish.name} ${dish.description} ${dish.categoryName || ""}`.toLowerCase();
-  let score = 0;
-
-  for (const token of queryTokens) {
-    if (haystack.includes(token)) {
-      score += 3;
-    }
-    if (dish.name.toLowerCase().includes(token)) {
-      score += 5;
-    }
-    if ((dish.categoryName || "").toLowerCase().includes(token)) {
-      score += 2;
-    }
-  }
-
-  if (intent.vegOnly && dish.veg) {
-    score += 4;
-  }
-
-  if (intent.nonVegOnly && !dish.veg) {
-    score += 4;
-  }
-
-  if (intent.wantsSpicy && /spicy|hot|schezwan|achari|masala|chilli|pepper/i.test(dish.description)) {
-    score += 4;
-  }
-
-  if (intent.wantsMild && !/spicy|hot|schezwan|achari|masala|chilli|pepper/i.test(dish.description)) {
-    score += 3;
-  }
-
-  if (intent.budgetMax !== undefined && dish.price <= intent.budgetMax) {
-    score += 3;
-  }
-
-  if (/\b(popular|best|top|recommend)\b/i.test(query)) {
-    score += dish.popularityScore || 0;
-    score += dish.rating || 0;
-  }
-
-  if (dish.rating) {
-    score += dish.rating / 2;
-  }
-
-  return score;
-}
-
-async function retrieveMenu(deps: AssistantDependencies, intent: ResolvedIntent): Promise<DishRecord[]> {
-  const [categories, dishes, popularityMap] = await Promise.all([
-    deps.prisma.category.findMany(),
-    deps.prisma.dish.findMany(),
-    getPopularityMap(deps),
-  ]);
-
-  const categoryMap = new Map(categories.map((category) => [category.id, category.name]));
-  const hydratedDishes: DishRecord[] = dishes.map((dish) => ({
-    ...dish,
-    categoryName: categoryMap.get(dish.categoryId) || "Menu",
-    popularityScore: popularityMap.get(dish.name.toLowerCase()) || 0,
-  }));
-
-  let filtered = [...hydratedDishes];
-
-  if (intent.vegOnly && !intent.nonVegOnly) {
-    filtered = filtered.filter((dish) => dish.veg);
-  }
-
-  if (intent.nonVegOnly && !intent.vegOnly) {
-    filtered = filtered.filter((dish) => !dish.veg);
-  }
-
-  if (intent.budgetMax !== undefined) {
-    filtered = filtered.filter((dish) => dish.price <= intent.budgetMax!);
-  }
-
-  const queryTokens = tokenize(intent.resolvedMessage);
-  filtered = filtered
-    .map((dish) => ({ dish, score: scoreDish(dish, intent.resolvedMessage, intent, queryTokens) }))
-    .filter((entry) => entry.score > 0 || intent.intent === "menu_recommendation")
-    .sort((left, right) => right.score - left.score || right.dish.price - left.dish.price)
-    .map((entry) => entry.dish);
-
-  if (intent.intent === "dish_details" && filtered.length > 0) {
-    return filtered.slice(0, 1);
-  }
-
-  return filtered.slice(0, 6);
-}
-
-async function retrieveOffers(deps: AssistantDependencies, intent: ResolvedIntent): Promise<OfferRecord[]> {
-  const query = intent.resolvedMessage.toLowerCase();
-  const filtered = deps.offers.filter((offer) => {
-    const haystack = `${offer.title} ${offer.code} ${offer.desc}`.toLowerCase();
-    return haystack.includes(query) || /\boffer|coupon|deal|discount|promo\b/.test(query);
-  });
-
-  return (filtered.length > 0 ? filtered : deps.offers).slice(0, 4);
-}
-
-async function retrieveOrders(deps: AssistantDependencies, userEmail: string | undefined) {
-  if (!userEmail) {
-    return {
-      activeOrder: null,
-      orderHistory: [] as OrderRecord[],
-    };
-  }
-
-  const orders = await deps.prisma.order.findMany({
-    where: { userEmail },
-    orderBy: { createdAt: "desc" },
-    take: 8,
-  });
-
-  const mappedOrders: OrderRecord[] = orders.map((order) => ({
-    id: order.id,
-    total: order.total,
-    status: order.status,
-    mode: order.mode,
-    createdAt: order.createdAt.toISOString(),
-    itemsSummary: summarizeOrderItems(order.items),
-  }));
-
-  const activeOrder = mappedOrders.find((order) => !["Delivered", "Cancelled"].includes(order.status)) || null;
-
-  return {
-    activeOrder,
-    orderHistory: mappedOrders,
-  };
-}
-
-async function retrieveReservations(deps: AssistantDependencies, userEmail: string | undefined): Promise<ReservationRecord[]> {
-  if (!userEmail) {
-    return [];
-  }
-
-  const reservations = await deps.prisma.reservation.findMany({
-    where: { userEmail },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
-
-  return reservations.map((reservation) => ({
-    id: reservation.id,
-    reservationDate: reservation.reservationDate,
-    reservationSlot: reservation.reservationSlot,
-    guests: reservation.guests,
-    status: reservation.status,
-    tableNumber: reservation.tableNumber,
-    occasion: reservation.occasion,
-  }));
-}
-
-async function retrieveUserProfile(deps: AssistantDependencies, userEmail: string | undefined): Promise<UserProfileRecord | null> {
-  if (!userEmail) {
-    return null;
-  }
-
-  const user = await deps.prisma.user.findUnique({
-    where: { email: userEmail },
-    include: {
-      addresses: true,
-    },
-  });
-
-  if (!user) {
-    return null;
-  }
-
-  const favorites = user.favorites.length > 0
-    ? await deps.prisma.dish.findMany({
-        where: {
-          id: { in: user.favorites },
-        },
-      })
-    : [];
-
-  return {
-    name: user.name,
-    email: user.email,
-    membershipTier: user.membershipTier,
-    loyaltyPoints: user.loyaltyPoints,
-    addresses: user.addresses.map((address) => `${address.label}: ${address.line}`),
-    favorites,
-  };
-}
-
-export async function retrieveBusinessData(
-  deps: AssistantDependencies,
-  intent: ResolvedIntent,
-  userEmail?: string,
-): Promise<RetrievalBundle> {
-  const navigationTarget = intent.navigationTargetId
-    ? NAVIGATION_TARGETS.filter((target) => target.id === intent.navigationTargetId)
-    : findNavigationTarget(intent.resolvedMessage)
-      ? [findNavigationTarget(intent.resolvedMessage)!]
-      : [];
-
-  const [menu, offers, orderData, reservations, userProfile] = await Promise.all([
-    intent.modules.includes("menu") ? retrieveMenu(deps, intent) : Promise.resolve([] as DishRecord[]),
-    intent.modules.includes("offers") ? retrieveOffers(deps, intent) : Promise.resolve([] as OfferRecord[]),
-    intent.modules.includes("orders") ? retrieveOrders(deps, userEmail) : Promise.resolve({ activeOrder: null, orderHistory: [] as OrderRecord[] }),
-    intent.modules.includes("reservations") ? retrieveReservations(deps, userEmail) : Promise.resolve([] as ReservationRecord[]),
-    intent.modules.includes("user") ? retrieveUserProfile(deps, userEmail) : Promise.resolve(null),
-  ]);
-
-  return {
-    menu,
-    offers,
-    activeOrder: orderData.activeOrder,
-    orderHistory: orderData.orderHistory,
-    reservations,
-    userProfile,
-    navigation: navigationTarget,
-    faq: intent.modules.includes("faq") ? getFaqRecords() : [],
-  };
 }

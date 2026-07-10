@@ -4,11 +4,13 @@ import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
 import path from "path";
 import fs from "fs";
+import { AIService } from "./ai/aiService";
 
 dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
+const aiService = new AIService(prisma);
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
@@ -1975,141 +1977,9 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 
   try {
-    const [dishes, categories] = await Promise.all([
-      prisma.dish.findMany(),
-      prisma.category.findMany()
-    ]);
-
-    // Query user profile context if userEmail is provided
-    let userContext = "";
-    if (userEmail && userEmail.trim() !== "") {
-      const user = await prisma.user.findUnique({
-        where: { email: userEmail },
-        include: {
-          reservations: { where: { status: "Active" } },
-          orders: { take: 3, orderBy: { createdAt: "desc" } }
-        }
-      });
-
-      if (user) {
-        userContext += `\nCustomer Context (Logged In):
-- Name: ${user.name}
-- Email: ${user.email}
-- Membership Tier: ${user.membershipTier}
-- Loyalty Points: ${user.loyaltyPoints} points`;
-
-        if (user.favorites && user.favorites.length > 0) {
-          userContext += `\n- Favorite Dish IDs: ${user.favorites.join(", ")}`;
-        }
-        if (user.reservations && user.reservations.length > 0) {
-          userContext += `\n- Active Bookings (Reservations):`;
-          user.reservations.forEach(r => {
-            userContext += `\n  * Booking ID: ${r.id} | Date: ${r.reservationDate} | Slot: ${r.reservationSlot} | Table: #${r.tableNumber} | Guests: ${r.guests}`;
-          });
-        }
-        if (user.orders && user.orders.length > 0) {
-          userContext += `\n- Recent Orders:`;
-          user.orders.forEach(o => {
-            userContext += `\n  * Order ID: ${o.id} | Status: ${o.status} | Total: ₹${o.total}`;
-          });
-        }
-      }
-    }
-
-    const offersContext = `\nActive Promo Codes & Offers Today:\n${OFFERS.map((offer) => `- ID: ${offer.id} | Code: ${offer.code} | ${offer.title} | ${offer.desc}`).join("\n")}`;
-
-    const token = process.env.HF_API_TOKEN;
     const lastUserMessage = messages[messages.length - 1]?.content || "";
-
-    if (!token || token.trim() === "") {
-      console.log("[Tadka AI] HF_API_TOKEN is missing. Using local NLP fallback engine.");
-      const fallbackReply = await getFallbackAIResponseWithContext(lastUserMessage, dishes, userEmail);
-      return res.json({
-        choices: [{
-          message: {
-            role: "assistant",
-            content: fallbackReply
-          }
-        }],
-        fallback: true
-      });
-    }
-
-    // Format menu context
-    let menuContext = "Categories:\n";
-    categories.forEach(c => {
-      menuContext += `- ${c.name} (ID: ${c.id})\n`;
-    });
-    
-    menuContext += "\nDishes:\n";
-    dishes.forEach(d => {
-      menuContext += `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg ? 'Yes' : 'No'} | Rating: ${d.rating || 4.5} | Description: ${d.description} | Category: ${d.categoryId}\n`;
-    });
-
-    const systemPrompt = `You are "Tadka", the friendly, polite, and expert AI Waiter and Assistant for the "Punjabi Kitchen" restaurant app.
-Your goals:
-1. Help users browse the menu, recommend dishes, and find items based on budget, spiciness, vegetarian/non-vegetarian preferences, categories, or allergens.
-2. When recommending specific dishes, you MUST ALWAYS format their IDs as [DISH:dish_id] (e.g. [DISH:Paneer_Chilly]) so the app can display interactive action cards. Only use IDs from the menu below. DO NOT make up dish IDs.
-3. Be professional, concise, and polite. Always sound like a welcoming host.
-4. Recommend smart pairings based on standard combinations (e.g., if ordering main course gravy, recommend Garlic Naan or Roti; if ordering noodles, suggest a Chinese starter; if ordering spicy starters, recommend a cold Shake or Soda to wash it down).
-5. When recommending an active promotion, refer to it by its ID using [OFFER:offer_id] and only use IDs from the offer list below.
-
-Here is the active restaurant menu:
-${menuContext}
-${userContext}
-${offersContext}
-
-Guidelines:
-- If a user asks for recommendations under a specific budget (e.g., "under 300 rupees" or "less than 200"), only recommend dishes whose price is less than or equal to that number.
-- Answer allergen/dietary flags instantly based on dish descriptions (e.g., wheat/gluten inside breads, dairy inside paneer/butter, egg/prawns inside non-veg).
-- If they ask about their active bookings, favorites, or current active offers, retrieve them from the customer context blocks provided.
-- If you don't know or if a dish isn't on the menu, politely say so. Do not invent menu items.`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-
-    try {
-      const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-3-12b-it/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          model: "google/gemma-3-12b-it",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages.slice(-6)
-          ],
-          max_tokens: 512,
-          temperature: 0.7
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HF API HTTP ${response.status}`);
-      }
-
-      const data: any = await response.json();
-      res.json(data);
-    } catch (apiError: any) {
-      clearTimeout(timeoutId);
-      console.error("[Tadka AI] HF API error or timeout. Falling back to local NLP engine:", apiError.message);
-      const fallbackReply = await getFallbackAIResponseWithContext(lastUserMessage, dishes, userEmail);
-      res.json({
-        choices: [{
-          message: {
-            role: "assistant",
-            content: fallbackReply
-          }
-        }],
-        fallback: true
-      });
-    }
-
+    const result = await aiService.processMessage(lastUserMessage, messages, userEmail);
+    res.json(result);
   } catch (error: any) {
     console.error("AI Assistant request failed:", error);
     res.status(500).json({ error: error.message || "Internal server error" });

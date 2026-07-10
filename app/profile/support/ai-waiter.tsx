@@ -1,5 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Dimensions,
+  Clipboard
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@/src/theme";
 import { useApp } from "@/src/context/AppContext";
@@ -14,6 +26,11 @@ type ChatMessage = {
   sender: "user" | "tadka";
   time: string;
   isSpeaking?: boolean;
+  dishes?: any[];
+  offers?: any[];
+  reservations?: any[];
+  orders?: any[];
+  navigation?: string | null;
 };
 
 const SUGGESTIONS = [
@@ -59,7 +76,6 @@ export default function AIWaiterScreen() {
     setIsTyping(true);
 
     try {
-      // Call the backend endpoint
       const response = await fetch("https://punjabi-kitchen27june.onrender.com/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,26 +91,35 @@ export default function AIWaiterScreen() {
       });
 
       const data = await response.json();
-      const replyText = data.choices?.[0]?.message?.content || "I apologize, but I am having trouble connecting to the kitchen. Can you repeat that?";
-      if (offers.length > 0 && suggestions.length === SUGGESTIONS.length) {
-        setSuggestions((prev) => [
-          `Show active offers`,
-          ...(offers.slice(0, 2).map((offer) => `${offer.title} (${offer.code})`)),
-          ...prev.slice(0, 2),
-        ]);
-      }
+      const replyText = data.text || "I apologize, but I am having trouble connecting to the kitchen. Can you repeat that?";
       
+      if (data.quickReplies && data.quickReplies.length > 0) {
+        setSuggestions(data.quickReplies);
+      }
+
       const tadkaMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         text: replyText,
         sender: "tadka",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        dishes: data.dishes || [],
+        offers: data.offers || [],
+        reservations: data.reservations || [],
+        orders: data.orders || [],
+        navigation: data.navigation
       };
 
       setMessages((prev) => [...prev, tadkaMsg]);
+
+      // Handle structured navigation actions returned by the backend
+      if (data.navigation) {
+        setTimeout(() => {
+          router.push(data.navigation);
+        }, 1800);
+      }
+
     } catch (err) {
       console.error("AI chat request failed:", err);
-      // Failover to client-side rule engine directly in case of complete internet failure
       const fallbackReply = simulateFallbackReply(text);
       setMessages((prev) => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -130,7 +155,6 @@ export default function AIWaiterScreen() {
     recs.forEach(r => {
       reply += `• **${r.name}** (₹${r.price}) [DISH:${r.id}]\n  ${r.description}\n\n`;
     });
-    reply += "Tap add to cart on the cards below to add them directly!";
     return reply;
   };
 
@@ -138,7 +162,6 @@ export default function AIWaiterScreen() {
     setIsDictating(true);
     setDictationText("Listening...");
     
-    // Simulate speech detection
     setTimeout(() => {
       setDictationText("Transcribing...");
       setTimeout(() => {
@@ -155,13 +178,11 @@ export default function AIWaiterScreen() {
   };
 
   const speakMessage = (msg: ChatMessage) => {
-    // Toggle speaking visualizer state
     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isSpeaking: !m.isSpeaking } : { ...m, isSpeaking: false }));
     
     if (!msg.isSpeaking && isVoicePlaybackEnabled && Platform.OS === 'web') {
-      // Use Web Speech API if in web browser
       try {
-        const speech = new SpeechSynthesisUtterance(msg.text.replace(/\[DISH:[^\]]+\]/g, ''));
+        const speech = new SpeechSynthesisUtterance(msg.text);
         speech.rate = 1.0;
         speech.pitch = 1.1;
         window.speechSynthesis.cancel();
@@ -175,73 +196,179 @@ export default function AIWaiterScreen() {
     }
   };
 
+  const handleCopyCode = (code: string) => {
+    Clipboard.setString(code);
+    alert(`Coupon code "${code}" copied to clipboard! 🎁`);
+  };
+
   useEffect(() => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [messages, isTyping]);
 
-  useEffect(() => {
-    if (offers.length > 0) {
-      setSuggestions((prev) => {
-        const offerSuggestions = offers.slice(0, 2).map((offer) => `${offer.title} (${offer.code})`);
-        const base = prev.filter((item) => !item.includes("Show active offers") && !offerSuggestions.includes(item));
-        return ["🎁 Show active offers", ...offerSuggestions, ...base.slice(0, 2)];
-      });
-    }
-  }, [offers]);
-
-  const renderMessageContent = (text: string) => {
-    // Regex to match [DISH:id] format
-    const dishRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
-    const offerRegex = /\[OFFER:([A-Za-z0-9_\-\(\)]+)\]/g;
-    const cleanText = text.replace(dishRegex, "").replace(offerRegex, "");
-    
-    // Extract dish and offer recommendations
-    const dishMatches: string[] = [];
-    const offerMatches: string[] = [];
-    let match;
-    const searchDishRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
-    while ((match = searchDishRegex.exec(text)) !== null) {
-      dishMatches.push(match[1]);
-    }
-    const searchOfferRegex = /\[OFFER:([A-Za-z0-9_\-\(\)]+)\]/g;
-    while ((match = searchOfferRegex.exec(text)) !== null) {
-      offerMatches.push(match[1]);
-    }
+  const renderMessage = (msg: ChatMessage) => {
+    const isUser = msg.sender === "user";
 
     return (
-      <View style={{ width: "100%" }}>
-        <Text style={styles.messageText}>{cleanText.trim()}</Text>
-        
-        {/* Render inline rich dish recommendation card if found */}
-        {matches.map((dishId) => {
-          const dish = dishes.find((d) => d.id === dishId);
-          if (!dish) return null;
+      <View
+        key={msg.id}
+        style={[
+          styles.bubbleWrapper,
+          isUser ? styles.userWrapper : styles.tadkaWrapper,
+        ]}
+      >
+        <View
+          style={[
+            styles.bubble,
+            isUser ? styles.userBubble : styles.tadkaBubble,
+          ]}
+        >
+          <Text style={isUser ? styles.userMessageText : styles.messageText}>
+            {msg.text}
+          </Text>
 
-          return (
-            <View key={dishId} style={styles.dishCard}>
-              <Image source={getDishImageSource(dish.id, dish.image)} style={styles.dishImg} />
-              <View style={styles.dishDetails}>
-                <View style={styles.dishRow}>
-                  <Text style={styles.dishName} numberOfLines={1}>{dish.name}</Text>
-                  <View style={[styles.badge, { borderColor: dish.veg ? colors.success : colors.error }]}>
-                    <View style={[styles.badgeDot, { backgroundColor: dish.veg ? colors.success : colors.error }]} />
+          {/* Structured Navigation Action */}
+          {!isUser && msg.navigation && (
+            <TouchableOpacity 
+              style={styles.navCard}
+              onPress={() => router.push(msg.navigation as any)}
+            >
+              <View style={styles.navCardHeader}>
+                <Ionicons name="compass-outline" size={16} color={colors.goldBright} />
+                <Text style={styles.navCardTitle}>Quick Navigation</Text>
+              </View>
+              <Text style={styles.navCardDesc}>Tap here to open the requested page automatically.</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Structured Dish Cards */}
+          {!isUser && msg.dishes && msg.dishes.length > 0 && (
+            <View style={styles.cardsContainer}>
+              {msg.dishes.map((dish) => (
+                <View key={dish.id} style={styles.dishCard}>
+                  <Image source={getDishImageSource(dish.id, dish.image)} style={styles.dishImg} />
+                  <View style={styles.dishDetails}>
+                    <View style={styles.dishRow}>
+                      <Text style={styles.dishName} numberOfLines={1}>{dish.name}</Text>
+                      <View style={[styles.badge, { borderColor: dish.veg ? colors.success : colors.error }]}>
+                        <View style={[styles.badgeDot, { backgroundColor: dish.veg ? colors.success : colors.error }]} />
+                      </View>
+                    </View>
+                    <Text style={styles.dishDesc} numberOfLines={2}>{dish.description}</Text>
+                    <View style={styles.dishActionRow}>
+                      <Text style={styles.dishPrice}>₹{dish.price}</Text>
+                      <TouchableOpacity 
+                        style={styles.addToCartBtn} 
+                        onPress={() => {
+                          addToCart(dish);
+                          alert(`Added ${dish.name} to cart!`);
+                        }}
+                      >
+                        <Ionicons name="cart" size={12} color="#000" />
+                        <Text style={styles.addToCartText}>Add</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-                <Text style={styles.dishPrice}>₹{dish.price}</Text>
-                
-                <TouchableOpacity style={styles.addToCartBtn} onPress={() => {
-                  addToCart(dish);
-                  alert(`Added ${dish.name} to cart!`);
-                }}>
-                  <Ionicons name="cart" size={14} color="#000" />
-                  <Text style={styles.addToCartText}>Add to Cart</Text>
-                </TouchableOpacity>
-              </View>
+              ))}
             </View>
-          );
-        })}
+          )}
+
+          {/* Structured Offer Cards */}
+          {!isUser && msg.offers && msg.offers.length > 0 && (
+            <View style={styles.cardsContainer}>
+              {msg.offers.map((offer) => (
+                <TouchableOpacity 
+                  key={offer.id} 
+                  style={styles.offerCard}
+                  onPress={() => handleCopyCode(offer.code)}
+                >
+                  <View style={styles.offerHeader}>
+                    <Ionicons name="gift-outline" size={16} color={colors.gold} />
+                    <Text style={styles.offerCodeBadge}>{offer.code}</Text>
+                  </View>
+                  <Text style={styles.offerTitle}>{offer.title}</Text>
+                  <Text style={styles.offerDesc}>{offer.desc}</Text>
+                  <Text style={styles.offerTapToCopy}>Tap to copy promo code</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Structured Reservation Cards */}
+          {!isUser && msg.reservations && msg.reservations.length > 0 && (
+            <View style={styles.cardsContainer}>
+              {msg.reservations.map((r) => (
+                <View key={r.id} style={styles.resCard}>
+                  <View style={styles.resHeader}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.gold} />
+                    <Text style={styles.resTitle}>Active Table Booking</Text>
+                  </View>
+                  <View style={styles.resGrid}>
+                    <View style={styles.resGridCol}>
+                      <Text style={styles.resLabel}>DATE</Text>
+                      <Text style={styles.resVal}>{r.reservationDate}</Text>
+                    </View>
+                    <View style={styles.resGridCol}>
+                      <Text style={styles.resLabel}>SLOT</Text>
+                      <Text style={styles.resVal}>{r.reservationSlot}</Text>
+                    </View>
+                    <View style={styles.resGridCol}>
+                      <Text style={styles.resLabel}>GUESTS</Text>
+                      <Text style={styles.resVal}>{r.guests}</Text>
+                    </View>
+                    <View style={styles.resGridCol}>
+                      <Text style={styles.resLabel}>TABLE</Text>
+                      <Text style={styles.resVal}>#{r.tableNumber}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Structured Order Cards */}
+          {!isUser && msg.orders && msg.orders.length > 0 && (
+            <View style={styles.cardsContainer}>
+              {msg.orders.map((o) => (
+                <View key={o.id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <Ionicons name="receipt-outline" size={16} color={colors.gold} />
+                    <Text style={styles.orderTitle}>Order ID: {o.id.slice(0, 8)}</Text>
+                    <View style={styles.orderStatusBadge}>
+                      <Text style={styles.orderStatusText}>{o.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.orderTotal}>Total: ₹{o.total}</Text>
+                  
+                  {/* Status Progress Line */}
+                  <View style={styles.progressLine}>
+                    <View style={[styles.progressSegment, { backgroundColor: colors.gold }]} />
+                    <View style={[styles.progressSegment, { backgroundColor: ["Preparing", "Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
+                    <View style={[styles.progressSegment, { backgroundColor: ["Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
+                    <View style={[styles.progressSegment, { backgroundColor: o.status === "Delivered" ? colors.gold : "#262626" }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Speaker icon for Tadka replies */}
+          {!isUser && (
+            <View style={styles.bubbleFooter}>
+              <TouchableOpacity style={styles.speakerBtn} onPress={() => speakMessage(msg)}>
+                <Ionicons 
+                  name={msg.isSpeaking ? "radio-outline" : "volume-low-outline"} 
+                  size={16} 
+                  color={msg.isSpeaking ? colors.goldBright : colors.textSecondary} 
+                />
+                {msg.isSpeaking && <Text style={styles.speakingText}>Speaking...</Text>}
+              </TouchableOpacity>
+              <Text style={styles.bubbleTime}>{msg.time}</Text>
+            </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -261,8 +388,8 @@ export default function AIWaiterScreen() {
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 70}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 80}
         style={styles.keyboardContainer}
       >
         {/* Top Status */}
@@ -284,75 +411,15 @@ export default function AIWaiterScreen() {
           </TouchableOpacity>
         </View>
 
-        {offers.length > 0 && (
-          <View style={styles.offerStrip}>
-            <Text style={styles.offerStripLabel}>Active offers</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.offerScroll}>
-              {offers.map((offer) => (
-                <View key={offer.id} style={styles.offerCard}>
-                  <Text style={styles.offerTitle}>{offer.title}</Text>
-                  <Text style={styles.offerCode}>{offer.code}</Text>
-                  <Text style={styles.offerDesc} numberOfLines={2}>{offer.desc}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Suggested Queries */}
-        {messages.length === 1 && (
-          <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>Quick Suggestions:</Text>
-            <View style={styles.suggestionsRow}>
-              {suggestions.map((sug, i) => (
-                <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.replace(/[🌱🔥🥜🍜]/g, '').trim())}>
-                  <Text style={styles.suggestionText}>{sug}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* Message Feed */}
         <ScrollView
           ref={scrollViewRef}
           style={styles.messageScroll}
           contentContainerStyle={styles.messageContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {messages.map((msg) => (
-            <View
-              key={msg.id}
-              style={[
-                styles.bubbleWrapper,
-                msg.sender === "user" ? styles.userWrapper : styles.tadkaWrapper,
-              ]}
-            >
-              <View
-                style={[
-                  styles.bubble,
-                  msg.sender === "user" ? styles.userBubble : styles.tadkaBubble,
-                ]}
-              >
-                {renderMessageContent(msg.text)}
-                
-                {/* Speaker icon for Tadka replies */}
-                {msg.sender === "tadka" && (
-                  <View style={styles.bubbleFooter}>
-                    <TouchableOpacity style={styles.speakerBtn} onPress={() => speakMessage(msg)}>
-                      <Ionicons 
-                        name={msg.isSpeaking ? "radio-outline" : "volume-low-outline"} 
-                        size={16} 
-                        color={msg.isSpeaking ? colors.goldBright : colors.textSecondary} 
-                      />
-                      {msg.isSpeaking && <Text style={styles.speakingText}>Speaking...</Text>}
-                    </TouchableOpacity>
-                    <Text style={styles.bubbleTime}>{msg.time}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          ))}
+          {messages.map(renderMessage)}
 
           {isTyping && (
             <View style={[styles.bubbleWrapper, styles.tadkaWrapper]}>
@@ -363,6 +430,17 @@ export default function AIWaiterScreen() {
             </View>
           )}
         </ScrollView>
+
+        {/* Suggested Queries */}
+        <View style={styles.suggestionsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
+            {suggestions.map((sug, i) => (
+              <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.replace(/[🌱🔥🥜🍜🎁🛒👉]/g, '').trim())}>
+                <Text style={styles.suggestionText}>{sug}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Input Bar */}
         <View style={styles.inputBar}>
@@ -437,7 +515,7 @@ const styles = StyleSheet.create({
   },
   keyboardContainer: {
     flex: 1,
-    backgroundColor: "#0A0806",
+    backgroundColor: "#0A0A0A",
   },
   statusHeader: {
     flexDirection: "row",
@@ -445,14 +523,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: "#241B15",
-    backgroundColor: "#130F0C",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#241B15",
+    backgroundColor: colors.surface2,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -469,12 +547,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.success,
     borderWidth: 1.5,
-    borderColor: "#130F0C",
+    borderColor: colors.surface,
   },
   assistantName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
-    color: colors.gold,
+    color: colors.goldBright,
   },
   assistantStatus: {
     fontSize: 11,
@@ -485,81 +563,12 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#241B15",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   playbackDisabled: {
     opacity: 0.6,
-  },
-  suggestionsContainer: {
-    padding: 16,
-    backgroundColor: "rgba(19, 15, 12, 0.5)",
-  },
-  suggestionsTitle: {
-    fontSize: 12,
-    color: colors.gold,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  suggestionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  suggestionChip: {
-    backgroundColor: "#1C1713",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#2A2017",
-  },
-  suggestionText: {
-    fontSize: 12,
-    color: colors.textPrimary,
-  },
-  offerStrip: {
-    paddingVertical: 12,
-    paddingLeft: 16,
-    backgroundColor: "#110B08",
-    borderBottomWidth: 1,
-    borderColor: "#241B15",
-  },
-  offerStripLabel: {
-    fontSize: 12,
-    color: colors.gold,
-    marginBottom: 10,
-    fontWeight: "700",
-  },
-  offerScroll: {
-    gap: 12,
-    paddingRight: 16,
-  },
-  offerCard: {
-    minWidth: 170,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: "#1F1711",
-    borderWidth: 1,
-    borderColor: "#2A2017",
-  },
-  offerTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  offerCode: {
-    fontSize: 12,
-    color: colors.gold,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  offerDesc: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    lineHeight: 16,
   },
   messageScroll: {
     flex: 1,
@@ -580,26 +589,30 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   bubble: {
-    maxLength: "85%",
+    maxWidth: "85%",
     borderRadius: 18,
     padding: 14,
   },
   userBubble: {
     backgroundColor: colors.gold,
     borderTopRightRadius: 2,
-    maxWidth: "85%",
   },
   tadkaBubble: {
-    backgroundColor: "#130F0C",
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 2,
     borderWidth: 1,
-    borderColor: "#241B15",
-    maxWidth: "85%",
+    borderColor: colors.border,
   },
   messageText: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  userMessageText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textInverse,
+    fontWeight: "500",
   },
   bubbleFooter: {
     flexDirection: "row",
@@ -608,7 +621,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 6,
     borderTopWidth: 0.5,
-    borderColor: "#241B15",
+    borderColor: colors.border,
   },
   speakerBtn: {
     flexDirection: "row",
@@ -633,13 +646,36 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontStyle: "italic",
   },
+  suggestionsContainer: {
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  suggestionsScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  suggestionChip: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  suggestionText: {
+    fontSize: 12,
+    color: colors.textPrimary,
+    fontWeight: "500",
+  },
   inputBar: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
     borderTopWidth: 1,
-    borderColor: "#241B15",
-    backgroundColor: "#130F0C",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     gap: 10,
   },
   micBtn: {
@@ -647,20 +683,21 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1,
-    borderColor: "#2A2017",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.bg,
   },
   input: {
     flex: 1,
     height: 42,
-    backgroundColor: "#0A0806",
+    backgroundColor: colors.bg,
     borderRadius: 21,
     paddingHorizontal: 16,
     color: colors.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
     borderWidth: 1,
-    borderColor: "#241B15",
+    borderColor: colors.border,
   },
   sendBtn: {
     width: 42,
@@ -670,20 +707,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  cardsContainer: {
+    marginTop: 10,
+    gap: 10,
+    width: "100%",
+  },
   dishCard: {
     flexDirection: "row",
-    backgroundColor: "#1C1713",
-    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2A2017",
+    borderColor: colors.border,
     padding: 10,
-    marginTop: 12,
-    gap: 10,
+    gap: 12,
   },
   dishImg: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
+    width: 70,
+    height: 70,
+    borderRadius: 10,
   },
   dishDetails: {
     flex: 1,
@@ -701,11 +742,35 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
+  dishDesc: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginVertical: 2,
+  },
+  dishActionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
   dishPrice: {
     fontSize: 12,
     fontWeight: "600",
     color: colors.gold,
-    marginVertical: 2,
+  },
+  addToCartBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.gold,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  addToCartText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#000",
   },
   badge: {
     width: 12,
@@ -720,20 +785,150 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  addToCartBtn: {
+  offerCard: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: colors.goldDim,
+  },
+  offerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  offerCodeBadge: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.goldBright,
+    backgroundColor: "rgba(212, 175, 55, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  offerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  offerDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  offerTapToCopy: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: colors.gold,
+    textAlign: "right",
+  },
+  resCard: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  resHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.gold,
-    borderRadius: 6,
-    paddingVertical: 5,
-    gap: 4,
-    marginTop: 4,
+    gap: 6,
+    marginBottom: 10,
   },
-  addToCartText: {
-    fontSize: 11,
+  resTitle: {
+    fontSize: 12,
     fontWeight: "700",
-    color: "#000",
+    color: colors.textPrimary,
+  },
+  resGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  resGridCol: {
+    alignItems: "center",
+  },
+  resLabel: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  resVal: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.gold,
+  },
+  orderCard: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  orderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  orderTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  orderStatusBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  orderStatusText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.success,
+  },
+  orderTotal: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  progressLine: {
+    flexDirection: "row",
+    gap: 4,
+    height: 4,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressSegment: {
+    flex: 1,
+    height: "100%",
+  },
+  navCard: {
+    backgroundColor: colors.surface2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 10,
+    marginTop: 10,
+  },
+  navCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  navCardTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.goldBright,
+  },
+  navCardDesc: {
+    fontSize: 10,
+    color: colors.textSecondary,
   },
   dictateOverlay: {
     position: "absolute",
@@ -748,7 +943,7 @@ const styles = StyleSheet.create({
   },
   dictateSheet: {
     width: Dimensions.get("window").width * 0.85,
-    backgroundColor: "#130F0C",
+    backgroundColor: colors.surface,
     borderRadius: 28,
     borderWidth: 1,
     borderColor: colors.gold,
@@ -785,7 +980,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "#241B15",
+    backgroundColor: colors.surface2,
   },
   closeDictateText: {
     fontSize: 12,
