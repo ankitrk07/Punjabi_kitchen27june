@@ -13,18 +13,18 @@
  *  9. CHANGE 3 — Professional LocationSection with map preview, address, timings, CTAs
  */
 
+import { AnniversaryBanner } from "@/src/components/home/AnniversaryBanner";
+import { CountdownCard } from "@/src/components/home/CountdownCard";
 import {
   ChefSpecialsSection,
   DealOfDaySection,
   ReviewsSection,
 } from "@/src/components/home/HomeSection";
 import TopBar from "@/src/components/TopBar";
-import { CountdownCard } from "@/src/components/home/CountdownCard";
-import { AnniversaryBanner } from "@/src/components/home/AnniversaryBanner";
 import GoldDustLayer from "@/src/components/ui/GoldDustLayer";
-import Marquee from "@/src/components/Marquee";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
+import { iconBase64 } from "@/src/data/iconBase64";
 import { Dish, DISHES } from "@/src/data/menu";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { colors } from "@/src/theme";
@@ -44,8 +44,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { iconBase64 } from "@/src/data/iconBase64";
-import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   FadeIn,
@@ -53,9 +52,9 @@ import Animated, {
   FadeInRight,
   FadeInUp,
   interpolate,
+  runOnJS,
   type SharedValue,
   useAnimatedStyle,
-  useDerivedValue,
   useFrameCallback,
   useSharedValue,
   withDelay,
@@ -63,8 +62,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
-  ZoomIn,
-  runOnJS,
+  ZoomIn
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -1113,7 +1111,7 @@ const modeCard = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 function PaginatorDot({ index, activeIndex }: { index: number; activeIndex: number }) {
   const isActive = index === activeIndex;
-  
+
   const animStyle = useAnimatedStyle(() => {
     const width = withSpring(isActive ? 18 : 6, { damping: 15, stiffness: 220 });
     const opacity = withSpring(isActive ? 1.0 : 0.35, { damping: 15, stiffness: 220 });
@@ -1122,7 +1120,7 @@ function PaginatorDot({ index, activeIndex }: { index: number; activeIndex: numb
       opacity,
     };
   });
-  
+
   return (
     <Animated.View style={[moodStyle.dot, animStyle]} />
   );
@@ -1143,31 +1141,31 @@ function MoodChip({
 
   const animStyle = useAnimatedStyle(() => {
     let d = index - animatedActiveIndex.value;
-    
+
     // Circular wrap of the distance d so that cards wrap around cleanly
     if (d < -MOODS.length / 2) d += MOODS.length;
     if (d > MOODS.length / 2) d -= MOODS.length;
 
     const absD = Math.abs(d);
-    
+
     // translateX: circular spacing
     const translateX = d * 115;
-    
+
     // translateY: nice curve path dipping down on sides, center card shifted down a bit
     const translateY = absD * absD * 20 + 4;
-    
+
     // Scale: center pops out, sides push back
     const scale = interpolate(absD, [0, 1], [1.3, 0.82], "clamp");
-    
+
     // rotateY: 3D curvature
     const rotateY = `${interpolate(d, [-1, 0, 1], [28, 0, -28], "clamp")}deg`;
-    
+
     // rotateZ: tilt side cards slightly
     const rotateZ = `${interpolate(d, [-1, 0, 1], [-10, 0, 10], "clamp")}deg`;
-    
+
     // Opacity: Center is 1.0, adjacent is 0.72, and fades out completely beyond that
     const opacity = interpolate(absD, [0, 0.8, 1.25], [1.0, 0.85, 0.0], "clamp");
-    
+
     // ZIndex: Center card gets highest priority (e.g. 10), side cards get 5
     const zIndex = Math.round((3 - absD) * 10);
 
@@ -1190,17 +1188,17 @@ function MoodChip({
     if (d < -MOODS.length / 2) d += MOODS.length;
     if (d > MOODS.length / 2) d -= MOODS.length;
     const absD = Math.abs(d);
-    
+
     const borderOpacity = interpolate(absD, [0, 1], [0.9, 0.15], "clamp");
     const shadowOpacity = interpolate(absD, [0, 1], [0.35, 0.05], "clamp");
     const shadowRadius = interpolate(absD, [0, 1], [16, 4], "clamp");
-    
+
     return {
       borderColor: `rgba(201,168,76, ${borderOpacity})`,
       shadowOpacity,
       shadowRadius,
-      backgroundColor: absD < 0.5 
-        ? "rgba(18, 12, 10, 0.95)" 
+      backgroundColor: absD < 0.5
+        ? "rgba(18, 12, 10, 0.95)"
         : "rgba(255, 255, 255, 0.01)",
     };
   });
@@ -1210,10 +1208,10 @@ function MoodChip({
     if (d < -MOODS.length / 2) d += MOODS.length;
     if (d > MOODS.length / 2) d -= MOODS.length;
     const absD = Math.abs(d);
-    
+
     const glowOpacity = interpolate(absD, [0, 1], [0.35, 0.05], "clamp");
     const scale = interpolate(absD, [0, 1], [1.08, 0.9], "clamp");
-    
+
     return {
       transform: [{ scale }],
       borderColor: `rgba(201,168,76, ${glowOpacity + 0.1})`,
@@ -1225,11 +1223,11 @@ function MoodChip({
     if (d < -MOODS.length / 2) d += MOODS.length;
     if (d > MOODS.length / 2) d -= MOODS.length;
     const absD = Math.abs(d);
-    
+
     const scale = interpolate(absD, [0, 1], [1.0, 0.85], "clamp");
     const opacity = interpolate(absD, [0, 0.8, 1.15], [1.0, 0.6, 0.0], "clamp");
     const translateY = interpolate(absD, [0, 1], [0, 4], "clamp");
-    
+
     return {
       transform: [{ scale }, { translateY }],
       opacity,
@@ -1299,9 +1297,9 @@ function AnimatedMoodStrip() {
         isDragging.value = false;
         const swipeWidth = 150;
         const velocityIndexOffset = -event.velocityX / (swipeWidth * 3.5);
-        
+
         let target = Math.round(animatedActiveIndex.value + velocityIndexOffset);
-        
+
         animatedActiveIndex.value = withSpring(target, {
           damping: 22,
           stiffness: 85,
@@ -1355,7 +1353,7 @@ function AnimatedMoodStrip() {
 
   const handleCardPress = (index: number) => {
     const diff = (index - activeIndex + MOODS.length) % MOODS.length;
-    
+
     if (diff === 0) {
       router.push({
         pathname: "/(tabs)/menu",
@@ -1666,23 +1664,24 @@ function buildMapHTML(hasActiveDelivery: boolean, iconUri: string) {
   .leaflet-control-zoom { display: none !important; }
   
   .restaurant-pin {
-    width: 44px; height: 44px;
+    width: 52px; height: 52px;
     display: flex; align-items: center; justify-content: center;
     position: relative;
   }
   .restaurant-pin .pin-ring {
-    position: absolute; width: 44px; height: 44px; border-radius: 50%;
-    border: 2.5px solid rgba(201,168,76,0.7);
+    position: absolute; width: 52px; height: 52px; border-radius: 50%;
+    border: 2px solid rgba(201,168,76,0.4);
     animation: pinPulse 2s ease-in-out infinite;
   }
   .restaurant-pin .pin-core {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: #140E0A;
+    width: 38px; height: 38px; border-radius: 50%;
+    background-image: url('${iconUri}');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     border: 1.5px solid rgba(201,168,76,0.85);
-    box-shadow: 0 2px 12px rgba(201,168,76,0.5), 0 0 20px rgba(201,168,76,0.25);
-    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(201,168,76,0.3);
     z-index: 2;
-    overflow: hidden;
   }
   @keyframes pinPulse {
     0%, 100% { transform: scale(1); opacity: 0.7; }
@@ -1752,15 +1751,15 @@ function buildMapHTML(hasActiveDelivery: boolean, iconUri: string) {
   // Restaurant marker
   var pinIcon = L.divIcon({
     className: '',
-    html: '<div class="restaurant-pin"><div class="pin-ring"></div><div class="pin-core"><img src="' + iconUri + '" style="width: 100%; height: 100%; object-fit: cover;" /></div></div>',
-    iconSize: [44, 44],
-    iconAnchor: [22, 22]
+    html: '<div class="restaurant-pin"><div class="pin-ring"></div><div class="pin-core"></div></div>',
+    iconSize: [52, 52],
+    iconAnchor: [26, 26]
   });
   var restaurantMarker = L.marker([${RESTAURANT_LAT}, ${RESTAURANT_LNG}], { icon: pinIcon }).addTo(map);
   
   // Restaurant label tooltip
   restaurantMarker.bindTooltip('<div class="restaurant-label">Punjabi Kitchen</div>', {
-    permanent: true, direction: 'top', offset: [0, -26], className: ''
+    permanent: true, direction: 'top', offset: [0, -32], className: ''
   });
 
   ${hasActiveDelivery ? `
@@ -2297,7 +2296,7 @@ export default function Home() {
           {/* 2. Greeting — "Hello" + user name, no PK logo */}
           <AnimatedGreeting />
 
-           {/* 3. Hero banner — food image bg + Punjabi Kitchen copy */}
+          {/* 3. Hero banner — food image bg + Punjabi Kitchen copy */}
           <AnimatedHeroBanner ordersLength={orders.length} scrollY={scrollY} />
 
           {/* Anniversary Banner alert */}

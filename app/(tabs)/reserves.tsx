@@ -1366,7 +1366,7 @@ const widget = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(201, 168, 76, 0.35)",
-    marginTop: 40,
+    marginTop: 65,
     marginBottom: 24,
     overflow: "visible", // Set to visible so top-overlapping text renders correctly
     position: "relative",
