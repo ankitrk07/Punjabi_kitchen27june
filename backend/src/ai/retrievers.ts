@@ -6,53 +6,71 @@ export class MenuRetriever {
     this.prisma = prisma;
   }
 
-  async retrieve(filters: {
-    query?: string;
-    maxBudget?: number;
-    veg?: boolean;
-    spicy?: boolean;
+  async retrieveSemantic(filters: {
+    category: "starter" | "dessert" | "soup" | "beverage" | "main" | "bread" | null;
+    veg: boolean | null;
+    maxPrice: number | null;
+    taste: "sweet" | "spicy" | "creamy" | "light" | "sour" | null;
   }) {
     const allDishes = await this.prisma.dish.findMany();
     let results = [...allDishes];
 
-    if (filters.veg !== undefined) {
-      results = results.filter(d => d.veg === filters.veg);
-    }
-    if (filters.maxBudget !== undefined) {
-      results = results.filter(d => d.price <= filters.maxBudget!);
-    }
-    if (filters.spicy !== undefined) {
-      results = results.filter(d => {
-        const matchesSpicy = d.description.toLowerCase().match(/(spicy|hot|chilly|chili|schezwan|pepper)/i);
-        return filters.spicy ? !!matchesSpicy : !matchesSpicy;
-      });
-    }
-    let limit = 3;
-    if (filters.query) {
-      const q = filters.query.toLowerCase();
-      const isAllQuery = /\b(all|list|menu|everything|browse|show me|dishes|get)\b/i.test(q);
-      if (isAllQuery) {
-        limit = 10;
-      } else {
-        results = results.filter(d => {
-          const dishNameLower = d.name.toLowerCase();
-          if (q.includes(dishNameLower)) return true;
-          
-          const words = dishNameLower.split(/[\s_\-\(\)]+/).filter(w => w.length > 2);
-          return words.some(w => q.includes(w));
-        });
+    // 1. Category ID Mapping
+    if (filters.category) {
+      let targetCategoryIds: string[] = [];
+      switch (filters.category) {
+        case "dessert":
+          targetCategoryIds = ["desserts", "desserts_veg"];
+          break;
+        case "starter":
+          targetCategoryIds = [
+            "veg_starter", "non_veg_starter", 
+            "chinese_starter", "chinese_starter_veg", "chinese_starter_non_veg", 
+            "tandoor", "tandoor_veg", "tandoor_non_veg"
+          ];
+          break;
+        case "soup":
+          targetCategoryIds = ["soup", "soup_veg", "soup_non_veg"];
+          break;
+        case "beverage":
+          targetCategoryIds = ["beverages", "shakes"];
+          break;
+        case "bread":
+          targetCategoryIds = ["breads"];
+          break;
+        case "main":
+          targetCategoryIds = [
+            "main_course", "main_course_veg", "main_course_non_veg", 
+            "soya_chap", "dal", "rice_p1", "rice_p5", "rice_p5_veg", "rice_p5_non_veg"
+          ];
+          break;
       }
+      results = results.filter(d => targetCategoryIds.includes(d.categoryId));
+    } else if (filters.taste === "sweet") {
+      // If sweet taste was inferred without explicit category, prioritize desserts/shakes
+      results = results.filter(d => ["desserts", "desserts_veg", "shakes"].includes(d.categoryId));
     }
 
-    // Sort by rating desc
+    // 2. Veg / Non-Veg structured filtering
+    if (filters.veg !== null && filters.veg !== undefined) {
+      results = results.filter(d => d.veg === filters.veg);
+    }
+
+    // 3. Price structured filtering
+    if (filters.maxPrice !== null && filters.maxPrice !== undefined) {
+      results = results.filter(d => d.price <= filters.maxPrice!);
+    }
+
+    // Sort by rating desc to get high-quality candidates
     results.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
-    return results.slice(0, limit);
+
+    // Return a generous list of candidates (up to 15) so the Stage 2 LLM can perform semantic reasoning and ranking!
+    return results.slice(0, 15);
   }
 }
 
 export class OfferRetriever {
   async retrieve() {
-    // Dynamic offers list
     return [
       { id: "pkfest15", code: "PKFEST15", title: "15% Festival Off", desc: "Get 15% off on all orders above ₹500", minCart: 500 },
       { id: "lunch100", code: "LUNCH100", title: "Flat ₹100 Off", desc: "Save ₹100 flat on weekday lunch orders above ₹600", minCart: 600 },

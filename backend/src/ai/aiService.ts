@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { IntentDetector } from "./intentDetector";
+import { IntentDetector, SemanticPayload } from "./intentDetector";
 import {
   MenuRetriever,
   OfferRetriever,
@@ -40,11 +40,13 @@ export class AIService {
   }
 
   async processMessage(userMessage: string, messagesHistory: { role: string; content: string }[], userEmail?: string) {
-    // 1. Intent Detection
-    const intents = this.intentDetector.detect(userMessage);
-    console.log('[Tadka AI Service] Processing message:', { userMessage, userEmail, intents });
+    const token = process.env.HF_API_TOKEN;
 
-    // 2. Business Retrieval Layer
+    // 1. STAGE 1: Semantic Understanding via LLM
+    const semantic = await this.intentDetector.detectSemantic(userMessage, token);
+    console.log('[Tadka AIService] Stage 1 Semantic Output:', semantic);
+
+    // 2. STAGE 2: Business Retrieval Layer based on Inferred Filters
     let menuContext = "";
     let offerContext = "";
     let orderContext = "";
@@ -53,44 +55,37 @@ export class AIService {
     let faqContext = "";
     let navContext = "";
 
-    // Data structures to pass to response formatter
     let allDishesList: any[] = [];
     let allOffersList: any[] = [];
     let allOrdersList: any[] = [];
     let allReservationsList: any[] = [];
 
-    // Trigger retrievers based on detected intent
-    if (intents.includes("menu_search") || intents.includes("menu_recommendation")) {
-      const q = userMessage.toLowerCase();
-      const veg = q.includes("veg") && !q.includes("non-veg") && !q.includes("nonveg") ? true : q.includes("non-veg") || q.includes("nonveg") ? false : undefined;
-      const budgetMatch = q.match(/\b(?:under|below|less than|max|budget of)?\s*(?:rs\.?|inr|₹)?\s*(\d+)\b/i);
-      const maxBudget = budgetMatch ? parseInt(budgetMatch[1]) : undefined;
-      const spicy = q.includes("spicy") || q.includes("hot") ? true : q.includes("mild") || q.includes("sweet") ? false : undefined;
-
-      const dishes = await this.menuRetriever.retrieve({
-        query: userMessage,
-        maxBudget,
-        veg,
-        spicy
+    // Query dishes using structured semantic parameters
+    if (semantic.intent === "menu_recommendation" || semantic.category || semantic.taste) {
+      const dishes = await this.menuRetriever.retrieveSemantic({
+        category: semantic.category,
+        veg: semantic.veg,
+        maxPrice: semantic.maxPrice,
+        taste: semantic.taste
       });
-      console.log('[Tadka AI Service] Dishes retrieved count:', dishes.length);
       allDishesList = dishes;
-      menuContext = dishes.map(d => `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg} | Description: ${d.description}`).join("\n");
+      menuContext = dishes.map(d => `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg} | Category: ${d.categoryId} | Description: ${d.description}`).join("\n");
+      console.log(`[Tadka AIService] Structured retrieval: fetched ${dishes.length} candidate dishes.`);
     }
 
-    if (intents.includes("offers")) {
+    if (semantic.intent === "offers") {
       const offers = await this.offerRetriever.retrieve();
       allOffersList = offers;
       offerContext = offers.map(o => `- Code: ${o.code} | Title: ${o.title} | Desc: ${o.desc}`).join("\n");
     }
 
-    if (intents.includes("order_status") && userEmail) {
+    if (semantic.intent === "order_status" && userEmail) {
       const orders = await this.orderRetriever.retrieve(userEmail);
       allOrdersList = orders;
       orderContext = orders.map(o => `- Order ID: ${o.id} | Total: ₹${o.total} | Status: ${o.status} | CreatedAt: ${o.createdAt}`).join("\n");
     }
 
-    if (intents.includes("reservations") && userEmail) {
+    if (semantic.intent === "reservations" && userEmail) {
       const reservations = await this.reservationRetriever.retrieve(userEmail);
       allReservationsList = reservations;
       reservationContext = reservations.map(r => `- Reservation ID: ${r.id} | Date: ${r.reservationDate} | Slot: ${r.reservationSlot} | Table: #${r.tableNumber} | Guests: ${r.guests}`).join("\n");
@@ -100,7 +95,6 @@ export class AIService {
       const user = await this.userRetriever.retrieve(userEmail);
       if (user) {
         userContext = `- Name: ${user.name} | Email: ${user.email} | Tier: ${user.membershipTier} | Favorites: ${user.favorites.join(", ")}`;
-        // If they ask for favorites, fetch matching dishes
         if (userMessage.toLowerCase().includes("favorite") || userMessage.toLowerCase().includes("favourite")) {
           const favDishes = await this.prisma.dish.findMany({
             where: { id: { in: user.favorites } }
@@ -110,19 +104,19 @@ export class AIService {
       }
     }
 
-    if (intents.includes("faq")) {
+    if (semantic.intent === "faq") {
       const faq = this.faqRetriever.retrieve(userMessage);
       if (faq) faqContext = faq;
     }
 
-    if (intents.includes("navigation")) {
-      const nav = this.navigationRetriever.retrieve(userMessage);
-      if (nav) navContext = `- Action: ${nav.action} | Target Route: ${nav.route}`;
+    if (semantic.intent === "navigation" || semantic.navigation) {
+      const route = semantic.navigation || this.navigationRetriever.retrieve(userMessage)?.route || null;
+      if (route) navContext = `- Action: Navigate to screen | Target Route: ${route}`;
     }
 
     const weatherContext = "- Current Weather in Ranchi: 26°C, Cloudy with light drizzle. Recommended: hot starters, piping hot soups (Tomato Soup, Manchow Soup), hot beverages like Masala Tea.";
 
-    // 3. Prompt Builder
+    // 3. Prompt Building with Inferred System Context
     const systemPrompt = this.promptBuilder.build({
       menuContext,
       offerContext,
@@ -134,11 +128,15 @@ export class AIService {
       weatherContext
     });
 
-    const token = process.env.HF_API_TOKEN;
+    // Append LLM constraints to Stage 2 prompt to enforce reasoning based on taste profile (sweet, spicy, light, creamy)
+    const refinedSystemPrompt = `${systemPrompt}\n\nAdditional Reasoning Guidelines:
+- The user expressed taste/style preferences: Category=${semantic.category || 'any'}, Taste Preference=${semantic.taste || 'any'}.
+- Sort and rank recommendations strictly matching these preferences. For example, if they ask for "sweet", recommend Desserts (like Gulab Jamun, Brownie) or Shakes. NEVER recommend soups (like Sweet Corn Soup) as a dessert just because of word matching.
+- If they ask for "something light", recommend lighter items (soups, salads, clear noodles, dry tandoor bread).
+- If they ask for "spicy", recommend items matching spicy tags or Chinese Schezwan / Tikka starter lines.`;
 
-    // Check if token exists
     if (!token || token.trim() === "") {
-      const offlineReply = await this.generateOfflineReply(userMessage, allDishesList, allOffersList, allOrdersList, allReservationsList, navContext, faqContext);
+      const offlineReply = await this.generateOfflineReply(userMessage, allDishesList, allOffersList, allOrdersList, allReservationsList, navContext, faqContext, semantic);
       return this.responseFormatter.format(offlineReply, {
         dishes: allDishesList,
         offers: allOffersList,
@@ -147,7 +145,7 @@ export class AIService {
       });
     }
 
-    // Call Hugging Face Gemma API
+    // Call Hugging Face Gemma Router API
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -161,7 +159,7 @@ export class AIService {
         body: JSON.stringify({
           model: "google/gemma-3-12b-it",
           messages: [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: refinedSystemPrompt },
             ...messagesHistory.slice(-6)
           ],
           max_tokens: 512,
@@ -187,8 +185,8 @@ export class AIService {
 
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.log("[Tadka AI Service] Falling back to offline generation:", err.message);
-      const offlineReply = await this.generateOfflineReply(userMessage, allDishesList, allOffersList, allOrdersList, allReservationsList, navContext, faqContext);
+      console.log("[Tadka AI Service] Stage 2 inference failed, falling back to offline generation:", err.message);
+      const offlineReply = await this.generateOfflineReply(userMessage, allDishesList, allOffersList, allOrdersList, allReservationsList, navContext, faqContext, semantic);
       return this.responseFormatter.format(offlineReply, {
         dishes: allDishesList,
         offers: allOffersList,
@@ -205,13 +203,10 @@ export class AIService {
     orders: any[],
     reservations: any[],
     navContext: string,
-    faqContext: string
+    faqContext: string,
+    semantic: SemanticPayload
   ): Promise<string> {
     const q = userMessage.toLowerCase();
-    // Weather / Rain check
-    if (q.includes("weather") || q.includes("rain") || q.includes("hot soup") || q.includes("cold")) {
-      return "The weather in Ranchi is currently cloudy with a light drizzle (26°C). It is the perfect weather to enjoy some hot piping Tomato Soup [DISH:Tomato_Soup] or sizzling Paneer Tikka Masala [DISH:Paneer_Tikka_Masala]! 🌧️";
-    }
 
     // 1. Navigation Action
     if (navContext) {
@@ -226,7 +221,12 @@ export class AIService {
       return faqContext;
     }
 
-    // 3. Active Reservations
+    // 3. Weather / Rain check
+    if (q.includes("weather") || q.includes("rain") || q.includes("hot soup") || q.includes("cold")) {
+      return "The weather in Ranchi is currently cloudy with a light drizzle (26°C). It is the perfect weather to enjoy some hot piping Tomato Soup [DISH:Tomato_Cream] or sizzling Paneer Tikka Masala [DISH:Paneer_Tikka_Butter_Masala]! 🌧️";
+    }
+
+    // 4. Active Reservations
     if (q.includes("booking") || q.includes("reservation")) {
       if (reservations.length > 0) {
         const r = reservations[0];
@@ -235,7 +235,7 @@ export class AIService {
       return "You don't have any active table reservations booked right now. Let me know if you would like to reserve one! 📅";
     }
 
-    // 4. Order status
+    // 5. Order status
     if (q.includes("order") || q.includes("track")) {
       if (orders.length > 0) {
         const o = orders[0];
@@ -244,7 +244,7 @@ export class AIService {
       return "I couldn't find any recent orders on your profile. Would you like to check the menu? 🍲";
     }
 
-    // 5. Active Offers
+    // 6. Active Offers
     if (q.includes("offer") || q.includes("coupon") || q.includes("discount")) {
       if (offers.length > 0) {
         let reply = "Here are the promo codes and coupons available to you today at Punjabi Kitchen:\n\n";
@@ -255,13 +255,22 @@ export class AIService {
       }
     }
 
-    // 6. Dishes match
+    // 7. Dishes match (Enforce offline semantic filtering of sweet vs soup matching)
     if (dishes.length > 0) {
-      let reply = "Here is the list of dishes matching your query:\n\n";
-      dishes.forEach(d => {
-        reply += `• **${d.name}** (₹${d.price}) - ${d.description} [DISH:${d.id}]\n`;
-      });
-      return reply;
+      let filteredDishes = [...dishes];
+      
+      // If taste is sweet, filter out soups offline
+      if (semantic.taste === "sweet") {
+        filteredDishes = filteredDishes.filter(d => !d.categoryId.includes("soup"));
+      }
+
+      if (filteredDishes.length > 0) {
+        let reply = "Here is the list of dishes matching your query:\n\n";
+        filteredDishes.forEach(d => {
+          reply += `• **${d.name}** (₹${d.price}) - ${d.description} [DISH:${d.id}]\n`;
+        });
+        return reply;
+      }
     }
 
     return "I am Tadka, your personal AI Waiter. I can recommend dishes, show active offers, check your reservations, or help you track orders! What can I fetch for you today?";
