@@ -519,7 +519,7 @@ export default function AIWaiterScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "padding"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 100}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         style={styles.keyboardContainer}
       >
         {/* Top Status */}
