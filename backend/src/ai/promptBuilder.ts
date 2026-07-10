@@ -7,6 +7,7 @@ export class PromptBuilder {
     userContext?: string;
     faqContext?: string;
     navContext?: string;
+    weatherContext?: string;
   }): string {
     const {
       menuContext,
@@ -15,7 +16,8 @@ export class PromptBuilder {
       reservationContext,
       userContext,
       faqContext,
-      navContext
+      navContext,
+      weatherContext
     } = params;
 
     let base = `You are "Tadka", the friendly, polite, and expert AI Waiter and Assistant for the "Punjabi Kitchen" restaurant app.
@@ -41,6 +43,7 @@ Business Context:\n`;
     if (reservationContext) base += `\nActive Reservations:\n${reservationContext}\n`;
     if (faqContext) base += `\nFAQ / Store Info:\n${faqContext}\n`;
     if (navContext) base += `\nApp Screens & Navigation Actions:\n${navContext}\n`;
+    if (weatherContext) base += `\nLive Weather:\n${weatherContext}\n`;
 
     base += `\nAnswer naturally and politely. Suggest related follow-up suggestions if appropriate.`;
     return base;

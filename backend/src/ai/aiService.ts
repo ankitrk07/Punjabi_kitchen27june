@@ -120,6 +120,8 @@ export class AIService {
       if (nav) navContext = `- Action: ${nav.action} | Target Route: ${nav.route}`;
     }
 
+    const weatherContext = "- Current Weather in Ranchi: 26°C, Cloudy with light drizzle. Recommended: hot starters, piping hot soups (Tomato Soup, Manchow Soup), hot beverages like Masala Tea.";
+
     // 3. Prompt Builder
     const systemPrompt = this.promptBuilder.build({
       menuContext,
@@ -128,7 +130,8 @@ export class AIService {
       reservationContext,
       userContext,
       faqContext,
-      navContext
+      navContext,
+      weatherContext
     });
 
     const token = process.env.HF_API_TOKEN;
@@ -205,6 +208,10 @@ export class AIService {
     faqContext: string
   ): Promise<string> {
     const q = userMessage.toLowerCase();
+    // Weather / Rain check
+    if (q.includes("weather") || q.includes("rain") || q.includes("hot soup") || q.includes("cold")) {
+      return "The weather in Ranchi is currently cloudy with a light drizzle (26°C). It is the perfect weather to enjoy some hot piping Tomato Soup [DISH:Tomato_Soup] or sizzling Paneer Tikka Masala [DISH:Paneer_Tikka_Masala]! 🌧️";
+    }
 
     // 1. Navigation Action
     if (navContext) {

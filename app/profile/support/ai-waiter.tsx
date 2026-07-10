@@ -42,6 +42,63 @@ const SUGGESTIONS = [
   "🎁 Show active offers",
 ];
 
+const FormattedText = ({ text, isUser }: { text: string; isUser: boolean }) => {
+  if (isUser) {
+    return <Text style={styles.userMessageText}>{text}</Text>;
+  }
+
+  const lines = text.split("\n");
+  return (
+    <View style={{ gap: 6 }}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        const isBullet = trimmed.startsWith("•") || trimmed.startsWith("-");
+        const cleanLine = isBullet ? trimmed.replace(/^[•\-]\s*/, "") : line;
+
+        // Parse **bold** tags
+        const parts = cleanLine.split(/(\*\*[^*]+\*\*)/g);
+        
+        return (
+          <View key={idx} style={[styles.textLineRow, isBullet && styles.bulletLineRow]}>
+            {isBullet && <Text style={styles.bulletPoint}>•</Text>}
+            <Text style={styles.messageText}>
+              {parts.map((part, pIdx) => {
+                const isBold = part.startsWith("**") && part.endsWith("**");
+                const cleanPart = isBold ? part.slice(2, -2) : part;
+
+                // Highlight prices or currency symbols
+                if (cleanPart.includes("₹")) {
+                  const priceParts = cleanPart.split(/(₹\d+)/g);
+                  return priceParts.map((subPart, sIdx) => {
+                    const isPrice = subPart.startsWith("₹");
+                    return (
+                      <Text
+                        key={`${pIdx}-${sIdx}`}
+                        style={[
+                          isBold && styles.boldText,
+                          isPrice && styles.priceHighlight
+                        ]}
+                      >
+                        {subPart}
+                      </Text>
+                    );
+                  });
+                }
+
+                return (
+                  <Text key={pIdx} style={isBold ? styles.boldText : undefined}>
+                    {cleanPart}
+                  </Text>
+                );
+              })}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 export default function AIWaiterScreen() {
   const router = useRouter();
   const { dishes, offers, addToCart, user } = useApp();
@@ -225,9 +282,7 @@ export default function AIWaiterScreen() {
             isUser ? styles.userBubble : styles.tadkaBubble,
           ]}
         >
-          <Text style={isUser ? styles.userMessageText : styles.messageText}>
-            {msg.text}
-          </Text>
+          <FormattedText text={msg.text} isUser={isUser} />
 
           {/* Structured Navigation Action */}
           {!isUser && msg.navigation && (
@@ -608,6 +663,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  textLineRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    width: "100%",
+  },
+  bulletLineRow: {
+    paddingLeft: 8,
+  },
+  bulletPoint: {
+    fontSize: 16,
+    color: colors.gold,
+    marginRight: 6,
+    lineHeight: 20,
+  },
+  boldText: {
+    fontWeight: "700",
+    color: colors.goldBright,
+  },
+  priceHighlight: {
+    color: colors.goldBright,
+    fontWeight: "800",
   },
   userMessageText: {
     fontSize: 14,
