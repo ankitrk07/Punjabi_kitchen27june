@@ -19,6 +19,7 @@ import { getDishImageSource } from "@/src/utils/dishImages";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { API_BASE_URL } from "@/src/config/api";
 
 type ChatMessage = {
   id: string;
@@ -76,7 +77,7 @@ export default function AIWaiterScreen() {
     setIsTyping(true);
 
     try {
-      const response = await fetch("https://punjabi-kitchen27june.onrender.com/api/ai/chat", {
+      const response = await fetch(`${API_BASE_URL}/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

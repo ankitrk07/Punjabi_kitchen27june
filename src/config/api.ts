@@ -1,7 +1,12 @@
 import Constants from "expo-constants";
 
 const getBaseUrl = () => {
-  // Use the live hosted Render backend directly so images load reliably on any device
+  // Try to use debugger host IP for local testing on mobile devices
+  const debuggerHost = Constants.expoConfig?.hostUri || "";
+  const ip = debuggerHost.split(":")[0];
+  if (ip) {
+    return `http://${ip}:3000/api`;
+  }
   return "https://punjabi-kitchen27june.onrender.com/api";
 };
 

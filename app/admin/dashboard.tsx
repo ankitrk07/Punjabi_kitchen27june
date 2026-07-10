@@ -2,6 +2,7 @@ import { useApp } from "@/src/context/AppContext";
 import { Category } from "@/src/data/menu";
 import { colors } from "@/src/theme";
 import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
+import { API_BASE_URL } from "@/src/config/api";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
@@ -208,7 +209,7 @@ export default function AdminDashboard() {
   const loadAiInsights = async () => {
     setLoadingAi(true);
     try {
-      const res = await fetch("https://punjabi-kitchen27june.onrender.com/api/admin/ai-insights");
+      const res = await fetch(`${API_BASE_URL}/admin/ai-insights`);
       const data = await res.json();
       setAiInsights(data);
     } catch (e) {
