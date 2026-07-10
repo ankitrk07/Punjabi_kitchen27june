@@ -257,9 +257,9 @@ export class AIService {
 
     // 6. Dishes match
     if (dishes.length > 0) {
-      let reply = "I found some delicious options on our menu for you:\n\n";
+      let reply = "Here is the list of dishes matching your query:\n\n";
       dishes.forEach(d => {
-        reply += `Our **${d.name}** features ${d.description.toLowerCase()} and is priced at ₹${d.price}. [DISH:${d.id}]\n\n`;
+        reply += `• **${d.name}** (₹${d.price}) - ${d.description} [DISH:${d.id}]\n`;
       });
       return reply;
     }

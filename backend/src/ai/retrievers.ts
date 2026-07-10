@@ -27,21 +27,26 @@ export class MenuRetriever {
         return filters.spicy ? !!matchesSpicy : !matchesSpicy;
       });
     }
+    let limit = 3;
     if (filters.query) {
       const q = filters.query.toLowerCase();
-      results = results.filter(d => {
-        const dishNameLower = d.name.toLowerCase();
-        // Check if the query contains the full dish name or ingredients/words of the dish name
-        if (q.includes(dishNameLower)) return true;
-        
-        const words = dishNameLower.split(/[\s_\-\(\)]+/).filter(w => w.length > 2);
-        return words.some(w => q.includes(w));
-      });
+      const isAllQuery = /\b(all|list|menu|everything|browse|show me|dishes|get)\b/i.test(q);
+      if (isAllQuery) {
+        limit = 10;
+      } else {
+        results = results.filter(d => {
+          const dishNameLower = d.name.toLowerCase();
+          if (q.includes(dishNameLower)) return true;
+          
+          const words = dishNameLower.split(/[\s_\-\(\)]+/).filter(w => w.length > 2);
+          return words.some(w => q.includes(w));
+        });
+      }
     }
 
     // Sort by rating desc
     results.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
-    return results.slice(0, 3);
+    return results.slice(0, limit);
   }
 }
 
