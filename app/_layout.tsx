@@ -1,17 +1,17 @@
 import { AppProvider } from "@/src/context/AppContext";
+import { TabBarAnimationProvider } from "@/src/context/TabBarAnimationContext";
 import { colors } from "@/src/theme";
-import { ThemeProvider, DarkTheme } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFonts } from "expo-font";
-import { Ionicons } from "@expo/vector-icons";
-import * as SplashScreen from "expo-splash-screen";
-import { TabBarAnimationProvider } from "@/src/context/TabBarAnimationContext";
 import { useSharedValue } from "react-native-reanimated";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Keep the splash screen visible while loading resources
 SplashScreen.preventAutoHideAsync().catch(() => {});

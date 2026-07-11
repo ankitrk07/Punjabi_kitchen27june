@@ -63,9 +63,6 @@ export class ResponseFormatter {
 
     // Dynamic quick reply suggestions based on matches
     const quickReplies: string[] = [];
-    if (matchedDishes.length > 0) {
-      quickReplies.push("🛒 View Cart");
-    }
     if (matchedOffers.length > 0) {
       quickReplies.push("🎁 Redeem Offers");
     }

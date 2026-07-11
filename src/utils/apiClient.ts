@@ -216,6 +216,15 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify(deal),
     }),
+  deleteDealOfDay: (id: string) =>
+    apiCall<any>(`/admin/deal-of-day/${id}`, { method: "DELETE" }),
+  addOffer: (offer: any) =>
+    apiCall<any>("/admin/offers", {
+      method: "POST",
+      body: JSON.stringify(offer),
+    }),
+  deleteOffer: (id: string) =>
+    apiCall<any>(`/admin/offers/${id}`, { method: "DELETE" }),
 
   // Catering
   getCateringRequests: (email?: string) =>

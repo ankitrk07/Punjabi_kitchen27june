@@ -1,12 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Animated } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "@/src/context/AppContext";
 import { colors } from "@/src/theme";
 import { apiClient } from "@/src/utils/apiClient";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Login() {
   const router = useRouter();
@@ -15,8 +15,22 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
+
+  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
+  const logoScale = useRef(new Animated.Value(0.95)).current;
+
+  useEffect(() => {
+    // Logo breathing loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoScale, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
+        Animated.timing(logoScale, { toValue: 0.95, duration: 1500, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
     if (loading) {
@@ -52,18 +66,20 @@ export default function Login() {
       return;
     }
 
+    const trimmedEmail = email.trim().toLowerCase();
+    if (trimmedEmail !== "admin@punjabikitchen.com" && !trimmedEmail.endsWith("@gmail.com")) {
+      setError("We do not support temporary emails.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      // Verify credentials on backend
       const userProfile = await apiClient.login({ email: trimmedEmail, password: password.trim() });
-      
-      // Complete sign in and load context
       await signIn(userProfile);
 
-      // Route based on role
       if (trimmedEmail === "admin@punjabikitchen.com") {
         router.replace("/admin/dashboard");
       } else {
@@ -75,27 +91,43 @@ export default function Login() {
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const isAdmin = email.trim().toLowerCase() === "admin@punjabikitchen.com";
+
   return (
     <SafeAreaView style={styles.safe}>
-      <LinearGradient colors={["#000", "#0A0A0A", "#1A0F00"]} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["#000", "#0D0B08", "#24180F"]} style={StyleSheet.absoluteFill} />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+          {/* logo & brand header */}
           <View style={styles.logoWrap}>
-            <View style={styles.crown}>
-              <Ionicons name="restaurant" size={40} color={colors.gold} />
-            </View>
+            <Animated.View style={[styles.crown, { transform: [{ scale: logoScale }] }]}>
+              <Ionicons name="restaurant" size={38} color={colors.gold} />
+            </Animated.View>
             <Text style={styles.brand}>Punjabi Kitchen</Text>
             <Text style={styles.tag}>Royal Flavours of Punjab</Text>
           </View>
 
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue your feast</Text>
+          {/* greeting title */}
+          <Text style={styles.title}>{getGreeting()}, Guest</Text>
+          <Text style={styles.subtitle}>Login to enter the royal culinary experience</Text>
 
-          <View style={styles.field}>
-            <Ionicons name="mail-outline" size={18} color={colors.gold} />
+          {/* Email input field */}
+          <View style={[
+            styles.field,
+            focusedField === "email" && styles.fieldFocused
+          ]}>
+            <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? colors.gold : "rgba(255,255,255,0.4)"} />
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder="Enter Email Address"
               placeholderTextColor={colors.textSecondary}
               value={email}
               onChangeText={setEmail}
@@ -103,14 +135,20 @@ export default function Login() {
               keyboardType="email-address"
               testID="email-input"
               editable={!loading}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
             />
           </View>
 
-          <View style={styles.field}>
-            <Ionicons name="lock-closed-outline" size={18} color={colors.gold} />
+          {/* Password input field */}
+          <View style={[
+            styles.field,
+            focusedField === "password" && styles.fieldFocused
+          ]}>
+            <Ionicons name="lock-closed-outline" size={18} color={focusedField === "password" ? colors.gold : "rgba(255,255,255,0.4)"} />
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder="Enter Password"
               placeholderTextColor={colors.textSecondary}
               value={password}
               onChangeText={setPassword}
@@ -118,49 +156,55 @@ export default function Login() {
               autoCapitalize="none"
               testID="password-input"
               editable={!loading}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
             />
           </View>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+          {/* error display */}
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
 
+          {/* login button */}
           <TouchableOpacity style={styles.loginBtn} onPress={onLogin} testID="login-btn" disabled={loading}>
-            <Text style={styles.loginText}>LOGIN</Text>
+            <Text style={styles.loginText}>ENTER FEAST</Text>
+            <Ionicons name="chevron-forward" size={14} color="#000" />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/auth/signup")} testID="goto-signup" disabled={loading}>
+          {/* navigation link */}
+          <TouchableOpacity onPress={() => router.push("/auth/signup")} testID="goto-signup" disabled={loading} style={styles.signupLink}>
             <Text style={styles.linkText}>
-              New to Punjabi Kitchen? <Text style={{ color: colors.gold }}>Sign Up</Text>
+              New to Punjabi Kitchen? <Text style={{ color: colors.gold, fontWeight: "900" }}>Get Started</Text>
             </Text>
           </TouchableOpacity>
+
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Loading Modal overlay */}
       {loading && (
         <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]}>
           <View style={styles.loadingContainer}>
             <View style={[
               styles.loadingLogoWrap,
-              email.trim().toLowerCase() === "admin@punjabikitchen.com" && { borderColor: "rgba(229, 139, 34, 0.45)", shadowColor: colors.accent }
+              isAdmin && { borderColor: "rgba(229, 139, 34, 0.45)", shadowColor: colors.accent }
             ]}>
-              <Ionicons 
-                name={email.trim().toLowerCase() === "admin@punjabikitchen.com" ? "shield-checkmark-outline" : "restaurant"} 
-                size={36} 
-                color={email.trim().toLowerCase() === "admin@punjabikitchen.com" ? colors.accent : colors.gold} 
+              <Ionicons
+                name={isAdmin ? "shield-checkmark-outline" : "restaurant"}
+                size={36}
+                color={isAdmin ? colors.accent : colors.gold}
               />
             </View>
-            <ActivityIndicator 
-              size="large" 
-              color={email.trim().toLowerCase() === "admin@punjabikitchen.com" ? colors.accent : colors.gold} 
-              style={styles.spinner} 
+            <ActivityIndicator
+              size="large"
+              color={isAdmin ? colors.accent : colors.gold}
+              style={styles.spinner}
             />
             <Animated.Text style={[
-              styles.loadingText, 
+              styles.loadingText,
               { opacity: pulseAnim },
-              email.trim().toLowerCase() === "admin@punjabikitchen.com" && { color: colors.accent }
+              isAdmin && { color: colors.accent }
             ]}>
-              {email.trim().toLowerCase() === "admin@punjabikitchen.com" 
-                ? "Accessing Control Panel..." 
-                : "Preparing your feast..."}
+              {isAdmin ? "Accessing Control Panel..." : "Preparing your feast..."}
             </Animated.Text>
           </View>
         </Animated.View>
@@ -172,21 +216,23 @@ export default function Login() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: 24, justifyContent: "center", flexGrow: 1 },
-  logoWrap: { alignItems: "center", marginBottom: 32 },
-  crown: { width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: colors.gold, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
-  brand: { color: colors.gold, fontSize: 22, fontWeight: "700", marginTop: 12, letterSpacing: 2 },
-  tag: { color: colors.textSecondary, fontSize: 11, letterSpacing: 2, marginTop: 4 },
-  title: { color: "#FFF", fontSize: 26, fontWeight: "700", marginBottom: 4 },
-  subtitle: { color: colors.textSecondary, fontSize: 13, marginBottom: 24 },
-  field: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 14, marginBottom: 12, gap: 10 },
+  logoWrap: { alignItems: "center", marginBottom: 38 },
+  crown: { width: 88, height: 88, borderRadius: 44, borderWidth: 1.5, borderColor: colors.gold, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.01)" },
+  brand: { color: colors.gold, fontSize: 24, fontWeight: "900", marginTop: 12, letterSpacing: 2, textTransform: "uppercase" },
+  tag: { color: colors.textSecondary, fontSize: 10, letterSpacing: 3, marginTop: 4, textTransform: "uppercase", fontWeight: "600" },
+  title: { color: "#FFF", fontSize: 24, fontWeight: "900", letterSpacing: 0.3, marginBottom: 4 },
+  subtitle: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginBottom: 24 },
+  field: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", borderRadius: 16, paddingHorizontal: 14, marginBottom: 12, gap: 10 },
+  fieldFocused: { borderColor: colors.gold, backgroundColor: "rgba(212,175,55,0.02)" },
   input: { flex: 1, color: "#FFF", paddingVertical: 14, fontSize: 14 },
-  loginBtn: { backgroundColor: colors.gold, paddingVertical: 14, borderRadius: 24, alignItems: "center", marginTop: 12 },
-  loginText: { color: "#000", fontWeight: "800", letterSpacing: 2 },
-  linkText: { color: colors.textSecondary, textAlign: "center", marginTop: 20, fontSize: 13 },
-  error: { color: colors.error, fontSize: 12, marginBottom: 8 },
+  loginBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.gold, paddingVertical: 14, borderRadius: 24, marginTop: 12, shadowColor: colors.gold, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+  loginText: { color: "#000", fontWeight: "900", letterSpacing: 1.5 },
+  signupLink: { marginTop: 24 },
+  linkText: { color: colors.textSecondary, textAlign: "center", fontSize: 13 },
+  errorText: { color: colors.error, fontSize: 12, fontWeight: "600", marginBottom: 12, alignSelf: "center" },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 5, 5, 0.92)",
+    backgroundColor: "rgba(5, 5, 5, 0.94)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,

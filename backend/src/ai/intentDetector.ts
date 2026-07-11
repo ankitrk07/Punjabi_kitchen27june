@@ -24,7 +24,7 @@ export interface SemanticPayload {
     people?: number;
     category?: string;
     spice?: "spicy" | "mild" | "sweet" | string;
-    maxPrice?: number;
+    maxPrice?: number | undefined;
     reference?: string;
     price?: "lower" | "higher" | string;
     dishName?: string;
@@ -102,14 +102,14 @@ CURRENT USER MESSAGE: "${message}"`;
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-3-12b-it/v1/chat/completions", {
+      const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          model: "google/gemma-3-12b-it",
+          model: "mistralai/Mistral-7B-Instruct-v0.2",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: message }
@@ -127,7 +127,16 @@ CURRENT USER MESSAGE: "${message}"`;
       }
 
       const data = await response.json() as any;
-      const rawText = data.choices?.[0]?.message?.content || "";
+      
+      // Handle different response formats
+      let rawText = "";
+      if (Array.isArray(data) && data[0]?.generated_text) {
+        rawText = data[0].generated_text;
+      } else if (data.generated_text) {
+        rawText = data.generated_text;
+      } else if (data.choices?.[0]?.message?.content) {
+        rawText = data.choices[0].message.content;
+      }
       
       const jsonText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
       return JSON.parse(jsonText) as SemanticPayload;

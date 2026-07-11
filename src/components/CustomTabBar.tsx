@@ -934,13 +934,8 @@ const TabBarItem: React.FC<TabBarItemProps> = ({
    ================================================================ */
 
 function useContainerEntrance() {
-    const ty = useSharedValue(30);
-    const opacity = useSharedValue(0);
-
-    useEffect(() => {
-        ty.value = withDelay(160, withSpring(0, SPRING_ENTRANCE));
-        opacity.value = withDelay(160, withTiming(1, { duration: 440, easing: EASE_OUT_EXPO }));
-    }, []);
+    const ty = useSharedValue(0);
+    const opacity = useSharedValue(1);
 
     return useAnimatedStyle(() => ({
         transform: [{ translateY: ty.value }],

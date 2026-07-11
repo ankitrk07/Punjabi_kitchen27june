@@ -73,7 +73,6 @@ const styles = StyleSheet.create({
   header: { height: 60, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.bg },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.borderGold },
   title: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "700", textAlign: "center" },
-  scrollView: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { padding: 16, paddingBottom: 160, backgroundColor: colors.bg },
 });
 

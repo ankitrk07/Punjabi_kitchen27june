@@ -19,8 +19,8 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.bg },
-        lazy: false,
-        freezeOnBlur: false,
+        lazy: true,
+        freezeOnBlur: true,
         animation: "none",
       }}
     >

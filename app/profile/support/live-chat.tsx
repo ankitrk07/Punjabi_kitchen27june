@@ -3,7 +3,8 @@ import { colors } from "@/src/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 type Message = {
   id: string;
@@ -68,45 +69,48 @@ export default function LiveChatScreen() {
 
   return (
     <ScreenHeader title="Support Live Chat" backHref="/(tabs)/profile" scrollable={false}>
+      {/* Toggle between AI Waiter and Live Support */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tabButton, styles.tabButtonActive]}
+          disabled={true}
+        >
+          <Ionicons name="headset" size={14} color="#000" style={{ marginRight: 6 }} />
+          <Text style={[styles.tabButtonText, styles.tabButtonTextActive]}>Live Support</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.tabButton}
+          onPress={() => router.push("/profile/support/ai-waiter")}
+        >
+          <Ionicons name="sparkles-outline" size={14} color={colors.gold} style={{ marginRight: 6 }} />
+          <Text style={styles.tabButtonText}>AI Waiter (Tadka)</Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "position"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 90}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 115 : 0}
         style={styles.keyboardContainer}
       >
-        {/* Toggle between AI Waiter and Live Support */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tabButton, styles.tabButtonActive]}
-            disabled={true}
-          >
-            <Ionicons name="headset-outline" size={14} color="#000" style={{ marginRight: 6 }} />
-            <Text style={[styles.tabButtonText, styles.tabButtonTextActive]}>Live Support</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.tabButton}
-            onPress={() => router.push("/profile/support/ai-waiter")}
-          >
-            <Ionicons name="restaurant-outline" size={14} color={colors.gold} style={{ marginRight: 6 }} />
-            <Text style={styles.tabButtonText}>AI Waiter (Tadka)</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.pageBody}>
           {/* Agent Info bar */}
-          <View style={styles.agentBar}>
+          <LinearGradient
+            colors={["#16130F", "#0F0C0A"]}
+            style={styles.agentBar}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>S</Text>
               <View style={styles.onlineBadge} />
             </View>
             <View style={styles.agentInfoText}>
               <Text style={styles.agentName}>Simran • Punjabi Kitchen</Text>
-              <Text style={styles.agentStatus}>Live support for order updates, spice choices, and delivery help.</Text>
+              <Text style={styles.agentStatus}>Support Executive • Active Now</Text>
             </View>
             <TouchableOpacity style={styles.callIcon} onPress={() => alert("Calling Helpline...")}> 
-              <Ionicons name="call-outline" size={18} color={colors.gold} />
+              <Ionicons name="call" size={18} color="#000" />
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
 
           {/* Message Area */}
           <ScrollView
@@ -116,38 +120,56 @@ export default function LiveChatScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {messages.map((msg) => (
-              <View
-                key={msg.id}
-                style={[
-                  styles.bubbleWrapper,
-                  msg.sender === "user" ? styles.userWrapper : styles.agentWrapper,
-                ]}
-              >
+            {messages.map((msg) => {
+              const isUser = msg.sender === "user";
+              return (
                 <View
+                  key={msg.id}
                   style={[
-                    styles.bubble,
-                    msg.sender === "user" ? styles.userBubble : styles.agentBubble,
+                    styles.bubbleWrapper,
+                    isUser ? styles.userWrapper : styles.agentWrapper,
                   ]}
                 >
-                  <Text
+                  {!isUser && (
+                    <View style={styles.smallAvatar}>
+                      <Text style={styles.smallAvatarText}>S</Text>
+                    </View>
+                  )}
+                  <View
                     style={[
-                      styles.messageText,
-                      msg.sender === "user" ? styles.userText : styles.agentText,
+                      styles.bubble,
+                      isUser ? styles.userBubble : styles.agentBubble,
                     ]}
                   >
-                    {msg.text}
-                  </Text>
-                  <Text style={styles.timeText}>{msg.time}</Text>
+                    <Text
+                      style={[
+                        styles.messageText,
+                        isUser ? styles.userText : styles.agentText,
+                      ]}
+                    >
+                      {msg.text}
+                    </Text>
+                    <Text style={[styles.timeText, isUser ? styles.userTimeText : styles.agentTimeText]}>
+                      {msg.time}
+                    </Text>
+                  </View>
+                  {isUser && (
+                    <View style={styles.smallUserAvatar}>
+                      <Ionicons name="person" size={12} color="#000" />
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
 
             {isTyping && (
               <View style={[styles.bubbleWrapper, styles.agentWrapper]}>
+                <View style={styles.smallAvatar}>
+                  <Text style={styles.smallAvatarText}>S</Text>
+                </View>
                 <View style={[styles.bubble, styles.agentBubble, styles.typingBubble]}>
-                  <ActivityIndicator size="small" color={colors.gold} />
-                  <Text style={[styles.messageText, styles.agentText, { marginLeft: 8 }]}> 
+                  <ActivityIndicator size="small" color={colors.gold} style={{ marginRight: 8 }} />
+                  <Text style={[styles.messageText, styles.agentText]}> 
                     Simran is typing...
                   </Text>
                 </View>
@@ -161,14 +183,14 @@ export default function LiveChatScreen() {
           <TextInput
             style={styles.input}
             placeholder="Ask about your order, menu or delivery..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor="rgba(255, 255, 255, 0.3)"
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={sendMessage}
             returnKeyType="send"
           />
           <TouchableOpacity style={styles.sendBtn} onPress={sendMessage} activeOpacity={0.8}>
-            <Ionicons name="send" size={18} color="#000" />
+            <Ionicons name="send" size={16} color="#000" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -182,26 +204,29 @@ const styles = StyleSheet.create({
   },
   pageBody: {
     flex: 1,
+    paddingHorizontal: 16,
   },
   agentBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
+    borderColor: "rgba(201, 168, 76, 0.25)",
+    marginVertical: 14,
+    backgroundColor: "#16130F",
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(212, 175, 55, 0.18)",
+    backgroundColor: "rgba(201, 168, 76, 0.18)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.35)",
   },
   avatarText: {
     fontSize: 16,
@@ -217,47 +242,40 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.success,
     borderWidth: 1.5,
-    borderColor: colors.surface,
+    borderColor: "#16130F",
   },
   agentInfoText: {
     flex: 1,
   },
   agentName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: colors.textPrimary,
   },
   agentStatus: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     marginTop: 2,
-    lineHeight: 18,
   },
   callIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.gold,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   messageScroll: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.02)",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
   },
   messageContent: {
-    padding: 16,
-    paddingBottom: 22,
+    paddingVertical: 10,
+    gap: 14,
   },
   bubbleWrapper: {
     flexDirection: "row",
-    marginBottom: 12,
+    alignItems: "flex-end",
+    gap: 8,
     width: "100%",
   },
   userWrapper: {
@@ -266,60 +284,89 @@ const styles = StyleSheet.create({
   agentWrapper: {
     justifyContent: "flex-start",
   },
+  smallAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(201, 168, 76, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.25)",
+  },
+  smallAvatarText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.gold,
+  },
+  smallUserAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   bubble: {
-    maxWidth: "80%",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    maxWidth: "75%",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 18,
   },
   userBubble: {
     backgroundColor: colors.gold,
-    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
   },
   agentBubble: {
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderWidth: 1,
-    borderColor: colors.border,
-    borderTopLeftRadius: 2,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderBottomLeftRadius: 2,
   },
   typingBubble: {
     flexDirection: "row",
     alignItems: "center",
   },
   messageText: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 13.5,
+    lineHeight: 19,
   },
   userText: {
     color: "#000",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   agentText: {
-    color: colors.textPrimary,
+    color: "#FFF",
   },
   timeText: {
     fontSize: 9,
     alignSelf: "flex-end",
-    marginTop: 4,
-    color: "rgba(0,0,0,0.4)",
+    marginTop: 6,
+  },
+  userTimeText: {
+    color: "rgba(0,0,0,0.5)",
+  },
+  agentTimeText: {
+    color: "rgba(255,255,255,0.4)",
   },
   inputBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 14,
+    backgroundColor: "#16130F",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
-    paddingLeft: 14,
+    borderColor: "rgba(201, 168, 76, 0.25)",
+    paddingLeft: 16,
     paddingRight: 6,
     paddingVertical: 6,
-    marginBottom: 10,
+    marginHorizontal: 16,
+    marginVertical: 12,
   },
   input: {
     flex: 1,
     color: colors.textPrimary,
     fontSize: 13,
-    height: 38,
+    height: 40,
   },
   sendBtn: {
     width: 36,
@@ -332,18 +379,18 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: "row",
     padding: 8,
-    backgroundColor: "#130F0C",
+    backgroundColor: "#0A0A0A",
     borderBottomWidth: 1,
-    borderColor: "#241B15",
+    borderColor: "rgba(201, 168, 76, 0.15)",
     gap: 8,
   },
   tabButton: {
     flex: 1,
     flexDirection: "row",
-    height: 36,
-    borderRadius: 18,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
-    borderColor: "#2A2017",
+    borderColor: "rgba(201, 168, 76, 0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -352,11 +399,12 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
   },
   tabButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 12.5,
+    fontWeight: "700",
     color: colors.textSecondary,
   },
   tabButtonTextActive: {
     color: "#000",
   },
 });
+

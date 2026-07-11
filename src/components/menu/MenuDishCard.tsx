@@ -168,7 +168,7 @@ const MenuDishCard = React.memo(function MenuDishCard({ dish, isFavorite, onTogg
       <View style={styles.imageWrap}>
         <Image source={getDishImageSource(dish.id, dish.image)} style={styles.cardImg} />
         <LinearGradient
-          colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
+          colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
           style={StyleSheet.absoluteFill}
         />
 

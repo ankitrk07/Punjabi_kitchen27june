@@ -4,8 +4,8 @@ import { colors } from "@/src/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, TextInput } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, TextInput, ScrollView, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { apiClient, resolveImageUrl } from "@/src/utils/apiClient";
 import { getDishImageSource } from "@/src/utils/dishImages";
@@ -279,6 +279,38 @@ export function DealOfDaySection() {
 
 export function ChefSpecialsSection({ chefSpecials }: Props) {
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollX = useRef(0);
+  const autoScrollTimer = useRef<any>(null);
+  const isUserInteracting = useRef(false);
+
+  const startAutoScroll = () => {
+    if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+    autoScrollTimer.current = setInterval(() => {
+      if (isUserInteracting.current || !scrollRef.current) return;
+      scrollX.current += 0.9;
+      const maxScroll = (chefSpecials.length * 192) - Dimensions.get("window").width + 32;
+      if (maxScroll <= 0) return;
+      if (scrollX.current >= maxScroll) {
+        scrollX.current = 0;
+      }
+      scrollRef.current.scrollTo({ x: scrollX.current, animated: false });
+    }, 25);
+  };
+
+  useEffect(() => {
+    startAutoScroll();
+    return () => {
+      if (autoScrollTimer.current) clearInterval(autoScrollTimer.current);
+    };
+  }, [chefSpecials]);
+
+  const handleScroll = (event: any) => {
+    if (isUserInteracting.current) {
+      scrollX.current = event.nativeEvent.contentOffset.x;
+    }
+  };
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
@@ -286,7 +318,27 @@ export function ChefSpecialsSection({ chefSpecials }: Props) {
         <View style={styles.crown}><Ionicons name="star" size={12} color={colors.gold} /></View>
       </View>
       <Text style={styles.chefNote}>Handpicked by our head chef</Text>
-      <Marquee speed={45} itemWidth={180} itemCount={chefSpecials.length}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingVertical: 4 }}
+        onScrollBeginDrag={() => {
+          isUserInteracting.current = true;
+        }}
+        onScrollEndDrag={(e) => {
+          isUserInteracting.current = false;
+          scrollX.current = e.nativeEvent.contentOffset.x;
+          setTimeout(() => {
+            if (!isUserInteracting.current) startAutoScroll();
+          }, 3000);
+        }}
+        onMomentumScrollEnd={(e) => {
+          scrollX.current = e.nativeEvent.contentOffset.x;
+        }}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         {chefSpecials.map((d) => (
           <TouchableOpacity key={d.id} style={styles.chefCard} onPress={() => router.push(`/category/${d.category}` as any)}>
             <Image source={{ uri: resolveImageUrl(d.image) }} style={styles.chefImg} />
@@ -297,7 +349,7 @@ export function ChefSpecialsSection({ chefSpecials }: Props) {
             </View>
           </TouchableOpacity>
         ))}
-      </Marquee>
+      </ScrollView>
     </View>
   );
 }

@@ -48,7 +48,7 @@ const MenuSection = React.memo(function MenuSection({ section, favorites, onTogg
               onToggleFavorite={onToggleFavorite}
               onAddToCart={onAddToCart}
               onOpen={onOpen}
-              cardRef={(node) => onCardRef(dish.id, node)}
+              cardRef={(node: any) => onCardRef(dish.id, node)}
               viewMode={viewMode}
             />
           </View>

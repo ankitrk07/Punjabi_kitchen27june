@@ -11,6 +11,66 @@ import LottieView from "lottie-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Easing } from "react-native";
+
+// GoldenParticles component renders subtle glowy golden particles around its children
+const GoldenParticles = ({ children }) => {
+  const anim = useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  const particles = [
+    { left: 30, top: 20 },
+    { left: 180, top: 40 },
+    { left: 120, top: 150 },
+    { left: 60, top: 200 },
+    { left: 200, top: 180 },
+  ];
+
+  return (
+    <View style={{ position: "relative" }}>
+      {children}
+      {particles.map((p, i) => {
+        const translateY = anim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, -10, 0],
+        });
+        const scale = anim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0.8, 1.2, 0.8],
+        });
+        const opacity = anim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, 1, 0],
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: "absolute",
+              left: p.left,
+              top: p.top,
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: "#FFD700",
+              transform: [{ translateY }, { scale }],
+              opacity,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+};
 import thankYouJson from "../assets/thank-you.json";
 import runningCartJson from "../assets/running-cart.json";
 
@@ -109,7 +169,7 @@ export default function Cart() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.empty}>
+        <GoldenParticles><View style={styles.empty}>
           <Image
             source={require("../assets/images/empty_cart.png")}
             style={styles.emptyImage}
@@ -132,7 +192,7 @@ export default function Cart() {
               <Text style={styles.exploreBtnText}>EXPLORE MENU</Text>
             </LinearGradient>
           </TouchableOpacity>
-        </View>
+        </View></GoldenParticles>
       </SafeAreaView>
     );
   }
@@ -154,7 +214,7 @@ export default function Cart() {
 
       <Animated.View style={{ flex: 1, opacity: fade }}>
         {cart.length === 0 ? (
-          <View style={styles.empty}>
+          <GoldenParticles><View style={styles.empty}>
             <View style={styles.imageContainer}>
               <Image source={require("../assets/images/empty_cart.png")} style={styles.emptyImage} />
             </View>
@@ -176,7 +236,7 @@ export default function Cart() {
                 <Text style={styles.exploreBtnText}>EXPLORE MENU</Text>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
+          </View></GoldenParticles>
         ) : (
           <>
             <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>

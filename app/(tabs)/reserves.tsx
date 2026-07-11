@@ -11,16 +11,16 @@
  *  - Time slots: chip grid (unchanged).
  */
 
+import { OccasionSelector, OccasionType } from "@/src/components/reservations/OccasionSelector";
+import { ReservationSuccessModal } from "@/src/components/reservations/ReservationSuccessModal";
+import { SpecialRequestsInput } from "@/src/components/reservations/SpecialRequestsInput";
 import GoldDustLayer from "@/src/components/ui/GoldDustLayer";
 import { useApp } from "@/src/context/AppContext";
 import { useTabBarAnimation } from "@/src/context/TabBarAnimationContext";
 import { useTabBarScrollHandler } from "@/src/hooks/useTabBarScrollHandler";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { OccasionSelector, OccasionType } from "@/src/components/reservations/OccasionSelector";
-import { SpecialRequestsInput } from "@/src/components/reservations/SpecialRequestsInput";
-import { ReservationSuccessModal } from "@/src/components/reservations/ReservationSuccessModal";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -30,7 +30,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -344,7 +343,7 @@ function TappableField({
               activeOpacity={1}
               style={[tf.pill, error ? tf.pillError : null]}
             >
-              <Ionicons name={icon as any} size={14} color={GOLD} />
+              <Ionicons name={icon as any} size={12} color={GOLD} />
               <TextInput
                 ref={inputRef}
                 style={[tf.pillText, !value && tf.pillPlaceholder]}
@@ -391,21 +390,21 @@ function TappableField({
 const tf = StyleSheet.create({
   wrap: { flex: 1 },
   label: {
-    color: "#C9A84C", fontSize: 10, fontWeight: "800",
+    color: "#C9A84C", fontSize: 10, fontWeight: "500",
     letterSpacing: 1.5, marginBottom: 8,
   },
   pill: {
-    flexDirection: "row", alignItems: "center", gap: 8,
+    flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#000000",
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1, borderColor: "rgba(201, 168, 76, 0.15)",
-    paddingHorizontal: 12, paddingVertical: 13,
+    paddingHorizontal: 8, paddingVertical: 3,
   },
   pillError: { borderColor: "#e85555" },
   pillText: {
-    flex: 1, color: WHITE, fontSize: 14, fontWeight: "500",
+    flex: 1, color: WHITE, fontSize: 10, fontWeight: "500",
   },
-  pillPlaceholder: { color: "#555555" },
+  pillPlaceholder: { color: "#777777" },
   errText: { color: "#e85555", fontSize: 10, marginTop: 4, letterSpacing: 0.3 },
   clearBtn: {
     padding: 2,
@@ -1019,6 +1018,18 @@ function BookingWidget({
   return (
     <View style={{ width: "100%" }}>
       <Animated.View style={[widget.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <ImageBackground
+          source={require("../../assets/images/table_back.jpg")}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+        {/* Dark overlay to make form inputs readable */}
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: "rgba(0, 0, 0, 0.78)" },
+          ]}
+        />
         {/* Title (Legend overlaying the top border) */}
         <View style={widget.titleRow}>
           <View style={widget.titleTextWrap}>
@@ -1366,13 +1377,13 @@ const widget = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(201, 168, 76, 0.35)",
-    marginTop: 65,
+    marginTop: 120,
     marginBottom: 24,
-    overflow: "visible", // Set to visible so top-overlapping text renders correctly
+    overflow: "hidden", // Restrict image to rounded boundaries of the card
     position: "relative",
-    paddingTop: 70, // Keeps all form contents exactly in their original place
+    paddingTop: 40, // Keeps form contents closer to top title
     paddingHorizontal: 16,
-    paddingBottom: 80,
+    paddingBottom: 16, // Compact bottom margin
     ...Platform.select({
       ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.14, shadowRadius: 18 },
       android: { elevation: 8 },
@@ -1436,21 +1447,21 @@ const widget = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.5,
   },
-  row: { flexDirection: "row", gap: 10, paddingHorizontal: 4, marginBottom: 16 },
-  sectionPad: { paddingHorizontal: 4, marginBottom: 16 },
+  row: { flexDirection: "row", gap: 10, paddingHorizontal: 4, marginBottom: 8 },
+  sectionPad: { paddingHorizontal: 4, marginBottom: 8 },
   sectionLabel: {
     color: "#C9A84C", fontSize: 10, fontWeight: "800",
-    letterSpacing: 1.5, marginBottom: 8,
+    letterSpacing: 1.5, marginBottom: 4,
   },
   guestRow: {
     flexDirection: "row",
     gap: 6,
-    marginTop: 6,
+    marginTop: 3,
   },
   guestChip: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: "rgba(14, 14, 14, 0.7)",
     borderWidth: 1,
     borderColor: "rgba(201, 168, 76, 0.15)",
@@ -1463,7 +1474,7 @@ const widget = StyleSheet.create({
   },
   guestChipText: {
     color: "#777",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "600",
   },
   guestChipTextActive: {
@@ -2215,7 +2226,7 @@ export default function Reserves() {
                     setActiveTokenName(name);
                     setTokenModalVisible(true);
                   }}
-                  onCancel={() => {}}
+                  onCancel={() => { }}
                   onBookAgain={handleBookAgainFromHistory}
                 />
               ))}
@@ -2484,6 +2495,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: `${GOLD}20`,
+    marginTop: 44,
     marginBottom: 20,
     overflow: "hidden",
   },

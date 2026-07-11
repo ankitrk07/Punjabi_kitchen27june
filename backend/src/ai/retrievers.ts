@@ -67,6 +67,27 @@ export class MenuRetriever {
     // Return a generous list of candidates (up to 15) so the Stage 2 LLM can perform semantic reasoning and ranking!
     return results.slice(0, 15);
   }
+
+  async retrieveByName(name: string) {
+    return await this.prisma.dish.findMany({
+      where: {
+        name: {
+          contains: name,
+          mode: "insensitive"
+        }
+      }
+    });
+  }
+
+  async retrieveByIds(ids: string[]) {
+    return await this.prisma.dish.findMany({
+      where: {
+        id: {
+          in: ids
+        }
+      }
+    });
+  }
 }
 
 export class OfferRetriever {

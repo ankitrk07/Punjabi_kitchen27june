@@ -1,27 +1,27 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Dimensions,
-  Clipboard,
-  NativeScrollEvent,
-  NativeSyntheticEvent
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@/src/theme";
+import { API_BASE_URL } from "@/src/config/api";
 import { useApp } from "@/src/context/AppContext";
+import { colors } from "@/src/theme";
 import { getDishImageSource } from "@/src/utils/dishImages";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+    ActivityIndicator,
+    Clipboard,
+    Dimensions,
+    KeyboardAvoidingView,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { API_BASE_URL } from "@/src/config/api";
 
 type ChatMessage = {
   id: string;
@@ -34,14 +34,16 @@ type ChatMessage = {
   reservations?: any[];
   orders?: any[];
   navigation?: string | null;
+  // optional intentId from backend response for demo stateful flow
+  intentId?: string;
 };
 
 const SUGGESTIONS = [
-  "🔥 Spicy main course",
-  "🌱 Pure veg under ₹300",
-  "🥜 Gluten/Allergen check",
-  "🎁 Active promo offers",
-  "📅 Book a table",
+  "Spicy main course",
+  "Pure veg under ₹300",
+  "Gluten/Allergen check",
+  "Active promo offers",
+  "Book a table",
 ];
 
 const FormattedText = ({ text, isUser }: { text: string; isUser: boolean }) => {
@@ -117,11 +119,11 @@ const FormattedText = ({ text, isUser }: { text: string; isUser: boolean }) => {
 
 export default function AIWaiterScreen() {
   const router = useRouter();
-  const { dishes, offers, addToCart, user } = useApp();
+  const { dishes, offers, addToCart, user, cart } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome-1",
-      text: "Namaste! I am Tadka, your personal AI Waiter. 🍲\n\nI can suggest the perfect meal matching your budget, spice tolerance, or dietary needs. Go ahead, ask me anything!",
+      text: "Namaste! I am Tadka, your personal AI Waiter.\n\nI can suggest the perfect meal matching your budget, spice tolerance, or dietary needs. Go ahead, ask me anything!",
       sender: "tadka",
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
@@ -134,6 +136,7 @@ export default function AIWaiterScreen() {
   const [dictationText, setDictationText] = useState("Listening...");
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [lastIntentId, setLastIntentId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const handleSend = async (textToSend?: string) => {
@@ -153,18 +156,19 @@ export default function AIWaiterScreen() {
 
     try {
       const response = await fetch(`${API_BASE_URL}/ai/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userEmail: user?.email || "",
-          messages: messages
-            .concat(userMsg)
-            .map(m => ({
-              role: m.sender === "user" ? "user" : "assistant",
-              content: m.text
-            }))
-        })
-      });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userEmail: user?.email || "",
+            lastIntentId: lastIntentId || undefined,
+            messages: messages
+              .concat(userMsg)
+              .map(m => ({
+                role: m.sender === "user" ? "user" : "assistant",
+                content: m.text
+              }))
+          })
+        });
 
       if (!response.ok) {
         throw new Error(`Server returned status ${response.status}`);
@@ -172,6 +176,10 @@ export default function AIWaiterScreen() {
 
       const data = await response.json();
       const replyText = data.text || data.choices?.[0]?.message?.content || "I apologize, but I am having trouble connecting to the kitchen. Can you repeat that?";
+      // Update lastIntentId from backend response for demo stateful flow
+      if (data.intentId) {
+        setLastIntentId(data.intentId);
+      }
       
       // Client-side regex extraction for dishes and offers
       const dishRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
@@ -204,43 +212,31 @@ export default function AIWaiterScreen() {
         : offers.filter((o: any) => parsedOfferIds.includes(o.id) || parsedOfferIds.includes(o.code));
 
       if (data.quickReplies && data.quickReplies.length > 0) {
-        setSuggestions(data.quickReplies);
+        setSuggestions(data.quickReplies.filter((s: string) => !s.toLowerCase().includes("cart")));
       }
 
-      // Add placeholder message with empty text, then stream the actual text character-by-character
-      const placeholderId = (Date.now() + 1).toString();
+      // Add the complete message immediately to prevent flickering
       const tadkaMsg: ChatMessage = {
-        id: placeholderId,
-        text: "",
-        sender: "tadka",
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        dishes: matchedDishes,
-        offers: matchedOffers,
-        reservations: data.reservations || [],
-        orders: data.orders || [],
-        navigation: data.navigation
-      };
+          id: (Date.now() + 1).toString(),
+          text: cleanedReplyText,
+          sender: "tadka",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          dishes: matchedDishes,
+          offers: matchedOffers,
+          reservations: data.reservations || [],
+          orders: data.orders || [],
+          navigation: data.navigation,
+          intentId: data.intentId
+        };
 
       setMessages((prev) => [...prev, tadkaMsg]);
       setIsTyping(false);
-
-      // Stream text generation simulation
-      let currentLength = 0;
-      const interval = setInterval(() => {
-        currentLength += Math.ceil(cleanedReplyText.length / 25);
-        if (currentLength >= cleanedReplyText.length) {
-          clearInterval(interval);
-          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: cleanedReplyText } : m));
-          
-          if (data.navigation) {
-            setTimeout(() => {
-              router.push(data.navigation);
-            }, 1800);
-          }
-        } else {
-          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: cleanedReplyText.substring(0, currentLength) } : m));
-        }
-      }, 35);
+      
+      if (data.navigation) {
+        setTimeout(() => {
+          router.push(data.navigation);
+        }, 1500);
+      }
 
     } catch (err) {
       console.error("AI chat request failed:", err);
@@ -387,17 +383,8 @@ export default function AIWaiterScreen() {
           >
             <FormattedText text={msg.text} isUser={isUser} />
 
-            {/* Speaker icon for Tadka replies */}
             {!isUser && msg.text.length > 0 && (
               <View style={styles.bubbleFooter}>
-                <TouchableOpacity style={styles.speakerBtn} onPress={() => speakMessage(msg)}>
-                  <Ionicons 
-                    name={msg.isSpeaking ? "radio-outline" : "volume-low-outline"} 
-                    size={16} 
-                    color={msg.isSpeaking ? colors.goldBright : colors.textSecondary} 
-                  />
-                  {msg.isSpeaking && <Text style={styles.speakingText}>Speaking...</Text>}
-                </TouchableOpacity>
                 <Text style={styles.bubbleTime}>{msg.time}</Text>
               </View>
             )}
@@ -408,7 +395,7 @@ export default function AIWaiterScreen() {
         {!isUser && (
           <View style={styles.outerCardsWrapper}>
             {/* Structured Navigation Action */}
-            {msg.navigation && (
+            {msg.navigation && !msg.navigation.toLowerCase().includes("cart") && (
               <TouchableOpacity 
                 style={styles.navCard}
                 onPress={() => router.push(msg.navigation as any)}
@@ -523,8 +510,8 @@ export default function AIWaiterScreen() {
                     
                     <View style={styles.progressLine}>
                       <View style={[styles.progressSegment, { backgroundColor: colors.gold }]} />
-                      <View style={[styles.progressSegment, { backgroundColor: ["Preparing", "Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
-                      <View style={[styles.progressSegment, { backgroundColor: ["Ready", "On the Way", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
+                      <View style={[styles.progressSegment, { backgroundColor: ["Preparing", "Ready", "On the Way", "Out for Delivery", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
+                      <View style={[styles.progressSegment, { backgroundColor: ["Ready", "On the Way", "Out for Delivery", "Delivered"].includes(o.status) ? colors.gold : "#262626" }]} />
                       <View style={[styles.progressSegment, { backgroundColor: o.status === "Delivered" ? colors.gold : "#262626" }]} />
                     </View>
                   </View>
@@ -537,18 +524,47 @@ export default function AIWaiterScreen() {
     );
   };
 
+  const cartItemCount = cart?.reduce((acc, item) => acc + item.qty, 0) || 0;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       {/* Fixed Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.replace("/(tabs)/profile")}
+          onPress={() => router.back()}
           style={styles.iconBtn}
         >
           <Ionicons name="chevron-back" size={22} color={colors.gold} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tadka: AI Waiter</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={() => router.push("/cart")}
+          style={styles.iconBtn}
+        >
+          <Ionicons name="cart" size={20} color={colors.gold} />
+          {cartItemCount > 0 && (
+            <View style={{
+              position: "absolute",
+              top: -4,
+              right: -4,
+              backgroundColor: colors.gold,
+              borderRadius: 8,
+              minWidth: 16,
+              height: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              paddingHorizontal: 3,
+            }}>
+              <Text style={{
+                color: "#000",
+                fontSize: 9,
+                fontWeight: "900",
+              }}>
+                {cartItemCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -566,13 +582,6 @@ export default function AIWaiterScreen() {
             <Text style={styles.assistantName}>Tadka (Smart Assistant)</Text>
             <Text style={styles.assistantStatus}>Virtual AI Waiter • Answers instantly</Text>
           </View>
-          
-          <TouchableOpacity 
-            style={[styles.playbackToggle, !isVoicePlaybackEnabled && styles.playbackDisabled]} 
-            onPress={() => setIsVoicePlaybackEnabled(!isVoicePlaybackEnabled)}
-          >
-            <Ionicons name={isVoicePlaybackEnabled ? "volume-medium-outline" : "volume-mute-outline"} size={18} color={isVoicePlaybackEnabled ? colors.gold : colors.textSecondary} />
-          </TouchableOpacity>
         </View>
 
         {/* Message Feed */}
@@ -600,7 +609,7 @@ export default function AIWaiterScreen() {
                   <TouchableOpacity 
                     key={idx} 
                     style={styles.welcomeSuggestionChip}
-                    onPress={() => handleSend(item.replace(/[🌱🔥🥜🍜🎁🛒👉]/g, '').trim())}
+                    onPress={() => handleSend(item.trim())}
                   >
                     <Text style={styles.welcomeSuggestionText}>{item}</Text>
                   </TouchableOpacity>
@@ -636,7 +645,7 @@ export default function AIWaiterScreen() {
           <View style={styles.suggestionsContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
               {suggestions.map((sug, i) => (
-                <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.replace(/[🌱🔥🥜🍜🎁🛒👉]/g, '').trim())}>
+                <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => handleSend(sug.trim())}>
                   <Text style={styles.suggestionText}>{sug}</Text>
                 </TouchableOpacity>
               ))}
@@ -654,11 +663,8 @@ export default function AIWaiterScreen() {
               value={inputText}
               onChangeText={setInputText}
               onSubmitEditing={() => handleSend()}
+              autoCapitalize="none"
             />
-            
-            <TouchableOpacity style={styles.micBtn} onPress={handleDictationStart}>
-              <Ionicons name="mic" size={20} color={colors.gold} />
-            </TouchableOpacity>
           </View>
           
           <TouchableOpacity style={styles.sendBtn} onPress={() => handleSend()}>

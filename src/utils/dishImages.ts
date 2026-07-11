@@ -234,9 +234,10 @@ const LOCAL_IMAGES: Record<string, any> = {
 };
 
 export const getDishImageSource = (dishId: string, serverPath: string) => {
+  // 1. Prioritize dynamic/custom dishes from backend or external URLs first
   if (serverPath && typeof serverPath === "string" && serverPath.trim() !== "") {
     // Prefer remote external URLs directly
-    if (serverPath.startsWith("http://") || serverPath.startsWith("https://")) {
+    if (serverPath.startsWith("http://") || serverPath.startsWith("https://") || serverPath.startsWith("file://")) {
       return { uri: serverPath };
     }
     // Prefer backend uploaded assets from database
@@ -245,9 +246,10 @@ export const getDishImageSource = (dishId: string, serverPath: string) => {
     }
   }
 
-  // Fallback to local bundled static assets
+  // 2. Fallback to local bundled static assets if serverPath is not available
   const local = LOCAL_IMAGES[dishId];
   if (local) return local;
 
+  // 3. Ultimate fallback
   return { uri: resolveImageUrl(serverPath) };
 };

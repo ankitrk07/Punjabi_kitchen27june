@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   Dimensions,
   Image,
@@ -25,6 +25,7 @@ import {
   withRepeat,
   withSpring,
   withTiming,
+  FadeInDown,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -354,29 +355,27 @@ const SubItem = React.memo(function SubItem({
         onPress={handlePress}
         activeOpacity={0.8}
       >
-        <View style={styles.sectionItemGradient}>
-          <View style={styles.itemLeft}>
-            <View style={styles.itemIcon}>
-              <Ionicons name={item.icon as any} size={level === 0 ? 18 : 14} color={GOLD} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.itemLabel, level > 0 && styles.subItemLabel]}>{item.label}</Text>
-              {item.sub && <Text style={styles.itemSub}>{item.sub}</Text>}
-            </View>
+        <View style={styles.itemLeft}>
+          <View style={styles.itemIcon}>
+            <Ionicons name={item.icon as any} size={level === 0 ? 18 : 14} color={GOLD} />
           </View>
-          <View style={styles.itemRight}>
-            {item.value && (
-              <Text style={[styles.itemValue, item.valueColor && { color: item.valueColor }]}>
-                {item.value}
-              </Text>
-            )}
-            {hasSubItems && (
-              <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={GOLD} />
-            )}
-            {!hasSubItems && !item.subItems && (
-              <Ionicons name="chevron-forward" size={16} color={MUTED} />
-            )}
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.itemLabel, level > 0 && styles.subItemLabel]}>{item.label}</Text>
+            {item.sub && <Text style={styles.itemSub}>{item.sub}</Text>}
           </View>
+        </View>
+        <View style={styles.itemRight}>
+          {item.value && (
+            <Text style={[styles.itemValue, item.valueColor && { color: item.valueColor }]}>
+              {item.value}
+            </Text>
+          )}
+          {hasSubItems && (
+            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={GOLD} />
+          )}
+          {!hasSubItems && !item.subItems && (
+            <Ionicons name="chevron-forward" size={16} color={MUTED} />
+          )}
         </View>
       </TouchableOpacity>
 
@@ -491,10 +490,7 @@ function SingleParticle({ index, total }: { index: number; total: number }) {
           height: params.size,
           borderRadius: params.size / 2,
           backgroundColor: "#C9A84C",
-          shadowColor: "#C9A84C",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
-          shadowRadius: params.size / 2,
+          opacity: 0.7,
           alignSelf: "center",
         },
         animatedStyle,
@@ -504,7 +500,7 @@ function SingleParticle({ index, total }: { index: number; total: number }) {
 }
 
 function AvatarGlowParticles() {
-  const total = 45;
+  const total = 10;
   return (
     <View style={{
       position: "absolute",
@@ -563,7 +559,6 @@ const PremiumHeader = React.memo(function PremiumHeader({
         source={require("../../assets/images/PBG.png")}
         style={styles.heroBg}
         resizeMode="contain"
-        imageStyle={{ transform: [{ translateY: -10 }] }}
       >
         <LinearGradient
           colors={["rgba(8,8,8,0.0)", "rgba(8,8,8,0.3)", "rgba(8,8,8,0.7)"]}
@@ -588,21 +583,20 @@ const PremiumHeader = React.memo(function PremiumHeader({
 
         {/* Avatar — Centered */}
         <View style={styles.heroAvatarWrap}>
-          <TouchableOpacity onPress={onChangePhoto} activeOpacity={0.9} style={{ position: "relative" }}>
+          <View style={{ position: "relative" }}>
             <AvatarGlowParticles />
             <LinearGradient colors={[GOLD, GOLD_LIGHT, GOLD]} style={styles.heroAvatarRing}>
               <Image source={{ uri: avatarUri }} style={styles.heroAvatar} />
             </LinearGradient>
-          </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Name + Email */}
+        {/* Name */}
         <View style={styles.heroInfo}>
           <View style={styles.heroNameRow}>
             <Text style={styles.heroName}>{user?.name || "Sudip"}</Text>
             <Ionicons name="checkmark-circle" size={18} color={GREEN} style={{ marginLeft: 6 }} />
           </View>
-          <Text style={styles.heroEmail}>{user?.email || "sudip@dineout.com"}</Text>
         </View>
       </ImageBackground>
     </Reanimated.View>
@@ -775,17 +769,20 @@ const MembershipCard = React.memo(function MembershipCard() {
 // Dynamic Navigation Registry
 // ─────────────────────────────────────────────────────────────────────────────
 const ROUTE_MAP: Record<string, string> = {
-  // Orders
+  // Orders & SubItems
+  "my-orders": "/orders/history",
   "ongoing": "/orders/ongoing",
   "past": "/orders/past",
-  "reorder-fav": "/orders/reorder-favorites",
+  "reorder-fav": "/profile/favorites/favorite-orders",
   "track": "/orders/track",
-  "scheduled": "/orders/scheduled",
-  "shared-orders": "/orders/shared-orders",
+  "train": "/orders/train",
   "enter-pnr": "/orders/train/enter-pnr",
   "track-train": "/orders/train/track",
   "prev-train": "/profile/orders/train/previous",
-  "split-payments": "/profile/orders/group",
+  "scheduled": "/orders/scheduled",
+  "group": "/orders/group",
+  "shared-orders": "/orders/shared-orders",
+  "split-payments": "/orders/group",
 
   // Favorites
   "saved-dishes": "/profile/favorites/saved-dishes",
@@ -793,12 +790,16 @@ const ROUTE_MAP: Record<string, string> = {
   "fav-orders": "/profile/favorites/favorite-orders",
 
   // Rewards
+  "loyalty": "/profile/rewards/rewards",
   "loyalty-points": "/profile/rewards/loyalty-points",
   "cashback": "/profile/rewards/cashback",
+  "coupons": "/profile/rewards/coupons",
   "available": "/profile/rewards/coupons",
   "used": "/profile/rewards/coupons",
+  "gift": "/profile/rewards/gift-cards",
   "buy-gift": "/profile/rewards/gift-cards",
   "redeem-gift": "/profile/rewards/gift-cards",
+  "referral": "/profile/rewards/referral",
   "invite-friends": "/profile/rewards/referral",
   "referral-earnings": "/profile/rewards/referral",
 
@@ -806,10 +807,12 @@ const ROUTE_MAP: Record<string, string> = {
   "manage-addresses": "/profile/addresses",
 
   // Payments
+  "methods": "/profile/payments/methods",
   "cards": "/profile/payments/cards",
   "upi": "/profile/payments/upi",
   "netbanking": "/profile/payments/netbanking",
   "wallets": "/profile/payments/wallets",
+  "history": "/profile/payments/history",
   "order-payments": "/profile/payments/history",
   "refunds": "/profile/payments/refunds",
   "saved-methods": "/profile/payments/methods",
@@ -830,6 +833,7 @@ const ROUTE_MAP: Record<string, string> = {
   "call": "/profile/support/call",
 
   // Restaurant
+  "dining": "/(tabs)/reserves",
   "upcoming": "/profile/restaurant/upcoming",
   "past-reservations": "/profile/restaurant/history",
   "catering": "/profile/restaurant/catering",
@@ -854,11 +858,135 @@ const ROUTE_MAP: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Announcement Banner from Admin
+// ─────────────────────────────────────────────────────────────────────────────
+function AnnouncementBanner({
+  notifications,
+}: {
+  notifications: any[];
+}) {
+  const [dismissed, setDismissed] = useState<string[]>([]);
+
+  const activeAnnouncement = useMemo(() => {
+    if (!notifications || notifications.length === 0) return null;
+    const announcements = notifications.filter(
+      (n) => n.type === "Announcement"
+    );
+    if (announcements.length === 0) return null;
+    return announcements[0]; // Get the latest announcement
+  }, [notifications]);
+
+  if (!activeAnnouncement || dismissed.includes(activeAnnouncement.id)) {
+    return null;
+  }
+
+  return (
+    <Animated.View
+      entering={FadeInDown.springify().damping(16).mass(0.8)}
+      style={{
+        marginHorizontal: 16,
+        marginTop: 12,
+        marginBottom: 8,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: "rgba(212, 175, 55, 0.35)",
+        backgroundColor: "rgba(18, 12, 8, 0.96)",
+        shadowColor: "#D4AF37",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 8,
+        overflow: "hidden",
+      }}
+    >
+      <LinearGradient
+        colors={["rgba(212, 175, 55, 0.15)", "rgba(18, 12, 8, 0.3)", "transparent"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+        style={{ padding: 16 }}
+      >
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <View style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "rgba(212, 175, 55, 0.14)",
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: "rgba(212, 175, 55, 0.3)",
+          }}>
+            <Ionicons name="megaphone" size={20} color="#D4AF37" />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "rgba(212, 175, 55, 0.1)",
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 20,
+                borderWidth: 0.5,
+                borderColor: "rgba(212, 175, 55, 0.2)",
+              }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#E5C158" }} />
+                <Text style={{ color: "#E5C158", fontWeight: "800", fontSize: 10, letterSpacing: 0.8 }}>
+                  OFFICIAL ANNOUNCEMENT
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDismissed(prev => [...prev, activeAnnouncement.id])}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={14} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 15, marginTop: 10, letterSpacing: 0.2 }}>
+              {activeAnnouncement.title}
+            </Text>
+            
+            <Text style={{ color: "rgba(255, 255, 255, 0.75)", fontSize: 12, marginTop: 6, lineHeight: 18, fontWeight: "500" }}>
+              {activeAnnouncement.message}
+            </Text>
+
+            {activeAnnouncement.createdAt && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 }}>
+                <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.4)" />
+                <Text style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: 10, fontWeight: "600" }}>
+                  {new Date(activeAnnouncement.createdAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Profile Screen
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Profile() {
   const router = useRouter();
-  const { user, signOut, updateUser } = useApp();
+  const { user, signOut, updateUser, notifications } = useApp();
   const insets = useSafeAreaInsets();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const scrollY = useSharedValue(0);
@@ -917,17 +1045,12 @@ export default function Profile() {
           onEdit={() => handleItemPress("edit-profile")}
           onChangePhoto={handlePickImage}
           isGold={isGold}
-          onNotifications={() => router.push("/profile/notifications/order-updates" as any)}
+          onNotifications={() => router.push("/profile/notifications/announcements" as any)}
           onSettings={() => router.push("/profile/settings")}
         />
 
         {/* Stats Card */}
         <StatsCard isGold={isGold} />
-
-
-
-        {/* Membership Card */}
-        {!isGold && <MembershipCard />}
 
         {/* Sections List */}
         <View style={styles.sectionsContainer}>
@@ -984,6 +1107,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 18,
+    marginTop: 10,
     marginBottom: 18,
   },
   goldMemberBadge: {
@@ -1047,7 +1171,8 @@ const styles = StyleSheet.create({
   // Avatar
   heroAvatarWrap: {
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 4,
+    marginTop: -25,
   },
   heroAvatarRing: {
     width: 110,
@@ -1336,22 +1461,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginHorizontal: 8,
-    marginVertical: 1,
+    marginVertical: 2,
     borderRadius: 11,
     borderWidth: 1,
     borderColor: `${GOLD}10`,
-    overflow: "hidden",
-  },
-  sectionItemGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 11,
     backgroundColor: "#0A0A0A",
   },
   subItem: { paddingLeft: 20, marginVertical: 1 },

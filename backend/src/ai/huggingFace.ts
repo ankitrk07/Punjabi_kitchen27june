@@ -34,21 +34,33 @@ export async function generateAssistantText(params: {
       throw new Error(`HF API HTTP ${response.status}`);
     }
 
-    const data = await response.json() as {
-      choices?: Array<{
-        message?: {
-          content?: string;
-        };
-      }>;
-    };
+    const data = (await response.json()) as any;
 
-    const content = data.choices?.[0]?.message?.content?.trim();
-
-    if (!content) {
-      throw new Error("HF API returned an empty response");
+    // Robust extraction of the assistant's response content.
+    // The Hugging Face chat completion endpoint may return the content in different shapes.
+    // Preferred: choices[0].message.content
+    // Fallbacks: choices[0].message, choices[0].text, generated_text
+    let content: string | undefined;
+    if (Array.isArray(data.choices) && data.choices.length > 0) {
+      const firstChoice = data.choices[0];
+      if (firstChoice?.message?.content) {
+        content = firstChoice.message.content;
+      } else if (firstChoice?.message) {
+        // Some models may return a plain message string.
+        content = typeof firstChoice.message === 'string' ? firstChoice.message : undefined;
+      } else if (firstChoice?.text) {
+        content = firstChoice.text;
+      }
     }
-
-    return content;
+    if (!content && typeof data?.generated_text === 'string') {
+      content = data.generated_text;
+    }
+    if (!content) {
+      // If still undefined, include the raw response for debugging.
+      console.error('HF response missing expected content:', JSON.stringify(data, null, 2));
+      throw new Error('HF API returned no content in response');
+    }
+    return content.trim();
   } finally {
     clearTimeout(timeoutId);
   }

@@ -8,6 +8,10 @@ import { AIService } from "./ai/aiService";
 
 dotenv.config();
 
+console.log("=========================================");
+console.log("DEMO_MODE at boot:", process.env.DEMO_MODE ? process.env.DEMO_MODE.trim() : undefined);
+console.log("=========================================");
+
 const app = express();
 const prisma = new PrismaClient();
 const aiService = new AIService(prisma);
@@ -31,6 +35,7 @@ const OFFERS = [
 
 // Static Deal of the Day states
 let manualDeal: any = null;
+let manualDeals: any[] = [];
 let cachedRandomDeal: any = null;
 let randomDealExpiry: number = 0; // timestamp
 
@@ -222,67 +227,86 @@ app.get("/api/deal-of-day", async (req, res) => {
 // Admin endpoint to override or reset Deal of the Day
 app.post("/api/admin/deal-of-day", (req, res) => {
   try {
-    const { title, dishName, price, originalPrice, image, desc, isAuto } = req.body;
+    const { title, dishName, price, originalPrice, image, desc, isAuto, clearAll } = req.body;
     if (isAuto) {
-      manualDeal = null;
+      manualDeals = [];
       cachedRandomDeal = null; // force regeneration
       randomDealExpiry = 0;
-      return res.json({ success: true, mode: "auto" });
+      return res.json({ success: true, mode: "auto", deals: [] });
     }
 
-    manualDeal = {
+    if (clearAll) {
+      manualDeals = [];
+      return res.json({ success: true, deals: [] });
+    }
+
+    const newDeal = {
+      id: "deal_" + Date.now(),
       title: title || "Deal of the Day",
       dishName,
       price: Number(price),
       originalPrice: Number(originalPrice),
       image,
-      desc
+      desc: desc || "Limited time deal!"
     };
-    res.json({ success: true, mode: "manual", deal: manualDeal });
+    manualDeals.push(newDeal);
+    res.json({ success: true, mode: "manual", deals: manualDeals });
   } catch (error: any) {
     console.error("Failed to set manual deal:", error);
     res.status(500).json({ error: error.message || "Failed to update deal" });
   }
 });
 
+// Admin endpoint to delete a manual deal
+app.delete("/api/admin/deal-of-day/:id", (req, res) => {
+  const { id } = req.params;
+  manualDeals = manualDeals.filter((d: any) => d.id !== id);
+  res.json({ success: true, deals: manualDeals });
+});
+
 app.get("/api/admin/deal-of-day-status", async (req, res) => {
   try {
-    const now = Date.now();
-    if (!manualDeal && (!cachedRandomDeal || now > randomDealExpiry)) {
-      const count = await prisma.dish.count();
-      if (count > 0) {
-        const randomIndex = Math.floor(Math.random() * count);
-        const randomDish = await prisma.dish.findFirst({
-          skip: randomIndex,
-        });
-        if (randomDish) {
-          const originalPrice = randomDish.price;
-          const price = Math.round(originalPrice * 0.75); // 25% discount
-          cachedRandomDeal = {
-            title: "Deal of the Day",
-            dishName: randomDish.name,
-            price,
-            originalPrice,
-            image: randomDish.image,
-            desc: randomDish.description || "Limited time deal of the day! Get 25% OFF."
-          };
-          randomDealExpiry = now + 60 * 60 * 1000;
-        }
-      }
-    }
+    res.json({
+      isAuto: manualDeals.length === 0,
+      manualDeals: manualDeals,
+      currentDeals: manualDeals.length > 0 ? manualDeals : staticFallbackDeals.slice(0, 3)
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to get deal status" });
+  }
+});
 
-    res.json({
-      isAuto: !manualDeal,
-      manualDeal,
-      currentDeal: manualDeal || cachedRandomDeal || staticFallbackDeals[0]
-    });
-  } catch (error) {
-    console.error("Status endpoint error:", error);
-    res.json({
-      isAuto: !manualDeal,
-      manualDeal,
-      currentDeal: manualDeal || staticFallbackDeals[0]
-    });
+// Admin endpoints for Offers
+app.post("/api/admin/offers", (req, res) => {
+  try {
+    const { title, code, desc, color } = req.body;
+    if (!title || !code) {
+      return res.status(400).json({ error: "Title and Code are required" });
+    }
+    const newOffer = {
+      id: "o_" + Date.now(),
+      title,
+      code,
+      desc: desc || "",
+      color: color || "#D4AF37"
+    };
+    OFFERS.push(newOffer);
+    res.json(newOffer);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/admin/offers/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const index = OFFERS.findIndex((o) => o.id === id);
+    if (index !== -1) {
+      OFFERS.splice(index, 1);
+    }
+    res.json({ success: true, offers: OFFERS });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1970,7 +1994,8 @@ async function getFallbackAIResponseWithContext(userMessage: string, dishes: any
 }
 
 app.post("/api/ai/chat", async (req, res) => {
-  const { messages, userEmail } = req.body;
+  console.log("!!!!! REQUEST HIT /api/ai/chat !!!!!", JSON.stringify(req.body).slice(0, 300));
+  const { messages, userEmail, lastIntentId } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: "Messages array is required in body" });
@@ -1978,7 +2003,7 @@ app.post("/api/ai/chat", async (req, res) => {
 
   try {
     const lastUserMessage = messages[messages.length - 1]?.content || "";
-    const result = await aiService.processMessage(lastUserMessage, messages, userEmail);
+    const result = await aiService.processMessage(lastUserMessage, messages, userEmail, lastIntentId);
     res.json(result);
   } catch (error: any) {
     console.error("AI Assistant request failed:", error);

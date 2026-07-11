@@ -234,28 +234,31 @@ const MOODS = [
   { label: "Chinese", cat: "chinese", icon: require("../../assets/images/chinese.png") },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. AnimatedPromoTicker & OfferDetailModal
-//    Continuous scrolling offer text marquee. Tap anywhere to expand all active deals.
-// ─────────────────────────────────────────────────────────────────────────────
 const ITEM_WIDTH = 550;
-const TOTAL_W = PROMO_OFFERS.length * ITEM_WIDTH;
-
 let _setModalVisible: ((visible: boolean) => void) | null = null;
 
 function AnimatedPromoTicker() {
+  const { offers } = useApp();
+  const activeOffers = (offers && offers.length > 0 ? offers : PROMO_OFFERS).map((o, idx) => ({
+    id: o.id || `o-${idx}`,
+    headline: o.title || (o as any).headline,
+    code: o.code,
+    sub: o.desc || (o as any).description || (o as any).sub || "",
+    icon: (o as any).icon || require("../../assets/images/offer1.png"),
+    accent: o.color || (o as any).accent || "#D4AF37"
+  }));
+
+  const totalW = activeOffers.length * ITEM_WIDTH;
   const translateX = useSharedValue(0);
 
   useFrameCallback((frameInfo) => {
     const timeDelta = frameInfo.timeSincePreviousFrame || 16.67;
-    // 0.025 pixels per millisecond (around 25px per second) - extremely slow and readable
     const speed = 0.025;
 
     translateX.value = translateX.value - speed * timeDelta;
 
-    // Smooth loop reset
-    if (translateX.value <= -TOTAL_W) {
-      translateX.value += TOTAL_W;
+    if (translateX.value <= -totalW) {
+      translateX.value += totalW;
     }
   });
 
@@ -263,7 +266,7 @@ function AnimatedPromoTicker() {
     transform: [{ translateX: translateX.value }],
   }));
 
-  const repeatedOffers = [...PROMO_OFFERS, ...PROMO_OFFERS, ...PROMO_OFFERS];
+  const repeatedOffers = [...activeOffers, ...activeOffers, ...activeOffers];
 
   return (
     <TouchableOpacity
@@ -278,7 +281,6 @@ function AnimatedPromoTicker() {
 
       <Animated.View style={[ticker.scrollRow, scrollStyle]}>
         {repeatedOffers.map((item, index) => {
-          // Combine headline and details into a single flat string to avoid nested text layout reflows
           const combinedText = `${item.headline} · ${item.sub}`;
           return (
             <View key={`${item.id}-${index}`} style={ticker.marqueeItem}>
@@ -286,7 +288,6 @@ function AnimatedPromoTicker() {
                 <Image
                   source={item.icon}
                   style={ticker.marqueeIcon}
-                  contentFit="contain"
                 />
                 <Text style={ticker.marqueeText} numberOfLines={1}>
                   {combinedText}
@@ -300,17 +301,6 @@ function AnimatedPromoTicker() {
           );
         })}
       </Animated.View>
-
-      <LinearGradient
-        colors={["rgba(14, 10, 8, 1)", "transparent"]}
-        start={{ x: 0, y: 0.5 }} end={{ x: 0.08, y: 0.5 }}
-        style={ticker.fadeLeft} pointerEvents="none"
-      />
-      <LinearGradient
-        colors={["transparent", "rgba(14, 10, 8, 1)"]}
-        start={{ x: 0.92, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-        style={ticker.fadeRight} pointerEvents="none"
-      />
     </TouchableOpacity>
   );
 }
@@ -320,6 +310,16 @@ function OfferDetailModal() {
   const [visible, setVisible] = useState(false);
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const { onScroll } = useTabBarScrollHandler(animatedTranslateY, hiddenOffset);
+  const { offers } = useApp();
+
+  const activeOffers = (offers && offers.length > 0 ? offers : PROMO_OFFERS).map((o, idx) => ({
+    id: o.id || `o-${idx}`,
+    headline: o.title || (o as any).headline,
+    code: o.code,
+    description: o.desc || (o as any).description || "",
+    accent: o.color || (o as any).accent || "#D4AF37",
+    icon: (o as any).icon || require("../../assets/images/offer1.png")
+  }));
 
   useEffect(() => {
     _setModalVisible = setVisible;
@@ -365,7 +365,7 @@ function OfferDetailModal() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={ticker.modalScrollContent}
         >
-          {PROMO_OFFERS.map((offer, index) => (
+          {activeOffers.map((offer, index) => (
             <View key={offer.id} style={ticker.offerItemContainer}>
               <View style={ticker.offerMainRow}>
                 {/* Contextual image wrapper */}
@@ -373,7 +373,6 @@ function OfferDetailModal() {
                   <Image
                     source={offer.icon}
                     style={ticker.offerIcon}
-                    contentFit="contain"
                   />
                 </View>
 
@@ -402,7 +401,7 @@ function OfferDetailModal() {
                 </TouchableOpacity>
               </View>
 
-              {index < PROMO_OFFERS.length - 1 && <View style={ticker.offerSeparator} />}
+              {index < activeOffers.length - 1 && <View style={ticker.offerSeparator} />}
             </View>
           ))}
         </Animated.ScrollView>
@@ -2225,11 +2224,132 @@ const divStyle = StyleSheet.create({
   line: { height: 0.5, width: "100%" },
 });
 
+function AnnouncementBanner({
+  notifications,
+}: {
+  notifications: any[];
+}) {
+  const [dismissed, setDismissed] = useState<string[]>([]);
+
+  const activeAnnouncement = useMemo(() => {
+    if (!notifications || notifications.length === 0) return null;
+    const announcements = notifications.filter(
+      (n) => n.type === "Announcement"
+    );
+    if (announcements.length === 0) return null;
+    return announcements[0]; // Get the latest announcement
+  }, [notifications]);
+
+  if (!activeAnnouncement || dismissed.includes(activeAnnouncement.id)) {
+    return null;
+  }
+
+  return (
+    <Animated.View
+      entering={FadeInDown.springify().damping(16).mass(0.8)}
+      style={{
+        marginHorizontal: 16,
+        marginTop: 12,
+        marginBottom: 8,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: "rgba(212, 175, 55, 0.35)",
+        backgroundColor: "rgba(18, 12, 8, 0.96)",
+        shadowColor: "#D4AF37",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 8,
+        overflow: "hidden",
+      }}
+    >
+      <LinearGradient
+        colors={["rgba(212, 175, 55, 0.15)", "rgba(18, 12, 8, 0.3)", "transparent"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+        style={{ padding: 16 }}
+      >
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <View style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "rgba(212, 175, 55, 0.14)",
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: "rgba(212, 175, 55, 0.3)",
+          }}>
+            <Ionicons name="megaphone" size={20} color="#D4AF37" />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "rgba(212, 175, 55, 0.1)",
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 20,
+                borderWidth: 0.5,
+                borderColor: "rgba(212, 175, 55, 0.2)",
+              }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#E5C158" }} />
+                <Text style={{ color: "#E5C158", fontWeight: "800", fontSize: 10, letterSpacing: 0.8 }}>
+                  OFFICIAL ANNOUNCEMENT
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setDismissed(prev => [...prev, activeAnnouncement.id])}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={14} color="rgba(255,255,255,0.6)" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 15, marginTop: 10, letterSpacing: 0.2 }}>
+              {activeAnnouncement.title}
+            </Text>
+            
+            <Text style={{ color: "rgba(255, 255, 255, 0.75)", fontSize: 12, marginTop: 6, lineHeight: 18, fontWeight: "500" }}>
+              {activeAnnouncement.message}
+            </Text>
+
+            {activeAnnouncement.createdAt && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 }}>
+                <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.4)" />
+                <Text style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: 10, fontWeight: "600" }}>
+                  {new Date(activeAnnouncement.createdAt).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HOME SCREEN — final composition with ALL changes integrated
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const { orders, reservations } = useApp();
+  const { orders, reservations, notifications } = useApp();
   const { animatedTranslateY, hiddenOffset } = useTabBarAnimation();
   const router = useRouter();
 
@@ -2255,6 +2375,25 @@ export default function Home() {
   useEffect(() => {
     apiClient.getDishes().then(setApiDishes).catch((e) => console.log("Failed to fetch dishes on home:", e));
   }, []);
+
+  const floatingAiStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      animatedTranslateY.value,
+      [0, hiddenOffset.value / 2],
+      [1, 0],
+      "clamp"
+    );
+    const scale = interpolate(
+      animatedTranslateY.value,
+      [0, hiddenOffset.value / 2],
+      [1, 0],
+      "clamp"
+    );
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
 
   const chefSpecials = useMemo(() => {
     const list = apiDishes.length > 0 ? apiDishes : DISHES;
@@ -2295,6 +2434,9 @@ export default function Home() {
 
           {/* 2. Greeting — "Hello" + user name, no PK logo */}
           <AnimatedGreeting />
+
+          {/* Announcement Banner from Admin */}
+          <AnnouncementBanner notifications={notifications} />
 
           {/* 3. Hero banner — food image bg + Punjabi Kitchen copy */}
           <AnimatedHeroBanner ordersLength={orders.length} scrollY={scrollY} />
@@ -2366,7 +2508,7 @@ export default function Home() {
       <OfferDetailModal />
 
       {/* Floating AI Waiter Mascot Trigger Button */}
-      <Animated.View style={styles.floatingAiBtnContainer}>
+      <Animated.View style={[styles.floatingAiBtnContainer, floatingAiStyle]}>
         <TouchableOpacity
           style={styles.floatingAiBtn}
           onPress={() => router.push("/profile/support/ai-waiter")}
@@ -2393,7 +2535,7 @@ const styles = StyleSheet.create({
   scroll: { zIndex: 1 },
   floatingAiBtnContainer: {
     position: "absolute",
-    bottom: 100,
+    bottom: 135,
     right: 20,
     zIndex: 999,
   },

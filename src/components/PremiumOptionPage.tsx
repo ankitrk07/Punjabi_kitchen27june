@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Switch } from "react-native";
+import { colors } from "@/src/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { colors } from "@/src/theme";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import ScreenHeader from "./ScreenHeader";
 
 type Props = {
@@ -406,6 +406,186 @@ export default function PremiumOptionPage({ title }: Props) {
           <TouchableOpacity style={styles.button} onPress={() => alert("Settings Saved!")}>
             <Text style={styles.buttonText}>Save Changes</Text>
           </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // -------------------------------------------------------------
+    // RESERVATIONS
+    // -------------------------------------------------------------
+    if (lowerTitle.includes("reservation")) {
+      return (
+        <View style={[styles.section, styles.reservationSection]}>
+          <View style={styles.reservationCard}>
+            <Ionicons name="calendar-outline" size={48} color={colors.gold} />
+            <Text style={styles.reservationTitle}>Book a Table</Text>
+            <Text style={styles.reservationDesc}>
+              Reserve your table at Punjabi Kitchen for a memorable dining experience.
+            </Text>
+            <TouchableOpacity style={styles.button} onPress={() => alert("Opening Reservation Form...")}>
+              <Text style={styles.buttonText}>Book Now</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.sectionTitle}>Upcoming Reservations</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>No upcoming reservations</Text>
+            <Text style={styles.cardDesc}>You haven't booked any tables yet.</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // -------------------------------------------------------------
+    // TERMS & CONDITIONS
+    // -------------------------------------------------------------
+    if (lowerTitle.includes("terms")) {
+      const terms = [
+        { section: "1. Acceptance of Terms", text: "By downloading, installing, or using the Punjabi Kitchen Mobile Application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the application." },
+        { section: "2. Account Registration", text: "You must create an account to place orders or make reservations. You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account." },
+        { section: "3. Ordering & Payments", text: "All orders placed are subject to acceptance by Punjabi Kitchen. Prices listed are in Indian Rupees (INR) and include applicable taxes unless stated otherwise. Payments must be made via approved online methods (UPI, Cards, Wallets) or Cash on Delivery where supported." },
+        { section: "4. Table Reservations", text: "Reservations are held for a maximum of 15 minutes past the scheduled time. Punjabi Kitchen reserves the right to release the table if guests do not arrive within this period." },
+        { section: "5. Cancellation & Refunds", text: "Orders can be cancelled before preparation starts. Refunds for prepaid orders will be processed to the original payment method within 5-7 business days." }
+      ];
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Terms & Conditions</Text>
+          <View style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gold, marginBottom: 8 }]}>Punjabi Kitchen User Agreement</Text>
+            <Text style={[styles.cardDesc, { marginBottom: 16, fontSize: 11 }]}>Last Updated: June 2026</Text>
+            {terms.map((t, index) => (
+              <View key={index} style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "bold", marginBottom: 4 }}>{t.section}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 18 }}>{t.text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    // -------------------------------------------------------------
+    // PRIVACY POLICY
+    // -------------------------------------------------------------
+    if (lowerTitle.includes("privacy") || lowerTitle.includes("policy")) {
+      const policies = [
+        { section: "1. Information We Collect", text: "We collect your name, email address, phone number, and location coordinates to process orders, facilitate reservations, and deliver food items directly to your address." },
+        { section: "2. How We Use Information", text: "Your data is used to customize your dining experience, notify you about order updates, award loyalty benefits, and coordinate with the delivery personnel." },
+        { section: "3. Location Tracking", text: "Our application requests background/foreground location access to track active delivery drivers and map your address coordinates using OpenStreetMap Leaflet services." },
+        { section: "4. Data Sharing & Security", text: "We do not sell your personal data. We only share information with partners (like payment gateways and delivery couriers) necessary to execute order transactions securely." }
+      ];
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Privacy Policy</Text>
+          <View style={styles.card}>
+            <Text style={[styles.cardTitle, { color: colors.gold, marginBottom: 8 }]}>Data Security & Privacy Guidelines</Text>
+            <Text style={[styles.cardDesc, { marginBottom: 16, fontSize: 11 }]}>Last Updated: June 2026</Text>
+            {policies.map((p, index) => (
+              <View key={index} style={{ marginBottom: 16 }}>
+                <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "bold", marginBottom: 4 }}>{p.section}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 18 }}>{p.text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    // -------------------------------------------------------------
+    // RATE APP
+    // -------------------------------------------------------------
+    if (lowerTitle.includes("rate")) {
+      const [rating, setRating] = useState(5);
+      const [comment, setComment] = useState("");
+      const [rated, setRated] = useState(false);
+
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Rate Our App</Text>
+          <View style={[styles.card, { alignItems: "center", paddingVertical: 24 }]}>
+            <Ionicons name="sparkles" size={40} color={colors.gold} style={{ marginBottom: 12 }} />
+            <Text style={[styles.cardTitle, { fontSize: 18, textAlign: "center" }]}>Enjoying Punjabi Kitchen?</Text>
+            <Text style={[styles.cardDesc, { textAlign: "center", marginHorizontal: 16, marginTop: 4, marginBottom: 20 }]}>
+              Your feedback helps us curate the best royal flavours and dining experience!
+            </Text>
+
+            {rated ? (
+              <View style={{ alignItems: "center", marginVertical: 10 }}>
+                <Ionicons name="checkmark-circle-outline" size={48} color={colors.success} />
+                <Text style={{ color: "#FFF", fontWeight: "bold", fontSize: 15, marginTop: 10 }}>Thank you for your rating!</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>We appreciate your valuable feedback.</Text>
+              </View>
+            ) : (
+              <View style={{ width: "100%", alignItems: "center" }}>
+                <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                      <Ionicons
+                        name={star <= rating ? "star" : "star-outline"}
+                        size={36}
+                        color={colors.gold}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TextInput
+                  style={[styles.input, { width: "100%", height: 80, textAlignVertical: "top", marginBottom: 16 }]}
+                  placeholder="Tell us what you love or how we can improve..."
+                  placeholderTextColor="#666"
+                  multiline
+                  value={comment}
+                  onChangeText={setComment}
+                />
+
+                <TouchableOpacity style={[styles.button, { width: "100%", marginTop: 0 }]} onPress={() => setRated(true)}>
+                  <Text style={styles.buttonText}>Submit Feedback</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    // -------------------------------------------------------------
+    // SHARE APP
+    // -------------------------------------------------------------
+    if (lowerTitle.includes("share")) {
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Share App</Text>
+          <View style={[styles.card, { alignItems: "center", paddingVertical: 32 }]}>
+            <Ionicons name="share-social-outline" size={48} color={colors.gold} style={{ marginBottom: 16 }} />
+            <Text style={[styles.cardTitle, { fontSize: 18, textAlign: "center" }]}>Spread the Royal Taste</Text>
+            <Text style={[styles.cardDesc, { textAlign: "center", marginHorizontal: 24, marginTop: 6, marginBottom: 24, lineHeight: 18 }]}>
+              Invite friends and family to join Punjabi Kitchen and experience royal Punjabi culinary feasts!
+            </Text>
+
+            <View style={{
+              width: "100%",
+              backgroundColor: "rgba(255,255,255,0.02)",
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 14,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 20
+            }}>
+              <Text style={{ color: "#FFF", fontSize: 12, flex: 1, marginRight: 12 }} numberOfLines={1}>
+                https://punjabikitchen.page.link/download
+              </Text>
+              <TouchableOpacity onPress={() => alert("App Link Copied!")}>
+                <Text style={{ color: colors.gold, fontWeight: "bold", fontSize: 11 }}>COPY LINK</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={[styles.button, { width: "100%", marginTop: 0 }]} onPress={() => alert("Open system share dialog...")}>
+              <Text style={styles.buttonText}>Share Now</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -910,5 +1090,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textPrimary,
     lineHeight: 20,
+  },
+  reservationCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.borderGold,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 20,
+    marginTop: -20,
+    zIndex: 10,
+  },
+  reservationTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.gold,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  reservationDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  reservationSection: {
+    paddingTop: 100,
   },
 });

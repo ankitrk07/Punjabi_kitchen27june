@@ -15,9 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, Platform, RefreshControl, Animated as RNAnimated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
-import Animated, { useSharedValue, FadeInDown, FadeOutUp, withSpring } from "react-native-reanimated";
+import Animated, { useSharedValue, FadeInDown, FadeOutUp, withSpring, FadeIn, FadeOut, ZoomIn, ZoomOut } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
+import { Image } from "expo-image";
+import { getDishImageSource } from "@/src/utils/dishImages";
 
 const ALL_FILTER = { id: "all", name: "All", icon: "grid", image: "" };
 
@@ -25,6 +28,19 @@ export type SortOption = "popular" | "price-asc" | "price-desc" | "rating";
 export type PriceRangeFilter = "all" | "under-200" | "200-350" | "above-350";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const SPECIAL_TAGS: Record<string, { label: string; bg: string; color: string; time: string; cal: string }> = {
+  "d-naan-1": { label: "BESTSELLER", bg: "rgba(212,175,55,0.9)", color: "#000", time: "12 mins", cal: "210 kcal" },
+  "d-naan-2": { label: "POPULAR", bg: "rgba(255,255,255,0.15)", color: "#FFF", time: "14 mins", cal: "240 kcal" },
+  "d-bir-1": { label: "CHEF PICK", bg: "rgba(229,87,34,0.9)", color: "#FFF", time: "25 mins", cal: "580 kcal" },
+  "d-bir-2": { label: "BESTSELLER", bg: "rgba(212,175,55,0.9)", color: "#000", time: "22 mins", cal: "520 kcal" },
+  "d-chk-1": { label: "MUST TRY", bg: "rgba(34,197,94,0.9)", color: "#000", time: "20 mins", cal: "490 kcal" },
+  "d-chk-2": { label: "SMOKY HOT", bg: "rgba(239,68,68,0.9)", color: "#FFF", time: "25 mins", cal: "410 kcal" },
+  "d-pan-2": { label: "ROYAL SPEC", bg: "rgba(168,85,247,0.9)", color: "#FFF", time: "18 mins", cal: "460 kcal" },
+  "d-dal-1": { label: "SLOW COOK", bg: "rgba(212,175,55,0.9)", color: "#000", time: "30 mins", cal: "380 kcal" },
+  "d-cs-1": { label: "SIGNATURE", bg: "rgba(212,175,55,0.95)", color: "#000", time: "25 mins", cal: "720 kcal" },
+  "d-cs-2": { label: "SEASONAL", bg: "rgba(34,197,94,0.9)", color: "#000", time: "20 mins", cal: "340 kcal" },
+};
 
 interface FlyingDishProps {
   startX: number;
@@ -212,9 +228,7 @@ export default function MenuScreen() {
     }
   }, [showCategoryModal]);
 
-  useEffect(() => {
-    setSelectedSubTab("all");
-  }, [selectedCategory]);
+
 
   const filters = useMemo(() => {
     const list = apiCategories && apiCategories.length > 0 ? apiCategories : CATEGORIES;
@@ -756,6 +770,24 @@ export default function MenuScreen() {
               onScroll={onModalScroll}
               scrollEventThrottle={16}
             >
+              {/* All Menu Items Selection */}
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedCategory("all");
+                  setSelectedSubTab("all");
+                  setShowCategoryModal(false);
+                }}
+                style={[
+                  styles.rootHeader,
+                  selectedCategory === "all" && styles.rootHeaderActive
+                ]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="grid" size={16} color={colors.gold} />
+                <Text style={styles.rootHeaderText}>All Menu Items</Text>
+                <Text style={styles.rootHeaderBadge}>Show All</Text>
+              </TouchableOpacity>
+
               {categoryTree.map((root) => {
                 const subCats = getSubCategories(root.id);
                 const hasSubCats = subCats.length > 0;
