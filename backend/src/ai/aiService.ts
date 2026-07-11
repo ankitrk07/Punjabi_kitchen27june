@@ -91,47 +91,67 @@ export class AIService {
     let allReservationsList: any[] = [];
 
     // Query dishes using structured semantic parameters
-    if (semantic.intent === "menu_recommendation" || semantic.intent === "menu_search" || semantic.entities.category || semantic.entities.spice) {
-      const dishes = await this.menuRetriever.retrieveSemantic({
-        category: (semantic.entities.category as any) || null,
-        veg: semantic.entities.veg !== undefined ? semantic.entities.veg : null,
-        maxPrice: semantic.entities.maxPrice || null,
-        taste: (semantic.entities.spice as any) || null
-      });
-      allDishesList = dishes;
-      menuContext = dishes.map(d => `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg} | Category: ${d.categoryId} | Description: ${d.description}`).join("\n");
-      console.log(`[Tadka AIService] Structured retrieval: fetched ${dishes.length} candidate dishes.`);
+    try {
+      if (semantic.intent === "menu_recommendation" || semantic.intent === "menu_search" || semantic.entities.category || semantic.entities.spice) {
+        const dishes = await this.menuRetriever.retrieveSemantic({
+          category: (semantic.entities.category as any) || null,
+          veg: semantic.entities.veg !== undefined ? semantic.entities.veg : null,
+          maxPrice: semantic.entities.maxPrice || null,
+          taste: (semantic.entities.spice as any) || null
+        });
+        allDishesList = dishes;
+        menuContext = dishes.map(d => `- ID: ${d.id} | Name: ${d.name} | Price: ₹${d.price} | Veg: ${d.veg} | Category: ${d.categoryId} | Description: ${d.description}`).join("\n");
+        console.log(`[Tadka AIService] Structured retrieval: fetched ${dishes.length} candidate dishes.`);
+      }
+    } catch (err: any) {
+      console.error("[Tadka AIService] Structured menu retrieval failed:", err.message);
     }
 
-    if (semantic.intent === "offers") {
-      const offers = await this.offerRetriever.retrieve();
-      allOffersList = offers;
-      offerContext = offers.map(o => `- Code: ${o.code} | Title: ${o.title} | Desc: ${o.desc}`).join("\n");
+    try {
+      if (semantic.intent === "offers") {
+        const offers = await this.offerRetriever.retrieve();
+        allOffersList = offers;
+        offerContext = offers.map(o => `- Code: ${o.code} | Title: ${o.title} | Desc: ${o.desc}`).join("\n");
+      }
+    } catch (err: any) {
+      console.error("[Tadka AIService] Offer retrieval failed:", err.message);
     }
 
-    if (semantic.intent === "order_status" && userEmail) {
-      const orders = await this.orderRetriever.retrieve(userEmail);
-      allOrdersList = orders;
-      orderContext = orders.map(o => `- Order ID: ${o.id} | Total: ₹${o.total} | Status: ${o.status} | CreatedAt: ${o.createdAt}`).join("\n");
+    try {
+      if (semantic.intent === "order_status" && userEmail) {
+        const orders = await this.orderRetriever.retrieve(userEmail);
+        allOrdersList = orders;
+        orderContext = orders.map(o => `- Order ID: ${o.id} | Total: ₹${o.total} | Status: ${o.status} | CreatedAt: ${o.createdAt}`).join("\n");
+      }
+    } catch (err: any) {
+      console.error("[Tadka AIService] Order retrieval failed:", err.message);
     }
 
-    if (semantic.intent === "reservations" && userEmail) {
-      const reservations = await this.reservationRetriever.retrieve(userEmail);
-      allReservationsList = reservations;
-      reservationContext = reservations.map(r => `- Reservation ID: ${r.id} | Date: ${r.reservationDate} | Slot: ${r.reservationSlot} | Table: #${r.tableNumber} | Guests: ${r.guests}`).join("\n");
+    try {
+      if (semantic.intent === "reservations" && userEmail) {
+        const reservations = await this.reservationRetriever.retrieve(userEmail);
+        allReservationsList = reservations;
+        reservationContext = reservations.map(r => `- Reservation ID: ${r.id} | Date: ${r.reservationDate} | Slot: ${r.reservationSlot} | Table: #${r.tableNumber} | Guests: ${r.guests}`).join("\n");
+      }
+    } catch (err: any) {
+      console.error("[Tadka AIService] Reservation retrieval failed:", err.message);
     }
 
-    if (userEmail) {
-      const user = await this.userRetriever.retrieve(userEmail);
-      if (user) {
-        userContext = `- Name: ${user.name} | Email: ${user.email} | Tier: ${user.membershipTier} | Favorites: ${user.favorites.join(", ")}`;
-        if (userMessage.toLowerCase().includes("favorite") || userMessage.toLowerCase().includes("favourite")) {
-          const favDishes = await this.prisma.dish.findMany({
-            where: { id: { in: user.favorites } }
-          });
-          allDishesList = [...allDishesList, ...favDishes];
+    try {
+      if (userEmail) {
+        const user = await this.userRetriever.retrieve(userEmail);
+        if (user) {
+          userContext = `- Name: ${user.name} | Email: ${user.email} | Tier: ${user.membershipTier} | Favorites: ${user.favorites.join(", ")}`;
+          if (userMessage.toLowerCase().includes("favorite") || userMessage.toLowerCase().includes("favourite")) {
+            const favDishes = await this.prisma.dish.findMany({
+              where: { id: { in: user.favorites } }
+            });
+            allDishesList = [...allDishesList, ...favDishes];
+          }
         }
       }
+    } catch (err: any) {
+      console.error("[Tadka AIService] User retrieval failed:", err.message);
     }
 
     if (semantic.intent === "faq") {
@@ -180,7 +200,7 @@ export class AIService {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+      const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-3-12b-it/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -286,8 +306,18 @@ export class AIService {
     }
 
     // 7. Dishes match (Enforce offline semantic filtering of sweet vs soup matching)
-    if (dishes.length > 0) {
-      let filteredDishes = [...dishes];
+    let candidateDishes = dishes;
+    if (candidateDishes.length === 0) {
+      candidateDishes = [
+        { id: "Dal_Makhani", name: "Dal Makhani", price: 240, description: "Creamy slow-cooked whole black lentils and kidney beans.", categoryId: "dal", veg: true },
+        { id: "Paneer_Tikka_Butter_Masala", name: "Paneer Tikka Butter Masala", price: 310, description: "Grilled cottage cheese cubes in rich, buttery, spiced tomato-cashew gravy.", categoryId: "main_course_veg", veg: true },
+        { id: "Butter_Naan", name: "Butter Naan", price: 60, description: "Leavened oven-baked flatbread brushed with rich melted butter.", categoryId: "breads", veg: true },
+        { id: "Tandoori_Chicken", name: "Tandoori Chicken", price: 360, description: "Classic chargrilled spiced chicken, perfect with mint chutney.", categoryId: "main_course_non_veg", veg: false }
+      ];
+    }
+
+    if (candidateDishes.length > 0) {
+      let filteredDishes = [...candidateDishes];
       
       // If taste is sweet, filter out soups offline
       if (semantic.entities.spice === "sweet") {

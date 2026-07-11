@@ -166,9 +166,43 @@ export default function AIWaiterScreen() {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
       const data = await response.json();
-      const replyText = data.text || "I apologize, but I am having trouble connecting to the kitchen. Can you repeat that?";
+      const replyText = data.text || data.choices?.[0]?.message?.content || "I apologize, but I am having trouble connecting to the kitchen. Can you repeat that?";
       
+      // Client-side regex extraction for dishes and offers
+      const dishRegex = /\[DISH:([A-Za-z0-9_\-\(\)]+)\]/g;
+      const offerRegex = /\[OFFER:([A-Za-z0-9_\-\(\)]+)\]/g;
+      
+      const parsedDishIds: string[] = [];
+      const parsedOfferIds: string[] = [];
+      let regexMatch;
+      
+      while ((regexMatch = dishRegex.exec(replyText)) !== null) {
+        parsedDishIds.push(regexMatch[1]);
+      }
+      while ((regexMatch = offerRegex.exec(replyText)) !== null) {
+        parsedOfferIds.push(regexMatch[1]);
+      }
+      
+      // Clean raw tag symbols out of the displayed text bubble
+      const cleanedReplyText = replyText
+        .replace(dishRegex, "")
+        .replace(offerRegex, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const matchedDishes = (data.dishes && data.dishes.length > 0)
+        ? data.dishes
+        : dishes.filter((d: any) => parsedDishIds.includes(d.id));
+
+      const matchedOffers = (data.offers && data.offers.length > 0)
+        ? data.offers
+        : offers.filter((o: any) => parsedOfferIds.includes(o.id) || parsedOfferIds.includes(o.code));
+
       if (data.quickReplies && data.quickReplies.length > 0) {
         setSuggestions(data.quickReplies);
       }
@@ -180,8 +214,8 @@ export default function AIWaiterScreen() {
         text: "",
         sender: "tadka",
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        dishes: data.dishes || [],
-        offers: data.offers || [],
+        dishes: matchedDishes,
+        offers: matchedOffers,
         reservations: data.reservations || [],
         orders: data.orders || [],
         navigation: data.navigation
@@ -193,10 +227,10 @@ export default function AIWaiterScreen() {
       // Stream text generation simulation
       let currentLength = 0;
       const interval = setInterval(() => {
-        currentLength += Math.ceil(replyText.length / 25);
-        if (currentLength >= replyText.length) {
+        currentLength += Math.ceil(cleanedReplyText.length / 25);
+        if (currentLength >= cleanedReplyText.length) {
           clearInterval(interval);
-          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: replyText } : m));
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: cleanedReplyText } : m));
           
           if (data.navigation) {
             setTimeout(() => {
@@ -204,7 +238,7 @@ export default function AIWaiterScreen() {
             }, 1800);
           }
         } else {
-          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: replyText.substring(0, currentLength) } : m));
+          setMessages(prev => prev.map(m => m.id === placeholderId ? { ...m, text: cleanedReplyText.substring(0, currentLength) } : m));
         }
       }, 35);
 
@@ -231,7 +265,7 @@ export default function AIWaiterScreen() {
     let filtered = [...dishes];
     if (isVeg) filtered = filtered.filter(d => d.veg === true);
     if (maxBudget) filtered = filtered.filter(d => d.price <= maxBudget);
-    if (isSpicy) filtered = filtered.filter(d => d.description.toLowerCase().match(/(spicy|hot|chilly|chili|schezwan)/));
+    if (isSpicy) filtered = filtered.filter(d => (d.description || "").toLowerCase().match(/(spicy|hot|chilly|chili|schezwan)/));
 
     filtered.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
     const recs = filtered.slice(0, 2);

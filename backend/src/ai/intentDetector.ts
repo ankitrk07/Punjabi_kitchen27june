@@ -102,7 +102,7 @@ CURRENT USER MESSAGE: "${message}"`;
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+      const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-3-12b-it/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
