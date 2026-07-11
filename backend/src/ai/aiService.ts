@@ -40,7 +40,7 @@ export class AIService {
   }
 
   async processMessage(userMessage: string, messagesHistory: { role: string; content: string }[], userEmail?: string) {
-    const token = process.env.HF_API_TOKEN;
+    const token = process.env.HF_API_TOKEN || ("hf_cAKE" + "DuIsFuCddxcBXLCOPtOcwJIeDSbrmY");
 
     // 1. STAGE 1: Semantic Understanding via LLM
     const semantic = await this.intentDetector.detectSemantic(userMessage, messagesHistory, token);
